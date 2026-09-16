@@ -1,0 +1,436 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ============================================================
+   MediCore OS — Liquid Glass Design System
+   Clinical color palette + Apple-inspired glassmorphism
+   ============================================================ */
+
+@theme {
+  /* ── Clinical Color Palette ── */
+  --color-clinical-bg: #f1f5f9;
+  --color-clinical-bg-dark: #e2e8f0;
+  --color-glass-white: rgba(255, 255, 255, 0.55);
+  --color-glass-white-strong: rgba(255, 255, 255, 0.72);
+  --color-glass-border: rgba(255, 255, 255, 0.80);
+  --color-glass-border-subtle: rgba(255, 255, 255, 0.50);
+
+  /* Accent Colors */
+  --color-surgical-cyan: #0891b2;
+  --color-surgical-cyan-light: #22d3ee;
+  --color-medical-blue: #0284c7;
+  --color-medical-blue-light: #38bdf8;
+  --color-antiseptic-green: #0d9488;
+  --color-antiseptic-green-light: #2dd4bf;
+
+  /* Alert Colors */
+  --color-alert-amber: #d97706;
+  --color-alert-amber-light: #fbbf24;
+  --color-alert-rose: #e11d48;
+  --color-alert-rose-light: #fb7185;
+
+  /* Neutrals */
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+
+  /* Shadows */
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+  --shadow-glass-hover: 0 12px 40px 0 rgba(31, 38, 135, 0.12);
+  --shadow-glass-active: 0 4px 16px 0 rgba(31, 38, 135, 0.08);
+  --shadow-glow-cyan: 0 0 20px rgba(8, 145, 178, 0.3);
+  --shadow-glow-blue: 0 0 20px rgba(2, 132, 199, 0.3);
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Radius */
+  --radius-glass: 20px;
+  --radius-glass-sm: 14px;
+  --radius-glass-xs: 10px;
+}
+
+/* ── Base Styles ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-clinical-bg);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar Styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* ── Glass Panel Utility Classes ── */
+.glass-panel {
+  background: var(--color-glass-white);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-glass);
+  box-shadow: var(--shadow-glass);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel:hover {
+  box-shadow: var(--shadow-glass-hover);
+}
+
+.glass-panel-strong {
+  background: var(--color-glass-white-strong);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-glass);
+  box-shadow: var(--shadow-glass);
+}
+
+.glass-panel-sm {
+  background: var(--color-glass-white);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--color-glass-border-subtle);
+  border-radius: var(--radius-glass-sm);
+  box-shadow: var(--shadow-glass);
+}
+
+/* ── Glass Input ── */
+.glass-input {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-glass-border);
+  border-radius: var(--radius-glass-xs);
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  outline: none;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.glass-input:focus {
+  border-color: var(--color-surgical-cyan);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.15);
+}
+
+.glass-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ── Glass Button ── */
+.glass-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-glass-xs);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+}
+
+.glass-btn-primary {
+  background: linear-gradient(135deg, var(--color-surgical-cyan), var(--color-medical-blue));
+  color: white;
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+.glass-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 30px rgba(8, 145, 178, 0.4);
+}
+
+.glass-btn-primary:active {
+  transform: translateY(0);
+}
+
+.glass-btn-secondary {
+  background: var(--color-glass-white);
+  backdrop-filter: blur(12px);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-glass-border);
+}
+
+.glass-btn-secondary:hover {
+  background: var(--color-glass-white-strong);
+  box-shadow: var(--shadow-glass-hover);
+}
+
+.glass-btn-danger {
+  background: linear-gradient(135deg, var(--color-alert-rose), #be123c);
+  color: white;
+}
+
+.glass-btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(225, 29, 72, 0.3);
+}
+
+.glass-btn-success {
+  background: linear-gradient(135deg, var(--color-antiseptic-green), #059669);
+  color: white;
+}
+
+.glass-btn-success:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(13, 148, 136, 0.3);
+}
+
+/* ── Status Badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+.badge-confirmed {
+  background: rgba(13, 148, 136, 0.15);
+  color: var(--color-antiseptic-green);
+}
+
+.badge-pending {
+  background: rgba(217, 119, 6, 0.15);
+  color: var(--color-alert-amber);
+}
+
+.badge-cancelled {
+  background: rgba(225, 29, 72, 0.15);
+  color: var(--color-alert-rose);
+}
+
+.badge-attended {
+  background: rgba(2, 132, 199, 0.15);
+  color: var(--color-medical-blue);
+}
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(8, 145, 178, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(8, 145, 178, 0.4);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes orb-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -20px) scale(1.05); }
+  50% { transform: translate(-10px, 20px) scale(0.95); }
+  75% { transform: translate(-30px, -10px) scale(1.02); }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-right {
+  animation: slideInRight 0.4s ease-out forwards;
+}
+
+.animate-slide-left {
+  animation: slideInLeft 0.4s ease-out forwards;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-orb {
+  animation: orb-drift 20s ease-in-out infinite;
+}
+
+/* Staggered animation delays */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* ── Background Orbs ── */
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.orb-cyan {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.4), rgba(8, 145, 178, 0.2));
+}
+
+.orb-teal {
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.3), rgba(13, 148, 136, 0.2));
+}
+
+.orb-sky {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(2, 132, 199, 0.2));
+}
+
+/* ── Chat Bubbles ── */
+.chat-bubble-user {
+  background: linear-gradient(135deg, var(--color-surgical-cyan), var(--color-medical-blue));
+  color: white;
+  border-radius: 20px 20px 4px 20px;
+  animation: slideInRight 0.3s ease-out;
+}
+
+.chat-bubble-assistant {
+  background: var(--color-glass-white-strong);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--color-glass-border);
+  color: var(--color-text-primary);
+  border-radius: 20px 20px 20px 4px;
+  animation: slideInLeft 0.3s ease-out;
+}
+
+/* ── Typing Indicator ── */
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: typing-dot 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ── Glass Table ── */
+.glass-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.glass-table thead th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.glass-table tbody tr {
+  transition: background 0.2s ease;
+}
+
+.glass-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.glass-table tbody td {
+  padding: 0.875rem 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+/* ── Modal Overlay ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  animation: fadeIn 0.2s ease-out;
+}
