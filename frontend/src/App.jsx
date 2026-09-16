@@ -4,18 +4,18 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import BackgroundOrbs from './components/BackgroundOrbs'
 import GlassNavbar from './components/GlassNavbar'
 
-import PortalSelector from './views/PortalSelector'
 import LoginView from './views/LoginView'
 import PacienteView from './views/PacienteView'
 import DoctorView from './views/DoctorView'
 import AdminView from './views/AdminView'
 
 /**
- * App — Root component with routing, auth state, and layout.
+ * App — Root component with centralized auth state and Apple Liquid Glass layout.
  */
 function AppContent() {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
+  const [loading, setLoading] = useState(true)
   const location = useLocation()
 
   // Check for stored auth on mount
@@ -23,9 +23,15 @@ function AppContent() {
     const storedToken = localStorage.getItem('medicore_token')
     const storedUser = localStorage.getItem('medicore_user')
     if (storedToken && storedUser) {
-      setToken(storedToken)
-      setUser(JSON.parse(storedUser))
+      try {
+        setToken(storedToken)
+        setUser(JSON.parse(storedUser))
+      } catch (e) {
+        localStorage.removeItem('medicore_token')
+        localStorage.removeItem('medicore_user')
+      }
     }
+    setLoading(false)
   }, [])
 
   const handleLogin = (userData, accessToken) => {
@@ -40,42 +46,61 @@ function AppContent() {
     localStorage.removeItem('medicore_user')
   }
 
-  // Pages that don't show the navbar
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="w-8 h-8 border-4 border-cyan-600/30 border-t-cyan-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Pages that don't show navbar
   const hideNavbar = ['/', '/login'].includes(location.pathname)
 
+  // Determine home route by role
+  const getHomeRoute = () => {
+    if (!user) return '/login'
+    if (user.rol === 'medico') return '/doctor'
+    if (user.rol === 'admin') return '/admin'
+    return '/paciente'
+  }
+
   return (
-    <div className="min-h-screen relative" style={{ background: 'var(--color-clinical-bg)' }}>
+    <div className="min-h-screen relative bg-slate-100 text-slate-900 font-sans">
       <BackgroundOrbs />
 
-      {!hideNavbar && <GlassNavbar user={user} onLogout={handleLogout} />}
+      {!hideNavbar && user && <GlassNavbar user={user} onLogout={handleLogout} />}
 
       <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<PortalSelector />} />
-        <Route path="/login" element={<LoginView onLogin={handleLogin} />} />
+        {/* Root & Auth */}
+        <Route path="/" element={<Navigate to={getHomeRoute()} replace />} />
+        <Route
+          path="/login"
+          element={
+            user ? (
+              <Navigate to={getHomeRoute()} replace />
+            ) : (
+              <LoginView onLogin={handleLogin} />
+            )
+          }
+        />
 
-        {/* Protected routes */}
+        {/* Protected Portals */}
         <Route
           path="/paciente"
-          element={
-            user ? <PacienteView /> : <Navigate to="/login" state={{ role: 'paciente' }} />
-          }
+          element={user ? <PacienteView /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/doctor"
-          element={
-            user ? <DoctorView /> : <Navigate to="/login" state={{ role: 'medico' }} />
-          }
+          element={user ? <DoctorView /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/admin"
-          element={
-            user ? <AdminView /> : <Navigate to="/login" state={{ role: 'admin' }} />
-          }
+          element={user ? <AdminView /> : <Navigate to="/login" replace />}
         />
 
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )
