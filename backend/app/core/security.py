@@ -18,21 +18,28 @@ from app.core.database import get_db
 
 settings = get_settings()
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 # HTTP Bearer scheme for JWT extraction
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+# Password hashing functions using standard bcrypt
 def hash_password(password: str) -> str:
     """Hash a plaintext password with bcrypt."""
-    return pwd_context.hash(password)
+    pw_bytes = password[:72].encode('utf-8')
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pw_bytes, salt).decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plaintext password against its bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        pw_bytes = plain_password[:72].encode('utf-8')
+        hash_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(pw_bytes, hash_bytes)
+    except Exception:
+        return False
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
