@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Groq LLM
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.1-8b-instant"
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
 
     # JWT Authentication
     JWT_SECRET: str = "medicore-dev-secret-change-in-production"

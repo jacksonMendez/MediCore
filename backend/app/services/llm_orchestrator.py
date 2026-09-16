@@ -488,7 +488,7 @@ class LLMOrchestrator:
 
     def _init_client(self):
         """Initialize the Groq client if API key is available."""
-        if settings.GROQ_API_KEY:
+        if settings.GROQ_API_KEY and not settings.GROQ_API_KEY.startswith("gsk_your_key"):
             try:
                 from groq import Groq
                 self.client = Groq(api_key=settings.GROQ_API_KEY)
@@ -588,7 +588,7 @@ class LLMOrchestrator:
                 tools=TOOLS,
                 tool_choice="auto",
                 temperature=0.0,
-                max_tokens=1024,
+                max_tokens=350,
             )
 
             response_message = response.choices[0].message
@@ -636,7 +636,7 @@ class LLMOrchestrator:
                     tools=TOOLS,
                     tool_choice="auto",
                     temperature=0.0,
-                    max_tokens=1024,
+                    max_tokens=350,
                 )
                 response_message = response.choices[0].message
 
