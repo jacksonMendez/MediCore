@@ -17,6 +17,7 @@ import {
   PanelLeft,
   Search,
   LogOut,
+  Settings,
   User as UserIcon,
   ChevronRight,
   ShieldCheck,
@@ -45,7 +46,7 @@ async function apiFetch(url, opts = {}) {
   return res.json()
 }
 
-export default function PacienteView() {
+export default function PacienteView({ onLogout }) {
   const navigate = useNavigate()
   const user = getUser()
 
@@ -178,10 +179,14 @@ export default function PacienteView() {
     setActiveTab('chat')
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('medicore_token')
-    localStorage.removeItem('medicore_user')
-    navigate('/login')
+  const handleLogoutAction = () => {
+    if (onLogout) {
+      onLogout()
+    } else {
+      localStorage.removeItem('medicore_token')
+      localStorage.removeItem('medicore_user')
+      navigate('/login')
+    }
   }
 
   const handlePagarCita = async (citaId) => {
@@ -262,10 +267,10 @@ export default function PacienteView() {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-100 font-sans select-none relative">
-      {/* ── BARRA LATERAL IZQUIERDA (GEMINI SIDEBAR) ────────────────── */}
+      {/* ── BARRA LATERAL IZQUIERDA (SIDEBAR COLAPSABLE) ────────────────── */}
       <aside
-        className={`flex flex-col h-full bg-white/70 backdrop-blur-2xl border-r border-white/80 transition-all duration-300 z-30 shrink-0 ${
-          sidebarOpen ? 'w-72 sm:w-80 p-4 shadow-xl opacity-100' : 'w-0 p-0 opacity-0 border-none overflow-hidden pointer-events-none'
+        className={`flex flex-col h-full bg-white/70 backdrop-blur-2xl border-r border-white/80 transition-all duration-300 ease-in-out z-30 shrink-0 ${
+          sidebarOpen ? 'w-64 sm:w-72 p-4 shadow-xl opacity-100' : 'w-0 p-0 opacity-0 border-none overflow-hidden pointer-events-none'
         }`}
       >
         {/* Header Superior del Sidebar */}
@@ -294,6 +299,24 @@ export default function PacienteView() {
           <span>Nueva consulta</span>
         </button>
 
+        {/* Botón Píldora Directo "Mis Citas Médicas" */}
+        <button
+          onClick={() => setActiveTab(activeTab === 'citas' ? 'chat' : 'citas')}
+          className={`w-full py-2.5 px-3 rounded-2xl text-xs font-bold flex items-center justify-between transition-all mb-3 border ${
+            activeTab === 'citas'
+              ? 'bg-teal-100 text-teal-800 border-teal-300 shadow-xs'
+              : 'bg-teal-50/70 hover:bg-teal-100/80 text-teal-800 border-teal-200/80'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-teal-600" />
+            <span>Mis Citas Médicas</span>
+          </div>
+          <span className="bg-teal-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+            {citas.length}
+          </span>
+        </button>
+
         {/* Buscador de Conversaciones */}
         <div className="relative mb-3">
           <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-400" />
@@ -305,24 +328,6 @@ export default function PacienteView() {
             className="w-full bg-white/60 text-xs pl-9 pr-3 py-2 rounded-2xl border border-white/80 placeholder-slate-400 text-slate-800 focus:outline-none backdrop-blur-md"
           />
         </div>
-
-        {/* Botón Píldora Directo "Mis Citas Médicas" */}
-        <button
-          onClick={() => setActiveTab(activeTab === 'citas' ? 'chat' : 'citas')}
-          className={`w-full py-2.5 px-3 rounded-2xl text-xs font-bold flex items-center justify-between transition-all mb-4 border ${
-            activeTab === 'citas'
-              ? 'bg-teal-100 text-teal-800 border-teal-300 shadow-xs'
-              : 'bg-white/50 hover:bg-white/90 text-slate-700 border-white/70'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-teal-600" />
-            <span>Mis Citas Médicas</span>
-          </div>
-          <span className="bg-teal-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-            {citas.length}
-          </span>
-        </button>
 
         {/* Historial Independiente "Recientes" */}
         <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
@@ -358,15 +363,15 @@ export default function PacienteView() {
           )}
         </div>
 
-        {/* Footer del Sidebar: Ficha de Usuario Autenticado */}
+        {/* Footer del Sidebar: Perfil de Usuario con Settings y Logout */}
         <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-500 text-white font-extrabold text-xs flex items-center justify-center shadow-md border border-white/80">
+          <div className="flex items-center gap-2.5 overflow-hidden">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-500 text-white font-extrabold text-xs flex items-center justify-center shadow-md border border-white/80 shrink-0">
               {initials}
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-bold text-slate-900 truncate">
-                {user?.nombre_completo || 'Paciente Demo'}
+                {user?.nombre_completo || 'Paciente Authenticated'}
               </p>
               <span className="bg-cyan-50 text-cyan-800 border border-cyan-200 px-2 py-0.2 rounded-full text-[9px] font-extrabold uppercase">
                 {user?.rol || 'paciente'}
@@ -374,17 +379,26 @@ export default function PacienteView() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-2xl bg-white/60 hover:bg-rose-50 border border-white/80 text-slate-500 hover:text-rose-600 transition-all shadow-xs"
-            title="Cerrar sesión"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => alert(`Ajustes de cuenta de ${user?.nombre_completo || 'Paciente'}`)}
+              className="p-1.5 rounded-xl bg-white/60 hover:bg-white border border-white/80 text-slate-500 hover:text-slate-800 transition-all shadow-xs"
+              title="Configuración de cuenta"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleLogoutAction}
+              className="p-1.5 rounded-xl bg-white/60 hover:bg-rose-50 border border-white/80 text-slate-500 hover:text-rose-600 transition-all shadow-xs"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* ── ÁREA PRINCIPAL CENTRAL (CANVAS DE GEMINI) ────────────────── */}
+      {/* ── ÁREA PRINCIPAL CENTRAL (CANVAS CENTRAL SIMÉTRICO) ──────────── */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative bg-slate-50/50">
         {/* Header Superior Minimalista */}
         <header className="h-14 px-6 flex items-center justify-between border-b border-white/60 bg-white/40 backdrop-blur-md shrink-0 z-20">
@@ -419,65 +433,65 @@ export default function PacienteView() {
 
         {/* Contenido Dinámico (Chat vs Citas) */}
         {activeTab === 'chat' ? (
-          <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-            {/* Si no hay conversación iniciada: Gran Saludo Estilo Gemini (Empty State) */}
+          <div className="flex-1 flex flex-col h-full overflow-hidden relative justify-between">
+            {/* Si no hay conversación iniciada: Gran Saludo Estilo Gemini (Centrado Absoluto) */}
             {messages.length <= 1 ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center overflow-y-auto custom-scrollbar">
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center overflow-y-auto custom-scrollbar my-auto">
                 <div className="max-w-2xl w-full">
                   {/* Saludo Tipográfico Principal */}
-                  <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 bg-gradient-to-r from-cyan-600 via-teal-600 to-sky-600 bg-clip-text text-transparent">
+                  <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-cyan-600 via-teal-600 to-sky-600 bg-clip-text text-transparent">
                     Hola, {firstName}
                   </h2>
                   <p className="text-xl sm:text-2xl font-bold text-slate-400 mb-8">
                     ¿En qué te puedo ayudar hoy?
                   </p>
 
-                  {/* Sugerencias Rápidas en Grilla (Action Chips) */}
+                  {/* Sugerencias Rápidas en Grilla (Liquid Glass Cards Premium) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto text-left">
                     <button
                       onClick={() => handleSend('Quiero agendar una cita médica')}
-                      className="p-4 rounded-3xl bg-white/70 hover:bg-white border border-white/90 shadow-md backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs"
+                      className="p-4 rounded-2xl bg-white/70 hover:bg-white/95 border border-white/90 shadow-sm backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs hover:shadow-md cursor-pointer"
                     >
-                      <span className="font-bold text-slate-900 block mb-0.5">
-                        📋 Agendar cita médica
+                      <span className="font-bold text-slate-900 block mb-1 text-sm flex items-center gap-2">
+                        <span>📋</span> Agendar cita médica
                       </span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 font-medium leading-relaxed block">
                         Busca disponibilidad por especialidad y hora.
                       </span>
                     </button>
 
                     <button
                       onClick={() => handleSend('Quiero una cita con una doctora')}
-                      className="p-4 rounded-3xl bg-white/70 hover:bg-white border border-white/90 shadow-md backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs"
+                      className="p-4 rounded-2xl bg-white/70 hover:bg-white/95 border border-white/90 shadow-sm backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs hover:shadow-md cursor-pointer"
                     >
-                      <span className="font-bold text-slate-900 block mb-0.5">
-                        👩‍⚕️ Buscar doctora disponible
+                      <span className="font-bold text-slate-900 block mb-1 text-sm flex items-center gap-2">
+                        <span>👩‍⚕️</span> Buscar doctora disponible
                       </span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 font-medium leading-relaxed block">
                         Filtra médicos especialistas por género femenino.
                       </span>
                     </button>
 
                     <button
                       onClick={() => handleSend('Consultar disponibilidad de citas para hoy')}
-                      className="p-4 rounded-3xl bg-white/70 hover:bg-white border border-white/90 shadow-md backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs"
+                      className="p-4 rounded-2xl bg-white/70 hover:bg-white/95 border border-white/90 shadow-sm backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs hover:shadow-md cursor-pointer"
                     >
-                      <span className="font-bold text-slate-900 block mb-0.5">
-                        ⏰ Disponibilidad para hoy
+                      <span className="font-bold text-slate-900 block mb-1 text-sm flex items-center gap-2">
+                        <span>⏰</span> Disponibilidad para hoy
                       </span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 font-medium leading-relaxed block">
                         Revisa huecos de atención médica inmediata.
                       </span>
                     </button>
 
                     <button
                       onClick={() => handleSend('Cuáles son mis citas agendadas')}
-                      className="p-4 rounded-3xl bg-white/70 hover:bg-white border border-white/90 shadow-md backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs"
+                      className="p-4 rounded-2xl bg-white/70 hover:bg-white/95 border border-white/90 shadow-sm backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] text-xs hover:shadow-md cursor-pointer"
                     >
-                      <span className="font-bold text-slate-900 block mb-0.5">
-                        💳 Consultar mis citas
+                      <span className="font-bold text-slate-900 block mb-1 text-sm flex items-center gap-2">
+                        <span>💳</span> Consultar mis citas
                       </span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 font-medium leading-relaxed block">
                         Verifica el estado de pago de tus citas agendadas.
                       </span>
                     </button>
@@ -537,8 +551,8 @@ export default function PacienteView() {
               </div>
             )}
 
-            {/* ── BARRA DE ENTRADA FLOTANTE (GEMINI PROMPT BAR) ───────────── */}
-            <div className="p-4 max-w-3xl mx-auto w-full shrink-0">
+            {/* ── BARRA DE ENTRADA FLOTANTE (CENTRADISIMA CON MARGEN INFERIOR) ── */}
+            <div className="p-4 mb-4 pb-2 max-w-3xl w-full mx-auto shrink-0">
               <div className="bg-white/85 border border-white/90 rounded-3xl p-2.5 shadow-xl backdrop-blur-2xl flex items-center gap-3">
                 <input
                   ref={inputRef}

@@ -93,7 +93,7 @@ function AppContent() {
         {/* Protected Portals */}
         <Route
           path="/paciente"
-          element={user ? <PacienteView /> : <Navigate to="/login" replace />}
+          element={user ? <PacienteView onLogout={handleLogout} /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/doctor"
