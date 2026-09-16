@@ -70,7 +70,7 @@ class GUID(TypeDecorator):
 # ── Helpers ──────────────────────────────────────────────────
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now().replace(tzinfo=None)
 
 
 def _new_uuid():
@@ -185,6 +185,7 @@ class Medico(Base):
         String(50), unique=True, nullable=False
     )
     duracion_cita_minutos: Mapped[int] = mapped_column(Integer, default=30)
+    genero: Mapped[str | None] = mapped_column(String(10), default="M")
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationships

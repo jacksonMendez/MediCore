@@ -66,6 +66,7 @@ CREATE TABLE medicos (
     sede_id                 UUID NOT NULL REFERENCES sedes(id),
     tarjeta_profesional     VARCHAR(50) NOT NULL UNIQUE,
     duracion_cita_minutos   INT NOT NULL DEFAULT 30,
+    genero                  VARCHAR(10) DEFAULT 'M',
     activo                  BOOLEAN NOT NULL DEFAULT TRUE
 );
 

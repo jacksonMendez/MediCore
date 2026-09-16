@@ -96,6 +96,7 @@ class MedicoCreate(BaseModel):
     sede_id: UUID
     tarjeta_profesional: str
     duracion_cita_minutos: int = Field(default=30, ge=10, le=120)
+    genero: Optional[str] = "M"
 
 
 class MedicoResponse(BaseModel):
@@ -105,6 +106,7 @@ class MedicoResponse(BaseModel):
     sede_id: UUID
     tarjeta_profesional: str
     duracion_cita_minutos: int
+    genero: Optional[str] = "M"
     activo: bool
     # Nested
     nombre_completo: Optional[str] = None

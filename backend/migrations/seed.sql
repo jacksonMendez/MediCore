@@ -33,13 +33,13 @@ INSERT INTO usuarios (id, nombre_completo, correo, password_hash, rol, telefono)
 ON CONFLICT (id) DO NOTHING;
 
 -- MÉDICOS
-INSERT INTO medicos (id, usuario_id, especialidad_id, sede_id, tarjeta_profesional, duracion_cita_minutos) VALUES
+INSERT INTO medicos (id, usuario_id, especialidad_id, sede_id, tarjeta_profesional, duracion_cita_minutos, genero) VALUES
     ('a0a01111-bbbb-cccc-dddd-eeee11111111', '22222222-2222-2222-2222-222222222222',
      'd4e5f6a7-b8c9-0123-defa-234567890123', 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-     'TP-CARD-001', 45),
+     'TP-CARD-001', 45, 'M'),
     ('a0a02222-bbbb-cccc-dddd-eeee22222222', '33333333-3333-3333-3333-333333333333',
      'c3d4e5f6-a7b8-9012-cdef-123456789012', 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'TP-MG-002', 30)
+     'TP-MG-002', 30, 'F')
 ON CONFLICT (id) DO NOTHING;
 
 -- PACIENTES
