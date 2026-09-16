@@ -24,7 +24,12 @@ import {
   Zap,
   ArrowRight,
   ShieldCheck,
+  ChevronRight,
   User as UserIcon,
+  LayoutDashboard,
+  HeartPulse,
+  Award,
+  FileText,
 } from 'lucide-react'
 
 const API_BASE = '/api'
@@ -269,150 +274,153 @@ export default function PacienteView({ onLogout }) {
 
   const firstName = user?.nombre_completo?.split(' ')[0] || 'Paciente'
   const pendingCitasCount = citas.filter((c) => c.estado === 'pendiente_pago').length
+  const nextCita = citas.find((c) => c.estado === 'confirmada' || c.estado === 'pendiente_pago')
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex bg-slate-100 font-sans select-none relative">
-      {/* ── BARRA LATERAL IZQUIERDA (SIDEBAR LIQUID GLASS MEDICO) ──────────── */}
+    <div className="h-screen w-screen overflow-hidden flex bg-slate-950 text-slate-100 font-sans select-none relative">
+      {/* ── SIDEBAR COMPACTO Y ELEGANTE ───────────────────────────────────── */}
       <aside
-        className={`flex flex-col h-full bg-slate-900/95 text-slate-100 backdrop-blur-2xl border-r border-slate-800 transition-all duration-300 ease-in-out z-30 shrink-0 ${
-          sidebarOpen ? 'w-72 sm:w-80 p-4 shadow-2xl opacity-100' : 'w-0 p-0 opacity-0 border-none overflow-hidden pointer-events-none'
+        className={`flex flex-col h-full bg-slate-900/90 text-slate-200 backdrop-blur-2xl border-r border-slate-800/80 transition-all duration-300 ease-in-out z-30 shrink-0 ${
+          sidebarOpen ? 'w-64 p-3.5 shadow-2xl opacity-100' : 'w-0 p-0 opacity-0 border-none overflow-hidden pointer-events-none'
         }`}
       >
-        {/* Header Superior del Sidebar */}
-        <div className="flex items-center justify-between mb-5">
+        {/* Header Marca */}
+        <div className="flex items-center justify-between mb-4 px-1">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-teal-400 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-teal-400 flex items-center justify-center shadow-md shadow-cyan-500/20">
               <Activity className="w-4 h-4 text-slate-950 font-bold" />
             </div>
             <div>
-              <h2 className="text-sm font-extrabold tracking-tight text-white leading-none">
+              <h2 className="text-sm font-black tracking-tight text-white leading-none">
                 MediCore<span className="text-cyan-400">OS</span>
               </h2>
-              <span className="text-[10px] font-semibold text-cyan-400/80 uppercase tracking-widest block mt-0.5">
-                Plataforma Clínica
+              <span className="text-[9px] font-bold text-cyan-400/80 uppercase tracking-widest block mt-0.5">
+                Clinical SaaS
               </span>
             </div>
           </div>
 
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            title="Colapsar menú"
+            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            title="Colapsar navegación"
           >
             <PanelLeft className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Botón Destacado "+ Nueva Consulta" */}
+        {/* Botón "+ Nueva Consulta" */}
         <button
           onClick={startNewChat}
-          className="w-full bg-gradient-to-r from-cyan-500 via-teal-500 to-cyan-600 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-extrabold py-3 px-4 rounded-2xl flex items-center justify-center gap-2.5 text-xs shadow-lg shadow-cyan-500/20 transition-all duration-200 mb-3 hover:scale-[1.02]"
+          className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-bold py-2.5 px-3.5 rounded-xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-cyan-500/15 transition-all mb-3 hover:scale-[1.01]"
         >
-          <Plus className="w-4 h-4 text-slate-950 stroke-[3]" />
+          <Plus className="w-4 h-4 stroke-[3]" />
           <span>Nueva Consulta</span>
         </button>
 
-        {/* Botón Píldora "Mis Citas Médicas" */}
-        <button
-          onClick={() => setActiveTab(activeTab === 'citas' ? 'chat' : 'citas')}
-          className={`w-full py-2.5 px-3.5 rounded-2xl text-xs font-bold flex items-center justify-between transition-all mb-4 border ${
-            activeTab === 'citas'
-              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
-              : 'bg-slate-800/60 hover:bg-slate-800 text-slate-300 border-slate-700/60'
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            <Calendar className="w-4 h-4 text-cyan-400" />
-            <span>Mis Citas Médicas</span>
-          </div>
-          <div className="flex items-center gap-1">
-            {pendingCitasCount > 0 && (
-              <span className="bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full animate-pulse">
-                {pendingCitasCount} pend.
+        {/* Grupo de Navegación Principal */}
+        <div className="space-y-1 mb-4">
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all ${
+              activeTab === 'chat' && messages.length <= 1
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
+                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4 text-cyan-400" />
+            <span>Dashboard Principal</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab(activeTab === 'citas' ? 'chat' : 'citas')}
+            className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
+              activeTab === 'citas'
+                ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs'
+                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Calendar className="w-4 h-4 text-teal-400" />
+              <span>Mis Citas Médicas</span>
+            </div>
+            {pendingCitasCount > 0 ? (
+              <span className="bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+                {pendingCitasCount}
+              </span>
+            ) : (
+              <span className="bg-slate-800 text-slate-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                {citas.length}
               </span>
             )}
-            <span className="bg-cyan-500 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-              {citas.length}
-            </span>
-          </div>
-        </button>
+          </button>
+        </div>
 
-        {/* Buscador en tiempo real */}
+        {/* Separador */}
+        <div className="h-px bg-slate-800/80 my-2" />
+
+        {/* Buscador de Consultas */}
         <div className="relative mb-3">
-          <Search className="w-3.5 h-3.5 absolute left-3.5 top-3 text-slate-500" />
+          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
           <input
             type="text"
-            placeholder="Buscar en el historial..."
+            placeholder="Buscar consulta..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-800/60 text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-700/80 placeholder-slate-500 text-slate-200 focus:outline-none focus:border-cyan-500/60 transition-colors"
+            className="w-full bg-slate-800/50 text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-800 placeholder-slate-500 text-slate-200 focus:outline-none focus:border-cyan-500/50"
           />
         </div>
 
-        {/* Historial Independiente "Recientes" */}
-        <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-          <div className="px-2 mb-2 flex items-center justify-between">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-              Conversaciones Recientes
-            </span>
-            <span className="text-[10px] font-semibold text-slate-600">
-              {filteredSessions.length}
-            </span>
-          </div>
+        {/* Historial Independiente */}
+        <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 px-2 block mb-1">
+            Historial de Consultas
+          </span>
 
           {filteredSessions.map((s) => (
             <button
               key={s.id}
               onClick={() => loadSessionMessages(s.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-2.5 border ${
-                sesionId === s.id && activeTab === 'chat'
-                  ? 'bg-slate-800 border-cyan-500/50 text-cyan-300 font-semibold shadow-xs'
-                  : 'bg-transparent hover:bg-slate-800/50 border-transparent text-slate-400 hover:text-slate-200'
+              className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-2 text-xs ${
+                sesionId === s.id && activeTab === 'chat' && messages.length > 1
+                  ? 'bg-slate-800 border-l-2 border-cyan-400 text-cyan-300 font-semibold'
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
               }`}
             >
-              <MessageCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span className="text-xs truncate font-medium flex-1">
-                {s.ultimo_mensaje || 'Nueva consulta'}
+              <MessageCircle className="w-3.5 h-3.5 text-cyan-400/70 shrink-0" />
+              <span className="truncate flex-1">
+                {s.ultimo_mensaje || 'Consulta previa'}
               </span>
             </button>
           ))}
 
           {filteredSessions.length === 0 && (
-            <div className="text-center py-6 px-3 border border-dashed border-slate-800 rounded-2xl bg-slate-800/20">
-              <p className="text-xs text-slate-500 font-medium">
-                Sin conversaciones grabadas
-              </p>
-            </div>
+            <span className="text-[11px] text-slate-600 block text-center py-4">
+              Sin historial
+            </span>
           )}
         </div>
 
-        {/* Footer del Sidebar: Perfil de Usuario con Avatar Glowing */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-950 font-extrabold text-xs flex items-center justify-center shadow-lg shadow-cyan-500/20 ring-2 ring-cyan-500/30 shrink-0">
+        {/* Footer Sidebar: User Badge & Action Icons */}
+        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center shrink-0">
               {initials}
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-bold text-white truncate">
-                {user?.nombre_completo || 'Paciente Authenticated'}
+                {user?.nombre_completo || 'Paciente'}
               </p>
-              <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.2 rounded-full text-[9px] font-extrabold uppercase">
+              <span className="text-[9px] text-cyan-400 font-semibold uppercase block">
                 {user?.rol || 'paciente'}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => alert(`Ajustes de cuenta de ${user?.nombre_completo || 'Paciente'}`)}
-              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-all"
-              title="Configuración de cuenta"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
+          <div className="flex items-center gap-1">
             <button
               onClick={handleLogoutAction}
-              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-rose-950/60 border border-slate-800 text-slate-400 hover:text-rose-400 transition-all"
+              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 transition-colors"
               title="Cerrar sesión"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -421,291 +429,82 @@ export default function PacienteView({ onLogout }) {
         </div>
       </aside>
 
-      {/* ── ÁREA PRINCIPAL CENTRAL (CANVAS CLINICO INTEGRADO) ──────────── */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative bg-slate-50/60">
-        {/* Header Superior Clinical Glass */}
-        <header className="h-14 px-6 flex items-center justify-between border-b border-white/60 bg-white/50 backdrop-blur-md shrink-0 z-20 shadow-xs">
+      {/* ── CANVAS PRINCIPAL (HEALTHCARE SAAS DASHBOARD GRID) ─────────────── */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950 relative">
+        {/* Header Superior del Dashboard */}
+        <header className="h-14 px-6 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl shrink-0 z-20">
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-2xl bg-white/80 hover:bg-white text-cyan-700 border border-white/90 shadow-xs transition-colors"
+                className="p-2 rounded-xl bg-slate-800 text-cyan-400 border border-slate-700/60 transition-colors"
                 title="Abrir menú"
               >
-                <PanelLeft className="w-5 h-5 text-cyan-700" />
+                <PanelLeft className="w-4 h-4" />
               </button>
             )}
 
             <div className="flex items-center gap-2">
-              <h1 className="text-base font-extrabold text-slate-900 tracking-tight">
-                MediCore<span className="text-cyan-600">OS</span>
+              <h1 className="text-sm font-extrabold text-white tracking-tight">
+                MediCore<span className="text-cyan-400">OS</span>
               </h1>
-              <span className="inline-flex items-center gap-1 bg-white/80 text-slate-700 border border-white/90 px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-xs">
-                <Sparkles className="w-3 h-3 text-cyan-600" />
-                Modo Clínico Groq LLM
+              <span className="bg-slate-800 text-slate-300 border border-slate-700/60 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase">
+                Panel Clínico
               </span>
             </div>
           </div>
 
-          {/* Status badge */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>En línea 24/7</span>
+            <div className="flex items-center gap-2 bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 px-3 py-1 rounded-full text-xs font-semibold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Groq LLM v3.8 Conectado</span>
             </div>
 
-            <div className="w-8 h-8 rounded-full bg-slate-900 text-cyan-400 font-bold text-xs flex items-center justify-center border border-cyan-500/30 shadow-xs">
-              {initials}
-            </div>
+            {messages.length > 1 && activeTab === 'chat' && (
+              <button
+                onClick={startNewChat}
+                className="bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 px-3 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5 text-cyan-400" />
+                Volver al Dashboard
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Contenido Dinámico (Chat vs Citas) */}
-        {activeTab === 'chat' ? (
-          <div className="flex-1 flex flex-col h-full overflow-hidden relative justify-between">
-            {/* Si no hay conversación iniciada: HUB DE ACCIONES CLÍNICAS ASIMÉTRICAS (EMPTY STATE REDISEÑADO) */}
-            {messages.length <= 1 ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center overflow-y-auto custom-scrollbar my-auto">
-                <div className="max-w-3xl w-full">
-                  {/* Hero Header del Hub */}
-                  <div className="mb-8">
-                    <div className="inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500/10 to-teal-500/10 border border-cyan-500/20 px-4 py-1.5 rounded-full text-cyan-800 text-xs font-bold mb-3 shadow-xs">
-                      <Stethoscope className="w-4 h-4 text-cyan-600" />
-                      <span>Plataforma de Asistencia Médica Inteligente</span>
-                    </div>
-
-                    <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-cyan-700 via-teal-700 to-sky-700 bg-clip-text text-transparent">
-                      Hola, {firstName}
-                    </h2>
-                    <p className="text-slate-500 text-sm font-medium max-w-md mx-auto">
-                      ¿Qué consulta o procedimiento médico deseas realizar hoy? Selecciona una acción rápida o escribe directamente a nuestro asistente.
-                    </p>
-                  </div>
-
-                  {/* Dashboard de Acciones Clínicas Asimétricas */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-left">
-                    {/* Tarjeta Principal Destacada (Span 2 cols on MD) */}
-                    <div
-                      onClick={() => handleSend('Quiero agendar una cita médica')}
-                      className="md:col-span-2 p-5 rounded-3xl bg-gradient-to-br from-white/90 via-cyan-50/40 to-teal-50/30 border border-cyan-200/80 shadow-md backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-xl cursor-pointer relative overflow-hidden group"
-                    >
-                      <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-cyan-500/10 blur-2xl group-hover:bg-cyan-500/20 transition-all" />
-                      
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center shadow-md">
-                          <Calendar className="w-5 h-5 text-white" />
-                        </div>
-                        <span className="bg-cyan-100 text-cyan-800 border border-cyan-200 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                          Recomendado
-                        </span>
-                      </div>
-
-                      <h3 className="text-base font-bold text-slate-900 mb-1 flex items-center gap-2">
-                        Agendar Cita Médica Inteligente
-                        <ArrowRight className="w-4 h-4 text-cyan-600 group-hover:translate-x-1 transition-transform" />
-                      </h3>
-                      <p className="text-slate-500 text-xs leading-relaxed font-medium">
-                        Consulta disponibilidad en tiempo real por especialidad (Medicina General, Cardiología, Pediatría) y reserva tu turno en segundos.
-                      </p>
-                    </div>
-
-                    {/* Tarjeta 2: Filtro por Género */}
-                    <div
-                      onClick={() => handleSend('Quiero una cita con una doctora')}
-                      className="p-5 rounded-3xl bg-white/80 hover:bg-white border border-white/90 shadow-md backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-xl cursor-pointer group"
-                    >
-                      <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shadow-xs mb-3">
-                        <Filter className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-900 mb-1">
-                        Atención por Doctora
-                      </h3>
-                      <p className="text-slate-500 text-xs leading-relaxed font-medium">
-                        Filtra especialistas médicas de género femenino.
-                      </p>
-                    </div>
-
-                    {/* Tarjeta 3: Disponibilidad Hoy */}
-                    <div
-                      onClick={() => handleSend('Consultar disponibilidad de citas para hoy')}
-                      className="p-5 rounded-3xl bg-white/80 hover:bg-white border border-white/90 shadow-md backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-xl cursor-pointer group"
-                    >
-                      <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-200 text-sky-700 flex items-center justify-center shadow-xs mb-3">
-                        <Zap className="w-5 h-5" />
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-900 mb-1">
-                        Disponibilidad Inmediata
-                      </h3>
-                      <p className="text-slate-500 text-xs leading-relaxed font-medium">
-                        Revisa huecos de atención médica agendables hoy mismo.
-                      </p>
-                    </div>
-
-                    {/* Tarjeta 4: Mis Citas y Pagos Sandbox (Span 2 cols on MD) */}
-                    <div
-                      onClick={() => setActiveTab('citas')}
-                      className="md:col-span-2 p-5 rounded-3xl bg-gradient-to-br from-white/90 via-slate-50 to-teal-50/20 border border-teal-200/60 shadow-md backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-xl cursor-pointer group flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shadow-xs">
-                          <CreditCard className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                            Mis Citas y Pagos Wompi
-                            {pendingCitasCount > 0 && (
-                              <span className="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-200">
-                                {pendingCitasCount} pago pendiente
-                              </span>
-                            )}
-                          </h3>
-                          <p className="text-slate-500 text-xs font-medium">
-                            Revisa el estado de tus consultas y gestiona transacciones Sandbox.
-                          </p>
-                        </div>
-                      </div>
-                      <ArrowRight className="w-5 h-5 text-teal-600 group-hover:translate-x-1 transition-transform shrink-0" />
-                    </div>
-                  </div>
-
-                  {/* Sugerencias en Chips Horizontales */}
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-2">
-                      Sugerencias Rápidas:
-                    </span>
-                    <button
-                      onClick={() => handleSend('¿Qué especialidades médicas tienen disponibles?')}
-                      className="px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white border border-slate-200/80 text-slate-700 text-xs font-semibold shadow-xs hover:border-cyan-400 transition-colors"
-                    >
-                      ¿Qué especialidades hay?
-                    </button>
-                    <button
-                      onClick={() => handleSend('Necesito una cita de cardiología')}
-                      className="px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white border border-slate-200/80 text-slate-700 text-xs font-semibold shadow-xs hover:border-cyan-400 transition-colors"
-                    >
-                      Cita de Cardiología
-                    </button>
-                    <button
-                      onClick={() => handleSend('Ver mis citas programadas')}
-                      className="px-3.5 py-1.5 rounded-full bg-white/80 hover:bg-white border border-slate-200/80 text-slate-700 text-xs font-semibold shadow-xs hover:border-cyan-400 transition-colors"
-                    >
-                      Mis citas activas
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Conversación Activa: Lista Limpia de Mensajes */
-              <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 max-w-3xl mx-auto w-full custom-scrollbar">
-                {messages.map((msg, idx) => (
-                  <div
-                    key={msg.id || idx}
-                    className={`flex ${
-                      msg.emisor === 'usuario' ? 'justify-end' : 'justify-start'
-                    }`}
-                  >
-                    {msg.emisor === 'asistente' && (
-                      <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center font-bold text-xs shrink-0 mr-3 shadow-md shadow-cyan-600/20">
-                        <Stethoscope className="w-5 h-5 text-white" />
-                      </div>
-                    )}
-
-                    <div
-                      className={`max-w-[85%] p-4 sm:p-5 ${
-                        msg.emisor === 'usuario'
-                          ? 'bg-gradient-to-r from-cyan-600 via-teal-600 to-cyan-700 text-white rounded-3xl rounded-tr-none shadow-lg shadow-cyan-900/15 text-sm leading-relaxed font-medium'
-                          : 'bg-white/90 border border-white text-slate-800 rounded-3xl rounded-tl-none shadow-md backdrop-blur-xl text-sm leading-relaxed font-sans'
-                      }`}
-                    >
-                      <p
-                        className="text-sm leading-relaxed"
-                        dangerouslySetInnerHTML={{
-                          __html: renderMarkdown(msg.contenido),
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-
-                {loading && (
-                  <div className="flex justify-start items-center gap-3">
-                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-md">
-                      <Stethoscope className="w-5 h-5 text-white animate-spin" />
-                    </div>
-                    <div className="bg-white/90 border border-white px-5 py-3.5 rounded-3xl rounded-tl-none shadow-sm backdrop-blur-xl text-xs font-semibold text-cyan-700 flex items-center gap-2.5">
-                      <div className="typing-indicator">
-                        <div className="typing-dot" />
-                        <div className="typing-dot" />
-                        <div className="typing-dot" />
-                      </div>
-                      <span>MediCore consultando base de datos clínica en tiempo real...</span>
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-
-            {/* ── BARRA DE ENTRADA FLOTANTE (PROMPT BAR CLINICO) ────────────── */}
-            <div className="p-4 mb-4 pb-2 max-w-3xl w-full mx-auto shrink-0">
-              <div className="bg-white/90 border border-white rounded-3xl p-2.5 shadow-xl shadow-cyan-900/5 backdrop-blur-2xl flex items-center gap-3">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Escribe tu consulta clínica o solicita tu cita..."
-                  className="w-full bg-transparent px-4 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
-                  disabled={loading}
-                />
-                <button
-                  onClick={() => handleSend()}
-                  disabled={loading || !input.trim()}
-                  className="w-10 h-10 rounded-full bg-gradient-to-r from-cyan-600 via-teal-600 to-cyan-700 hover:from-cyan-700 hover:to-teal-700 text-white flex items-center justify-center shadow-md transition-all disabled:opacity-40 hover:scale-105 shrink-0"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </div>
-
-              <p className="text-center mt-2 text-[11px] text-slate-400 font-medium">
-                MediCore OS — Asistente administrativo clínico. Consulta siempre a un médico profesional.
-              </p>
-            </div>
-          </div>
-        ) : (
-          /* ── MÓDULO INTEGRADO "MIS CITAS" ───────────────────────────── */
-          <div className="flex-1 overflow-y-auto p-6 max-w-4xl w-full mx-auto custom-scrollbar">
-            <div className="flex items-center justify-between mb-6 bg-white/80 p-5 rounded-3xl border border-white backdrop-blur-xl shadow-xs">
+        {/* ── CONTENIDO DINÁMICO DE LA APLICACIÓN ───────────────────────────── */}
+        {activeTab === 'citas' ? (
+          /* VISTA: GESTIÓN DE CITAS MÉRIDICAS */
+          <div className="flex-1 overflow-y-auto p-6 max-w-5xl w-full mx-auto custom-scrollbar">
+            <div className="flex items-center justify-between mb-6 bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-xl">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Calendar className="w-6 h-6 text-teal-600" />
-                  Mis Citas Médicas
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-teal-400" />
+                  Gestión de Citas Médicas
                 </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Revisa tus consultas registradas y realiza pagos simulados con Sandbox Wompi.
+                <p className="text-xs text-slate-400 mt-1">
+                  Revisa tus citas agendadas y gestiona los pagos Sandbox Wompi en Supabase.
                 </p>
               </div>
 
               <button
                 onClick={loadMisCitas}
-                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-2 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs transition-all"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-2 px-3 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
               >
                 <RefreshCw
-                  className={`w-3.5 h-3.5 ${loadingCitas ? 'animate-spin text-teal-600' : ''}`}
+                  className={`w-3.5 h-3.5 ${loadingCitas ? 'animate-spin text-teal-400' : ''}`}
                 />
                 Actualizar
               </button>
             </div>
 
             {paymentSuccessCitaId && (
-              <div className="mb-6 p-4 rounded-2xl bg-teal-50 border border-teal-200 text-teal-900 flex items-center gap-3 animate-fade-in shadow-md">
-                <CheckCircle className="w-5 h-5 text-teal-600 shrink-0" />
+              <div className="mb-6 p-4 rounded-xl bg-teal-950/80 border border-teal-700 text-teal-200 flex items-center gap-3 shadow-md animate-fade-in">
+                <CheckCircle className="w-5 h-5 text-teal-400 shrink-0" />
                 <div>
-                  <p className="text-sm font-bold">¡Pago Sandbox Aprobado!</p>
-                  <p className="text-xs text-teal-700">
-                    Tu cita médica ha sido confirmada en tiempo real en Supabase.
+                  <p className="text-sm font-bold">¡Pago Sandbox Confirmado!</p>
+                  <p className="text-xs text-teal-300">
+                    La cita médica ha sido activada exitosamente en el sistema.
                   </p>
                 </div>
               </div>
@@ -713,30 +512,21 @@ export default function PacienteView({ onLogout }) {
 
             {loadingCitas ? (
               <div className="flex items-center justify-center py-20">
-                <div className="text-center">
-                  <div className="w-10 h-10 border-4 border-cyan-200 border-t-cyan-600 rounded-full animate-spin mx-auto mb-3" />
-                  <p className="text-xs font-semibold text-slate-600">
-                    Cargando citas...
-                  </p>
-                </div>
+                <div className="w-8 h-8 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
               </div>
             ) : citas.length === 0 ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="text-center max-w-sm p-8 bg-white/70 border border-white/90 rounded-3xl shadow-xs">
-                  <Calendar className="w-12 h-12 mx-auto text-slate-400 mb-3 opacity-60" />
-                  <h3 className="text-base font-bold text-slate-800 mb-1">
-                    No tienes citas registradas
-                  </h3>
-                  <p className="text-xs text-slate-500 mb-4">
-                    Usa el asistente IA para agendar una consulta médica.
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('chat')}
-                    className="bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-semibold py-2 px-4 rounded-xl text-xs"
-                  >
-                    Volver al Chat
-                  </button>
-                </div>
+              <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-2xl p-8 max-w-md mx-auto">
+                <Calendar className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                <h3 className="text-sm font-bold text-white mb-1">Sin Citas Registradas</h3>
+                <p className="text-xs text-slate-400 mb-4">
+                  Usa la consola de IA del dashboard para consultar agenda y agendar tu cita.
+                </p>
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs"
+                >
+                  Ir al Dashboard
+                </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -747,102 +537,468 @@ export default function PacienteView({ onLogout }) {
                   return (
                     <div
                       key={c.id}
-                      className="bg-white/80 border border-white/90 rounded-3xl p-5 shadow-lg backdrop-blur-xl transition-all hover:shadow-xl"
+                      className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl hover:border-slate-700 transition-all"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
                         <div className="flex items-start gap-3">
-                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-slate-950 font-black flex items-center justify-center text-base shrink-0 shadow-md">
                             {c.medico_nombre?.charAt(0) || 'D'}
                           </div>
                           <div>
-                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-100">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-800/60">
                               {c.especialidad_nombre || 'Medicina General'}
                             </span>
-                            <h3 className="text-base font-bold text-slate-900 mt-1">
+                            <h3 className="text-sm font-bold text-white mt-1">
                               {c.medico_nombre || 'Doctor Asignado'}
                             </h3>
-                            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{c.sede_nombre || 'Sede Principal'}</span>
-                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-slate-500" />
+                              {c.sede_nombre || 'Sede Principal'}
+                            </p>
                           </div>
                         </div>
 
                         <div>
                           {isPending && (
-                            <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 border border-amber-300 px-3 py-1 rounded-full text-xs font-bold shadow-xs">
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                            <span className="inline-flex items-center gap-1.5 bg-amber-950/80 text-amber-300 border border-amber-700/80 px-3 py-1 rounded-full text-xs font-bold">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
                               Pendiente de Pago
                             </span>
                           )}
                           {isConfirmed && (
-                            <span className="inline-flex items-center gap-1.5 bg-teal-50 text-teal-800 border border-teal-300 px-3 py-1 rounded-full text-xs font-bold shadow-xs">
-                              <CheckCircle className="w-3.5 h-3.5 text-teal-600" />
+                            <span className="inline-flex items-center gap-1.5 bg-teal-950/80 text-teal-300 border border-teal-700/80 px-3 py-1 rounded-full text-xs font-bold">
+                              <CheckCircle className="w-3.5 h-3.5 text-teal-400" />
                               Confirmada
                             </span>
                           )}
                           {!isPending && !isConfirmed && (
-                            <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-300 px-3 py-1 rounded-full text-xs font-bold">
+                            <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
                               {c.estado}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <span className="text-slate-400 font-semibold block">
-                              Fecha
-                            </span>
-                            <span className="text-slate-800 font-bold text-sm">
-                              {formatFecha(c.fecha_hora)}
-                            </span>
+                            <span className="text-slate-500 font-semibold block">Fecha</span>
+                            <span className="text-slate-200 font-bold">{formatFecha(c.fecha_hora)}</span>
                           </div>
                           <div>
-                            <span className="text-slate-400 font-semibold block">
-                              Hora
-                            </span>
-                            <span className="text-slate-800 font-bold text-sm">
-                              {formatHora(c.fecha_hora)}
-                            </span>
+                            <span className="text-slate-500 font-semibold block">Hora</span>
+                            <span className="text-slate-200 font-bold">{formatHora(c.fecha_hora)}</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0">
-                          {isPending && (
-                            <button
-                              onClick={() => handlePagarCita(c.id)}
-                              disabled={payingCitaId === c.id}
-                              className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-teal-600 hover:from-amber-600 hover:to-teal-700 text-white font-bold py-2.5 px-5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-teal-900/10 transition-all hover:scale-105 disabled:opacity-50"
-                            >
-                              {payingCitaId === c.id ? (
-                                <>
-                                  <RefreshCw className="w-4 h-4 animate-spin" />
-                                  Procesando Pago Wompi...
-                                </>
-                              ) : (
-                                <>
-                                  <CreditCard className="w-4 h-4" />
-                                  Pagar Cita (Sandbox Wompi)
-                                </>
-                              )}
-                            </button>
-                          )}
-
-                          {isConfirmed && (
-                            <div className="flex items-center gap-1.5 text-xs text-teal-700 font-semibold bg-teal-50 px-3 py-2 rounded-xl border border-teal-200">
-                              <Check className="w-4 h-4 text-teal-600" />
-                              Cita Pagada y Lista
-                            </div>
-                          )}
-                        </div>
+                        {isPending && (
+                          <button
+                            onClick={() => handlePagarCita(c.id)}
+                            disabled={payingCitaId === c.id}
+                            className="bg-gradient-to-r from-amber-500 to-teal-500 hover:from-amber-400 hover:to-teal-400 text-slate-950 font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-2 shadow-lg disabled:opacity-50"
+                          >
+                            {payingCitaId === c.id ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                Procesando Wompi...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="w-4 h-4" />
+                                Pagar Cita (Sandbox Wompi)
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   )
                 })}
               </div>
             )}
+          </div>
+        ) : messages.length <= 1 ? (
+          /* ── DASHBOARD GRID COMPOSITION (CUANDO NO HAY CHAT ACTIVO) ─────── */
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="max-w-6xl mx-auto space-y-6">
+              
+              {/* HERO WELCOME BANNER (BANNER COMPACTO DE DASHBOARD) */}
+              <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-96 h-full bg-gradient-to-l from-cyan-500/10 via-teal-500/5 to-transparent pointer-events-none" />
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
+                        Portal Oficial Paciente
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {new Date().toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric' })}
+                      </span>
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      Bienvenido, <span className="text-cyan-400">{firstName}</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xl font-medium leading-relaxed">
+                      Gestión integral de agendamientos médicos, consulta de doctores por género y pagos seguros con Sandbox Wompi.
+                    </p>
+                  </div>
+
+                  {/* Tarjetas de Métricas Rápidas */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="bg-slate-800/80 border border-slate-700/80 px-4 py-3 rounded-xl text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Citas Registradas</span>
+                      <span className="text-lg font-black text-white">{citas.length}</span>
+                    </div>
+
+                    <div className="bg-slate-800/80 border border-slate-700/80 px-4 py-3 rounded-xl text-center">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Pagos Pendientes</span>
+                      <span className="text-lg font-black text-amber-400">{pendingCitasCount}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* GRID PRINCIPAL DE 2 COLUMNAS (ACCIONES & PROXIMA CITA + CONSOLA IA) */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* COLUMNA IZQUIERDA (2/3 WIDE): ACCIONES Y CONSOLA IA */}
+                <div className="lg:col-span-2 space-y-6">
+
+                  {/* SECCIÓN 1: ACCIONES PRINCIPALES ASIMÉTRICAS */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                    {/* Tarjeta Principal Agendamiento (Span 2 cols) */}
+                    <div
+                      onClick={() => handleSend('Quiero agendar una cita médica')}
+                      className="sm:col-span-2 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/40 border border-cyan-500/40 hover:border-cyan-400 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group relative overflow-hidden"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="w-10 h-10 rounded-xl bg-cyan-500 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-cyan-500/20">
+                          <Stethoscope className="w-5 h-5 stroke-[2.5]" />
+                        </div>
+                        <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
+                          Acción Recomendada
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-1.5">
+                        Agendar Cita Médica
+                        <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+                      </h3>
+                      <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                        Consulta horarios disponibles en tiempo real por especialidad y reserva tu turno clínico.
+                      </p>
+                    </div>
+
+                    {/* Tarjeta Filtro Doctora */}
+                    <div
+                      onClick={() => handleSend('Quiero una cita con una doctora')}
+                      className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-teal-500/40 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-300 flex items-center justify-center mb-3">
+                        <Filter className="w-4 h-4" />
+                      </div>
+                      <h3 className="text-xs font-bold text-white mb-1">Atención por Doctora</h3>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Filtra médicos especialistas por género femenino.
+                      </p>
+                    </div>
+
+                    {/* Tarjeta Disponibilidad Hoy */}
+                    <div
+                      onClick={() => handleSend('Consultar disponibilidad de citas para hoy')}
+                      className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/40 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center mb-3">
+                        <Zap className="w-4 h-4" />
+                      </div>
+                      <h3 className="text-xs font-bold text-white mb-1">Disponibilidad Hoy</h3>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Revisa turnos de atención inmediata en la agenda.
+                      </p>
+                    </div>
+
+                    {/* Tarjeta Mis Citas / Pagos (Span 2 cols) */}
+                    <div
+                      onClick={() => setActiveTab('citas')}
+                      className="sm:col-span-2 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-teal-500/40 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                            Mis Citas y Pagos Sandbox
+                            {pendingCitasCount > 0 && (
+                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                                {pendingCitasCount} pend.
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-[11px] text-slate-400">
+                            Revisa el estado de tus consultas y gestiona el pago de tus citas.
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-teal-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                    </div>
+                  </div>
+
+                  {/* SECCIÓN 2: CONSOLA IA INTEGRADA AL DASHBOARD */}
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-cyan-400" />
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                          Consola de Asistencia Médica IA
+                        </h3>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-semibold">
+                        Responde en 1-3 oraciones
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                        placeholder="Escribe tu consulta clínica... (ej: 'Quiero agendar cita de cardiología para el viernes')"
+                        className="w-full bg-transparent text-xs text-slate-100 placeholder-slate-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => handleSend()}
+                        disabled={loading || !input.trim()}
+                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 shrink-0 disabled:opacity-40 transition-all shadow-md"
+                      >
+                        <span>Consultar</span>
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Chips de sugerencias rápidas */}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        onClick={() => handleSend('¿Qué especialidades médicas tienen disponibles?')}
+                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                      >
+                        ¿Qué especialidades hay?
+                      </button>
+                      <button
+                        onClick={() => handleSend('Necesito una cita de cardiología')}
+                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                      >
+                        Cita de Cardiología
+                      </button>
+                      <button
+                        onClick={() => handleSend('Cuáles son mis citas agendadas')}
+                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                      >
+                        Mis citas registradas
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* COLUMNA DERECHA (1/3 WIDE): WIDGET DE PROXIMA CITA & RESUMEN DE SALUD */}
+                <div className="space-y-6">
+
+                  {/* WIDGET 1: ESTADO DE PRÓXIMA CITA */}
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-teal-400" />
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                          Próxima Cita
+                        </h3>
+                      </div>
+                      <button
+                        onClick={() => setActiveTab('citas')}
+                        className="text-[10px] text-cyan-400 hover:underline font-bold"
+                      >
+                        Ver todas
+                      </button>
+                    </div>
+
+                    {nextCita ? (
+                      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="bg-cyan-500/20 text-cyan-300 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border border-cyan-500/30">
+                            {nextCita.especialidad_nombre || 'Medicina General'}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            nextCita.estado === 'confirmada'
+                              ? 'bg-teal-950 text-teal-300 border border-teal-700'
+                              : 'bg-amber-950 text-amber-300 border border-amber-700'
+                          }`}>
+                            {nextCita.estado === 'confirmada' ? 'Confirmada' : 'Pend. Pago'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-bold text-white">{nextCita.medico_nombre}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-500" />
+                            {nextCita.sede_nombre}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                          <div>
+                            <span className="text-[10px] text-slate-500 block">Fecha & Hora</span>
+                            <span className="text-slate-200 font-bold">
+                              {formatFecha(nextCita.fecha_hora)} - {formatHora(nextCita.fecha_hora)}
+                            </span>
+                          </div>
+
+                          {nextCita.estado === 'pendiente_pago' && (
+                            <button
+                              onClick={() => handlePagarCita(nextCita.id)}
+                              disabled={payingCitaId === nextCita.id}
+                              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1.5 rounded-lg text-[11px] shrink-0"
+                            >
+                              Pagar Wompi
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 bg-slate-950/40 rounded-xl border border-dashed border-slate-800">
+                        <Calendar className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-slate-400">Sin citas próximas</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Agenda tu turno mediante el asistente</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* WIDGET 2: ESPECIALIDADES MÉDICAS & INFORMACIÓN */}
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <HeartPulse className="w-4 h-4 text-cyan-400" />
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                          Especialidades Disponibles
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                        <div>
+                          <p className="font-bold text-white">Medicina General</p>
+                          <p className="text-[10px] text-slate-500">Atención básica y chequeos</p>
+                        </div>
+                        <span className="text-cyan-400 font-black text-xs">$80.000 COP</span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                        <div>
+                          <p className="font-bold text-white">Cardiología</p>
+                          <p className="text-[10px] text-slate-500">Evaluación cardiovascular</p>
+                        </div>
+                        <span className="text-cyan-400 font-black text-xs">$150.000 COP</span>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                        <div>
+                          <p className="font-bold text-white">Pediatría</p>
+                          <p className="text-[10px] text-slate-500">Atención médica infantil</p>
+                        </div>
+                        <span className="text-cyan-400 font-black text-xs">$120.000 COP</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        ) : (
+          /* ── VISTA DE CONVERSACIÓN DE CHAT ACTIVA (`messages.length > 1`) ── */
+          <div className="flex-1 flex flex-col h-full overflow-hidden relative justify-between">
+            {/* Mensajes de la Conversaciones Activas */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 max-w-3xl mx-auto w-full custom-scrollbar">
+              {messages.map((msg, idx) => (
+                <div
+                  key={msg.id || idx}
+                  className={`flex ${
+                    msg.emisor === 'usuario' ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {msg.emisor === 'asistente' && (
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-slate-950 flex items-center justify-center font-extrabold text-xs shrink-0 mr-3 shadow-md">
+                      <Stethoscope className="w-4.5 h-4.5 text-slate-950 stroke-[2.5]" />
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[85%] p-4 sm:p-5 ${
+                      msg.emisor === 'usuario'
+                        ? 'bg-gradient-to-r from-cyan-600 via-teal-600 to-cyan-700 text-white rounded-2xl rounded-tr-none shadow-lg text-xs leading-relaxed font-medium'
+                        : 'bg-slate-900/90 border border-slate-800 text-slate-100 rounded-2xl rounded-tl-none shadow-xl backdrop-blur-xl text-xs leading-relaxed'
+                    }`}
+                  >
+                    <p
+                      className="text-xs leading-relaxed"
+                      dangerouslySetInnerHTML={{
+                        __html: renderMarkdown(msg.contenido),
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+
+              {loading && (
+                <div className="flex justify-start items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0 shadow-md">
+                    <Stethoscope className="w-4 h-4 text-slate-950 animate-spin" />
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-semibold text-cyan-400 flex items-center gap-2">
+                    <div className="typing-indicator">
+                      <div className="typing-dot" />
+                      <div className="typing-dot" />
+                      <div className="typing-dot" />
+                    </div>
+                    <span>MediCore consultando base de datos clínica en tiempo real...</span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Console Prompt Bar Flotante */}
+            <div className="p-4 mb-2 max-w-3xl w-full mx-auto shrink-0">
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 shadow-2xl backdrop-blur-2xl flex items-center gap-3">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Escribe tu mensaje..."
+                  className="w-full bg-transparent px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none"
+                  disabled={loading}
+                />
+                <button
+                  onClick={() => handleSend()}
+                  disabled={loading || !input.trim()}
+                  className="w-9 h-9 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center justify-center shadow-md transition-all disabled:opacity-40 shrink-0 font-bold"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-center mt-2 text-[10px] text-slate-500 font-medium">
+                MediCore IA — Asistente administrativo clínico. Consulta siempre a un médico profesional.
+              </p>
+            </div>
           </div>
         )}
       </main>
