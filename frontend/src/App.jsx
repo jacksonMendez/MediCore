@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 
 import BackgroundOrbs from './components/BackgroundOrbs'
 import GlassNavbar from './components/GlassNavbar'
+import SplashScreen from './components/SplashScreen'
 
 import LoginView from './views/LoginView'
 import PacienteView from './views/PacienteView'
@@ -10,12 +11,13 @@ import DoctorView from './views/DoctorView'
 import AdminView from './views/AdminView'
 
 /**
- * App — Root component with centralized auth state and Apple Liquid Glass layout.
+ * App — Root component with centralized auth state, splash screen, and Apple Liquid Glass layout.
  */
 function AppContent() {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [showSplash, setShowSplash] = useState(true)
   const location = useLocation()
 
   // Check for stored auth on mount
@@ -66,7 +68,10 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen relative bg-slate-100 text-slate-900 font-sans">
+    <div className="min-h-screen relative bg-slate-100 text-slate-900 font-sans overflow-x-hidden">
+      {/* Cinematic Entry Splash Screen */}
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+
       <BackgroundOrbs />
 
       {!hideNavbar && user && <GlassNavbar user={user} onLogout={handleLogout} />}
@@ -113,3 +118,4 @@ export default function App() {
     </BrowserRouter>
   )
 }
+
