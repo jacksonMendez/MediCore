@@ -154,23 +154,23 @@ export default function AdminView() {
   }
 
   return (
-    <div className="mt-16 p-6 max-w-7xl mx-auto relative z-10">
+    <div className="mt-16 p-8 max-w-7xl mx-auto relative z-10">
       {/* Header */}
       <div className="mb-8 animate-fade-in-up">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--color-text-primary)' }}>
-          Panel de Administración
+        <h1 className="text-2xl font-bold mb-1 text-white tracking-tight">
+          Panel de administración
         </h1>
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-xs text-slate-400">
           Gestión central de MediCore OS
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={Stethoscope} label="Médicos Activos" value={medicos.length} color="cyan" delay={0} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard icon={Stethoscope} label="Médicos activos" value={medicos.length} color="cyan" delay={0} />
         <StatCard icon={Building2} label="Sedes" value={sedes.length} color="teal" delay={100} />
         <StatCard icon={BookOpen} label="Especialidades" value={especialidades.length} color="blue" delay={200} />
-        <StatCard icon={DollarSign} label="Precio Prom."
+        <StatCard icon={DollarSign} label="Precio promedio"
           value={especialidades.length > 0
             ? `$${Math.round(especialidades.reduce((a, e) => a + e.precio_base, 0) / especialidades.length).toLocaleString()}`
             : '$0'}
@@ -178,14 +178,14 @@ export default function AdminView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 mb-6 animate-fade-in-up" style={{ animationDelay: '300ms', opacity: 0, animationFillMode: 'forwards' }}>
+      <div className="flex items-center gap-3 mb-6 animate-fade-in-up" style={{ animationDelay: '300ms', opacity: 0, animationFillMode: 'forwards' }}>
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`glass-btn text-sm py-2 px-4 ${
+              className={`glass-btn text-xs py-2 px-4 transition-all ${
                 activeTab === tab.id ? 'glass-btn-primary' : 'glass-btn-secondary'
               }`}
             >
@@ -203,7 +203,7 @@ export default function AdminView() {
             else if (activeTab === 'sedes') openModal('sede')
             else openModal('especialidad')
           }}
-          className="glass-btn glass-btn-primary text-sm"
+          className="glass-btn glass-btn-primary text-xs font-semibold"
         >
           <Plus className="w-4 h-4" />
           Agregar
@@ -215,11 +215,11 @@ export default function AdminView() {
       </div>
 
       {/* Content */}
-      <div className="glass-panel p-6 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards' }}>
+      <div className="glass-panel p-6 border border-slate-800 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards' }}>
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-cyan-200 border-t-cyan-600 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando datos...</p>
+            <div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-slate-400">Cargando datos...</p>
           </div>
         ) : (
           <>
@@ -228,8 +228,8 @@ export default function AdminView() {
               <div className="overflow-x-auto">
                 {medicos.length === 0 ? (
                   <div className="text-center py-12">
-                    <Stethoscope className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
-                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                    <Stethoscope className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+                    <p className="text-xs text-slate-400">
                       No hay médicos registrados
                     </p>
                   </div>
@@ -240,8 +240,8 @@ export default function AdminView() {
                         <th>Médico</th>
                         <th>Especialidad</th>
                         <th>Sede</th>
-                        <th>Tarjeta Prof.</th>
-                        <th>Duración Cita</th>
+                        <th>Tarjeta prof.</th>
+                        <th>Duración cita</th>
                         <th>Estado</th>
                       </tr>
                     </thead>
@@ -250,29 +250,28 @@ export default function AdminView() {
                         <tr key={m.id}>
                           <td>
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                                   style={{ background: 'linear-gradient(135deg, #0d9488, #2dd4bf)' }}>
+                              <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-xs font-bold text-cyan-300">
                                 {m.nombre_completo?.charAt(0) || 'D'}
                               </div>
                               <div>
-                                <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                                <p className="text-xs font-semibold text-slate-200">
                                   {m.nombre_completo || 'Doctor'}
                                 </p>
-                                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                                <p className="text-[11px] text-slate-500">
                                   {m.correo}
                                 </p>
                               </div>
                             </div>
                           </td>
-                          <td>{m.especialidad_nombre || 'N/A'}</td>
+                          <td className="text-slate-300">{m.especialidad_nombre || 'N/A'}</td>
                           <td>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" style={{ color: 'var(--color-text-muted)' }} />
+                            <div className="flex items-center gap-1 text-slate-300">
+                              <MapPin className="w-3.5 h-3.5 text-slate-500" />
                               {m.sede_nombre || 'N/A'}
                             </div>
                           </td>
-                          <td className="font-mono text-xs">{m.tarjeta_profesional}</td>
-                          <td>{m.duracion_cita_minutos} min</td>
+                          <td className="font-mono text-xs text-slate-400">{m.tarjeta_profesional}</td>
+                          <td className="text-slate-300">{m.duracion_cita_minutos} min</td>
                           <td>
                             <span className={`badge ${m.activo ? 'badge-confirmed' : 'badge-cancelled'}`}>
                               {m.activo ? 'Activo' : 'Inactivo'}
@@ -291,32 +290,31 @@ export default function AdminView() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {sedes.length === 0 ? (
                   <div className="col-span-2 text-center py-12">
-                    <Building2 className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
-                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                    <Building2 className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+                    <p className="text-xs text-slate-400">
                       No hay sedes registradas
                     </p>
                   </div>
                 ) : (
                   sedes.map((s) => (
-                    <div key={s.id} className="glass-panel-sm p-5">
+                    <div key={s.id} className="glass-panel-sm p-5 bg-slate-950/60 border border-slate-800 rounded-xl">
                       <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                             style={{ background: 'linear-gradient(135deg, #0d9488, #2dd4bf)' }}>
-                          <Building2 className="w-5 h-5 text-white" />
+                        <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                          <Building2 className="w-4 h-4" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                          <h3 className="text-xs font-semibold text-white">
                             {s.nombre}
                           </h3>
-                          <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--color-text-secondary)' }}>
-                            <MapPin className="w-3 h-3" /> {s.direccion}
+                          <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-500" /> {s.direccion}
                           </p>
                           {s.telefono && (
-                            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                            <p className="text-[11px] text-slate-500 mt-1">
                               📞 {s.telefono}
                             </p>
                           )}
-                          <span className={`badge mt-2 ${s.activa ? 'badge-confirmed' : 'badge-cancelled'}`}>
+                          <span className={`badge mt-3 ${s.activa ? 'badge-confirmed' : 'badge-cancelled'}`}>
                             {s.activa ? 'Activa' : 'Inactiva'}
                           </span>
                         </div>
@@ -332,31 +330,30 @@ export default function AdminView() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {especialidades.length === 0 ? (
                   <div className="col-span-3 text-center py-12">
-                    <BookOpen className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
-                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                    <BookOpen className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+                    <p className="text-xs text-slate-400">
                       No hay especialidades registradas
                     </p>
                   </div>
                 ) : (
                   especialidades.map((e) => (
-                    <div key={e.id} className="glass-panel-sm p-5">
+                    <div key={e.id} className="glass-panel-sm p-5 bg-slate-950/60 border border-slate-800 rounded-xl">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                             style={{ background: 'linear-gradient(135deg, #0284c7, #38bdf8)' }}>
-                          <BookOpen className="w-5 h-5 text-white" />
+                        <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+                          <BookOpen className="w-4 h-4" />
                         </div>
-                        <h3 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                        <h3 className="text-xs font-semibold text-white">
                           {e.nombre}
                         </h3>
                       </div>
                       {e.descripcion && (
-                        <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--color-text-secondary)' }}>
+                        <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
                           {e.descripcion}
                         </p>
                       )}
                       <div className="flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5" style={{ color: 'var(--color-antiseptic-green)' }} />
-                        <span className="text-sm font-bold" style={{ color: 'var(--color-antiseptic-green)' }}>
+                        <DollarSign className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-cyan-400">
                           ${e.precio_base?.toLocaleString()} COP
                         </span>
                       </div>

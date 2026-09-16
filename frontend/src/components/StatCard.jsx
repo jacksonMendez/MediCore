@@ -7,29 +7,29 @@ import React from 'react'
 export default function StatCard({ icon: Icon, label, value, trend, color = 'cyan', delay = 0 }) {
   const colorMap = {
     cyan: {
-      gradient: 'linear-gradient(135deg, rgba(8,145,178,0.15), rgba(34,211,238,0.08))',
-      iconBg: 'linear-gradient(135deg, #0891b2, #22d3ee)',
-      text: 'var(--color-surgical-cyan)',
+      iconBg: 'rgba(6, 182, 212, 0.15)',
+      iconColor: '#38bdf8',
+      text: '#f8fafc',
     },
     blue: {
-      gradient: 'linear-gradient(135deg, rgba(2,132,199,0.15), rgba(56,189,248,0.08))',
-      iconBg: 'linear-gradient(135deg, #0284c7, #38bdf8)',
-      text: 'var(--color-medical-blue)',
+      iconBg: 'rgba(56, 189, 248, 0.15)',
+      iconColor: '#38bdf8',
+      text: '#f8fafc',
     },
     teal: {
-      gradient: 'linear-gradient(135deg, rgba(13,148,136,0.15), rgba(45,212,191,0.08))',
-      iconBg: 'linear-gradient(135deg, #0d9488, #2dd4bf)',
-      text: 'var(--color-antiseptic-green)',
+      iconBg: 'rgba(16, 185, 129, 0.15)',
+      iconColor: '#34d399',
+      text: '#f8fafc',
     },
     amber: {
-      gradient: 'linear-gradient(135deg, rgba(217,119,6,0.15), rgba(251,191,36,0.08))',
-      iconBg: 'linear-gradient(135deg, #d97706, #fbbf24)',
-      text: 'var(--color-alert-amber)',
+      iconBg: 'rgba(245, 158, 11, 0.15)',
+      iconColor: '#fbbf24',
+      text: '#f8fafc',
     },
     rose: {
-      gradient: 'linear-gradient(135deg, rgba(225,29,72,0.15), rgba(251,113,133,0.08))',
-      iconBg: 'linear-gradient(135deg, #e11d48, #fb7185)',
-      text: 'var(--color-alert-rose)',
+      iconBg: 'rgba(244, 63, 94, 0.15)',
+      iconColor: '#f87171',
+      text: '#f8fafc',
     },
   }
 
@@ -37,7 +37,7 @@ export default function StatCard({ icon: Icon, label, value, trend, color = 'cya
 
   return (
     <div
-      className="glass-panel p-5 animate-fade-in-up"
+      className="glass-panel p-5 animate-fade-in-up border border-slate-800/80"
       style={{
         animationDelay: `${delay}ms`,
         opacity: 0,
@@ -46,26 +46,26 @@ export default function StatCard({ icon: Icon, label, value, trend, color = 'cya
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-1"
-             style={{ color: 'var(--color-text-muted)' }}>
+          <p className="text-xs font-medium text-slate-400 mb-1">
             {label}
           </p>
-          <p className="text-3xl font-bold" style={{ color: c.text }}>
+          <p className="text-2xl font-bold tracking-tight text-white">
             {value}
           </p>
           {trend && (
-            <p className="text-xs mt-1 font-medium" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-xs mt-1 font-normal text-slate-400">
               {trend}
             </p>
           )}
         </div>
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center"
+          className="w-10 h-10 rounded-xl flex items-center justify-center border border-slate-700/50"
           style={{ background: c.iconBg }}
         >
-          <Icon className="w-5 h-5 text-white" />
+          <Icon className="w-5 h-5" style={{ color: c.iconColor }} />
         </div>
       </div>
     </div>
   )
 }
+

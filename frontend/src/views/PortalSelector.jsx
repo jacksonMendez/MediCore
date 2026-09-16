@@ -5,7 +5,7 @@ import BackgroundOrbs from '../components/BackgroundOrbs'
 
 /**
  * PortalSelector — Landing page to choose between Patient, Doctor, and Admin portals.
- * Features glass cards with hover effects and gradient accents.
+ * Features dark glass cards with hover effects and unified cyan accent.
  */
 
 const portals = [
@@ -17,8 +17,6 @@ const portals = [
     icon: MessageCircle,
     path: '/login',
     role: 'paciente',
-    gradient: 'linear-gradient(135deg, #0891b2, #22d3ee)',
-    accentColor: '#0891b2',
   },
   {
     id: 'doctor',
@@ -28,8 +26,6 @@ const portals = [
     icon: Stethoscope,
     path: '/login',
     role: 'medico',
-    gradient: 'linear-gradient(135deg, #0d9488, #2dd4bf)',
-    accentColor: '#0d9488',
   },
   {
     id: 'admin',
@@ -39,8 +35,6 @@ const portals = [
     icon: Shield,
     path: '/login',
     role: 'admin',
-    gradient: 'linear-gradient(135deg, #0284c7, #38bdf8)',
-    accentColor: '#0284c7',
   },
 ]
 
@@ -48,22 +42,21 @@ export default function PortalSelector() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 relative bg-slate-950">
       <BackgroundOrbs />
 
       {/* Hero */}
       <div className="text-center mb-12 relative z-10 animate-fade-in-up">
-        <div className="inline-flex items-center gap-2 glass-panel-sm px-4 py-2 mb-6">
-          <div className="w-2 h-2 rounded-full" style={{ background: '#0891b2' }} />
-          <span className="text-xs font-semibold tracking-wider uppercase" style={{ color: 'var(--color-text-muted)' }}>
-            Sistema Médico Integral
+        <div className="inline-flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-full mb-5">
+          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+          <span className="text-xs font-medium text-slate-400">
+            Sistema médico integral
           </span>
         </div>
-        <h1 className="text-5xl font-bold mb-3 tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
-          Medi<span style={{ color: 'var(--color-surgical-cyan)' }}>Core</span>{' '}
-          <span style={{ color: 'var(--color-medical-blue)' }}>OS</span>
+        <h1 className="text-4xl sm:text-5xl font-bold mb-3 tracking-tight text-white">
+          MediCore<span className="text-cyan-400">OS</span>
         </h1>
-        <p className="text-lg max-w-lg mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
+        <p className="text-sm sm:text-base text-slate-400 max-w-lg mx-auto font-normal leading-relaxed">
           Plataforma médica asistida por inteligencia artificial.
           <br />Selecciona tu portal para comenzar.
         </p>
@@ -76,36 +69,32 @@ export default function PortalSelector() {
           return (
             <div
               key={portal.id}
-              className="glass-panel p-6 cursor-pointer group animate-fade-in-up"
+              className="glass-panel p-6 cursor-pointer group border border-slate-800 hover:border-cyan-500/50 animate-fade-in-up"
               style={{
-                animationDelay: `${(i + 1) * 150}ms`,
+                animationDelay: `${(i + 1) * 120}ms`,
                 opacity: 0,
                 animationFillMode: 'forwards',
               }}
               onClick={() => navigate(portal.path, { state: { role: portal.role } })}
             >
               {/* Icon */}
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110"
-                style={{ background: portal.gradient }}
-              >
-                <Icon className="w-7 h-7 text-white" />
+              <div className="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center mb-5 text-cyan-400 transition-transform group-hover:scale-105">
+                <Icon className="w-6 h-6 stroke-[2]" />
               </div>
 
               {/* Text */}
-              <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text-primary)' }}>
+              <h3 className="text-lg font-bold text-white mb-1">
                 {portal.title}
               </h3>
-              <p className="text-sm font-medium mb-3" style={{ color: portal.accentColor }}>
+              <p className="text-xs font-medium text-cyan-400 mb-3">
                 {portal.subtitle}
               </p>
-              <p className="text-sm leading-relaxed mb-5" style={{ color: 'var(--color-text-secondary)' }}>
+              <p className="text-xs text-slate-400 leading-relaxed mb-6 font-normal">
                 {portal.description}
               </p>
 
               {/* CTA */}
-              <div className="flex items-center gap-2 text-sm font-semibold transition-all group-hover:gap-3"
-                   style={{ color: portal.accentColor }}>
+              <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 transition-all group-hover:gap-3">
                 <span>Ingresar</span>
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </div>
@@ -115,9 +104,10 @@ export default function PortalSelector() {
       </div>
 
       {/* Footer */}
-      <p className="mt-12 text-xs relative z-10" style={{ color: 'var(--color-text-muted)' }}>
-        MediCore OS v1.0 — Sistema Médico Integral Asistido por IA
+      <p className="mt-12 text-xs text-slate-500 relative z-10">
+        MediCore OS v1.0 — Sistema médico integral asistido por IA
       </p>
     </div>
   )
 }
+

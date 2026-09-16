@@ -50,8 +50,8 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <div className="w-8 h-8 border-4 border-cyan-600/30 border-t-cyan-600 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="w-8 h-8 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
       </div>
     )
   }
@@ -68,7 +68,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen relative bg-slate-100 text-slate-900 font-sans overflow-x-hidden">
+    <div className="min-h-screen relative bg-slate-950 text-slate-100 font-sans overflow-x-hidden">
       {/* Cinematic Entry Splash Screen */}
       {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 

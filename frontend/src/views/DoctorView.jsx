@@ -140,13 +140,13 @@ export default function DoctorView() {
   }
 
   return (
-    <div className="mt-16 p-6 max-w-7xl mx-auto relative z-10">
+    <div className="mt-16 p-8 max-w-7xl mx-auto relative z-10">
       {/* Header */}
       <div className="mb-8 animate-fade-in-up">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--color-text-primary)' }}>
-          Dashboard Clínico
+        <h1 className="text-2xl font-bold mb-1 text-white tracking-tight">
+          Dashboard clínico
         </h1>
-        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-xs text-slate-400">
           {new Date().toLocaleDateString('es-CO', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
           })}
@@ -154,19 +154,19 @@ export default function DoctorView() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon={Calendar} label="Citas Hoy" value={stats.total} color="cyan" delay={0} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard icon={Calendar} label="Citas hoy" value={stats.total} color="cyan" delay={0} />
         <StatCard icon={CheckCircle} label="Confirmadas" value={stats.confirmadas} color="teal" delay={100} />
         <StatCard icon={Clock} label="Pendientes" value={stats.pendientes} color="amber" delay={200} />
         <StatCard icon={XCircle} label="Canceladas" value={stats.canceladas} color="rose" delay={300} />
       </div>
 
       {/* Appointments Table */}
-      <div className="glass-panel p-6 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards' }}>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--color-text-primary)' }}>
-            <Activity className="w-5 h-5" style={{ color: 'var(--color-surgical-cyan)' }} />
-            Agenda del Día
+      <div className="glass-panel p-6 border border-slate-800 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards' }}>
+        <div className="flex items-center justify-between mb-6 border-b border-slate-800/80 pb-4">
+          <h2 className="text-base font-bold flex items-center gap-2 text-white">
+            <Activity className="w-5 h-5 text-cyan-400" />
+            Agenda del día
           </h2>
           <button onClick={loadAgenda} className="glass-btn glass-btn-secondary text-xs">
             Actualizar
@@ -175,16 +175,16 @@ export default function DoctorView() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-cyan-200 border-t-cyan-600 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Cargando agenda...</p>
+            <div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-slate-400">Cargando agenda...</p>
           </div>
         ) : todayCitas.length === 0 ? (
           <div className="text-center py-12">
-            <Calendar className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
-            <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+            <Calendar className="w-10 h-10 mx-auto mb-3 text-slate-600" />
+            <p className="text-xs font-semibold text-slate-300">
               No hay citas programadas para hoy
             </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+            <p className="text-[11px] mt-1 text-slate-500">
               Las citas aparecerán aquí cuando los pacientes las agenden
             </p>
           </div>
@@ -203,34 +203,33 @@ export default function DoctorView() {
               <tbody>
                 {todayCitas.map((cita) => (
                   <React.Fragment key={cita.id}>
-                    <tr className="cursor-pointer" onClick={() => setExpandedCita(expandedCita === cita.id ? null : cita.id)}>
-                      <td className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                    <tr className="cursor-pointer hover:bg-slate-800/40" onClick={() => setExpandedCita(expandedCita === cita.id ? null : cita.id)}>
+                      <td className="font-semibold text-white">
                         {new Date(cita.fecha_hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                               style={{ background: 'linear-gradient(135deg, #0891b2, #0284c7)' }}>
+                          <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-xs font-bold text-cyan-300">
                             {cita.paciente_nombre?.charAt(0) || 'P'}
                           </div>
-                          <span>{cita.paciente_nombre || 'Paciente'}</span>
+                          <span className="text-slate-200">{cita.paciente_nombre || 'Paciente'}</span>
                         </div>
                       </td>
-                      <td>{cita.motivo || 'Sin motivo especificado'}</td>
+                      <td className="text-slate-400">{cita.motivo || 'Sin motivo especificado'}</td>
                       <td>{statusBadge(cita.estado)}</td>
                       <td>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                           {cita.estado === 'confirmada' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); changeStatus(cita.id, 'atendida') }}
-                              className="glass-btn glass-btn-success text-xs py-1 px-2"
+                              className="glass-btn glass-btn-success text-xs py-1 px-2.5"
                             >
-                              <CheckCircle className="w-3 h-3" /> Atender
+                              <CheckCircle className="w-3.5 h-3.5" /> Atender
                             </button>
                           )}
                           {expandedCita === cita.id
-                            ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
-                            : <ChevronDown className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
+                            ? <ChevronUp className="w-4 h-4 text-slate-500" />
+                            : <ChevronDown className="w-4 h-4 text-slate-500" />
                           }
                         </div>
                       </td>
@@ -238,23 +237,23 @@ export default function DoctorView() {
                     {expandedCita === cita.id && (
                       <tr>
                         <td colSpan={5}>
-                          <div className="glass-panel-sm p-4 m-2 animate-fade-in">
-                            <div className="grid grid-cols-2 gap-4">
+                          <div className="glass-panel-sm p-4 m-2 bg-slate-950/60 border border-slate-800 rounded-xl animate-fade-in">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                               <div>
-                                <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--color-text-muted)' }}>Sede</p>
-                                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{cita.sede_nombre || 'N/A'}</p>
+                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Sede</p>
+                                <p className="text-slate-200 font-semibold">{cita.sede_nombre || 'N/A'}</p>
                               </div>
                               <div>
-                                <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--color-text-muted)' }}>Especialidad</p>
-                                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{cita.especialidad_nombre || 'N/A'}</p>
+                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Especialidad</p>
+                                <p className="text-slate-200 font-semibold">{cita.especialidad_nombre || 'N/A'}</p>
                               </div>
                               <div>
-                                <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--color-text-muted)' }}>Duración</p>
-                                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{cita.duracion_minutos} minutos</p>
+                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Duración</p>
+                                <p className="text-slate-200 font-semibold">{cita.duracion_minutos} minutos</p>
                               </div>
                               <div>
-                                <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--color-text-muted)' }}>Creada</p>
-                                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Creada</p>
+                                <p className="text-slate-200 font-semibold">
                                   {new Date(cita.creado_en).toLocaleString('es-CO')}
                                 </p>
                               </div>
@@ -273,16 +272,16 @@ export default function DoctorView() {
 
       {/* All Appointments */}
       {citas.length > 0 && (
-        <div className="glass-panel p-6 mt-6 animate-fade-in-up" style={{ animationDelay: '500ms', opacity: 0, animationFillMode: 'forwards' }}>
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-5" style={{ color: 'var(--color-text-primary)' }}>
-            <FileText className="w-5 h-5" style={{ color: 'var(--color-medical-blue)' }} />
-            Todas las Citas ({citas.length})
+        <div className="glass-panel p-6 mt-8 border border-slate-800 animate-fade-in-up" style={{ animationDelay: '500ms', opacity: 0, animationFillMode: 'forwards' }}>
+          <h2 className="text-base font-bold flex items-center gap-2 mb-5 text-white">
+            <FileText className="w-5 h-5 text-cyan-400" />
+            Todas las citas ({citas.length})
           </h2>
           <div className="overflow-x-auto">
             <table className="glass-table">
               <thead>
                 <tr>
-                  <th>Fecha & Hora</th>
+                  <th>Fecha y hora</th>
                   <th>Paciente</th>
                   <th>Motivo</th>
                   <th>Estado</th>
@@ -291,13 +290,13 @@ export default function DoctorView() {
               <tbody>
                 {citas.slice(0, 20).map((c) => (
                   <tr key={c.id}>
-                    <td className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                    <td className="font-semibold text-slate-200">
                       {new Date(c.fecha_hora).toLocaleString('es-CO', {
                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                       })}
                     </td>
-                    <td>{c.paciente_nombre || 'Paciente'}</td>
-                    <td>{c.motivo || '—'}</td>
+                    <td className="text-slate-300">{c.paciente_nombre || 'Paciente'}</td>
+                    <td className="text-slate-400">{c.motivo || '—'}</td>
                     <td>{statusBadge(c.estado)}</td>
                   </tr>
                 ))}
@@ -310,43 +309,40 @@ export default function DoctorView() {
       {/* AI Copilot Floating Button */}
       <button
         onClick={() => setShowCopilot(!showCopilot)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-110"
+        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center shadow-xl shadow-cyan-500/20 transition-transform hover:scale-105"
         style={{
-          background: 'linear-gradient(135deg, #0891b2, #0284c7)',
-          animation: showCopilot ? 'none' : 'pulse-glow 2s infinite',
+          animation: showCopilot ? 'none' : 'pulse-glow 2.5s infinite',
         }}
       >
-        <Stethoscope className="w-6 h-6 text-white" />
+        <Stethoscope className="w-6 h-6 stroke-[2.5]" />
       </button>
 
       {/* AI Copilot Panel */}
       {showCopilot && (
         <div
-          className="fixed bottom-24 right-6 z-50 glass-panel-strong animate-fade-in-up"
+          className="fixed bottom-22 right-6 z-50 glass-panel-strong border border-slate-800 shadow-2xl animate-fade-in-up rounded-2xl overflow-hidden"
           style={{ width: '380px', maxHeight: '500px' }}
         >
           {/* Copilot Header */}
-          <div className="p-4 flex items-center gap-3"
-               style={{ borderBottom: '1px solid rgba(148,163,184,0.2)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                 style={{ background: 'linear-gradient(135deg, #0891b2, #0284c7)' }}>
-              <Stethoscope className="w-4 h-4 text-white" />
+          <div className="p-4 flex items-center gap-3 border-b border-slate-800/80 bg-slate-900">
+            <div className="w-8 h-8 rounded-xl bg-cyan-500 text-slate-950 flex items-center justify-center font-bold">
+              <Stethoscope className="w-4 h-4 stroke-[2.5]" />
             </div>
             <div>
-              <h3 className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+              <h3 className="text-xs font-bold text-white">
                 Copiloto IA
               </h3>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              <p className="text-[11px] text-slate-400">
                 Asistente clínico inteligente
               </p>
             </div>
           </div>
 
           {/* Messages */}
-          <div className="p-3 overflow-y-auto space-y-3" style={{ maxHeight: '320px' }}>
+          <div className="p-4 overflow-y-auto space-y-3 bg-slate-950/80 custom-scrollbar" style={{ maxHeight: '320px' }}>
             {copilotMessages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.emisor === 'usuario' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] px-3 py-2 text-xs leading-relaxed ${
+                <div className={`max-w-[85%] px-3.5 py-2.5 text-xs leading-relaxed ${
                   msg.emisor === 'usuario' ? 'chat-bubble-user' : 'chat-bubble-assistant'
                 }`}>
                   {msg.contenido}
@@ -368,7 +364,7 @@ export default function DoctorView() {
           </div>
 
           {/* Input */}
-          <div className="p-3" style={{ borderTop: '1px solid rgba(148,163,184,0.2)' }}>
+          <div className="p-3 bg-slate-900 border-t border-slate-800/80">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -376,13 +372,12 @@ export default function DoctorView() {
                 onChange={(e) => setCopilotInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && sendCopilotMessage()}
                 placeholder="Pregunta al copiloto..."
-                className="glass-input text-xs py-2 border-0 bg-transparent"
-                style={{ backdropFilter: 'none' }}
+                className="glass-input text-xs py-2 bg-slate-950/80 border-slate-800 text-slate-100 placeholder-slate-500"
               />
               <button
                 onClick={sendCopilotMessage}
                 disabled={copilotLoading || !copilotInput.trim()}
-                className="glass-btn glass-btn-primary p-2 shrink-0 disabled:opacity-50"
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold p-2 rounded-lg shrink-0 disabled:opacity-40 transition-all shadow-md"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
@@ -393,3 +388,5 @@ export default function DoctorView() {
     </div>
   )
 }
+
+

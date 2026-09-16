@@ -619,102 +619,102 @@ export default function PacienteView({ onLogout }) {
           </div>
         ) : messages.length <= 1 ? (
           /* ── DASHBOARD GRID COMPOSITION (CUANDO NO HAY CHAT ACTIVO) ─────── */
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <div className="max-w-6xl mx-auto space-y-6">
+          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            <div className="max-w-6xl mx-auto space-y-8">
               
               {/* HERO WELCOME BANNER (BANNER COMPACTO DE DASHBOARD) */}
-              <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-96 h-full bg-gradient-to-l from-cyan-500/10 via-teal-500/5 to-transparent pointer-events-none" />
+              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-96 h-full bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none" />
 
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
                   <div>
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
-                        Portal Oficial Paciente
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full">
+                        Portal Paciente
                       </span>
                       <span className="text-xs text-slate-400">
                         {new Date().toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric' })}
                       </span>
                     </div>
 
-                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    <h2 className="text-2xl font-bold text-white tracking-tight">
                       Bienvenido, <span className="text-cyan-400">{firstName}</span>
                     </h2>
-                    <p className="text-xs text-slate-400 mt-1 max-w-xl font-medium leading-relaxed">
+                    <p className="text-xs text-slate-400 mt-1 max-w-xl font-normal leading-relaxed">
                       Gestión integral de agendamientos médicos, consulta de doctores por género y pagos seguros con Sandbox Wompi.
                     </p>
                   </div>
 
                   {/* Tarjetas de Métricas Rápidas */}
                   <div className="flex items-center gap-3 shrink-0">
-                    <div className="bg-slate-800/80 border border-slate-700/80 px-4 py-3 rounded-xl text-center">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Citas Registradas</span>
-                      <span className="text-lg font-black text-white">{citas.length}</span>
+                    <div className="bg-slate-950/60 border border-slate-800 px-4 py-3 rounded-xl text-center min-w-[110px]">
+                      <span className="text-[11px] font-normal text-slate-400 block">Citas registradas</span>
+                      <span className="text-lg font-bold text-white mt-0.5 block">{citas.length}</span>
                     </div>
 
-                    <div className="bg-slate-800/80 border border-slate-700/80 px-4 py-3 rounded-xl text-center">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Pagos Pendientes</span>
-                      <span className="text-lg font-black text-amber-400">{pendingCitasCount}</span>
+                    <div className="bg-slate-950/60 border border-slate-800 px-4 py-3 rounded-xl text-center min-w-[110px]">
+                      <span className="text-[11px] font-normal text-slate-400 block">Pagos pendientes</span>
+                      <span className="text-lg font-bold text-amber-400 mt-0.5 block">{pendingCitasCount}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* GRID PRINCIPAL DE 2 COLUMNAS (ACCIONES & PROXIMA CITA + CONSOLA IA) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* COLUMNA IZQUIERDA (2/3 WIDE): ACCIONES Y CONSOLA IA */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-8">
 
-                  {/* SECCIÓN 1: ACCIONES PRINCIPALES ASIMÉTRICAS */}
+                  {/* SECCIÓN 1: ACCIONES PRINCIPALES CON HÉROE DESTACADO */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-                    {/* Tarjeta Principal Agendamiento (Span 2 cols) */}
+                    {/* Tarjeta HERO Principal Agendamiento (Span 2 cols) */}
                     <div
                       onClick={() => handleSend('Quiero agendar una cita médica')}
-                      className="sm:col-span-2 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/40 border border-cyan-500/40 hover:border-cyan-400 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group relative overflow-hidden"
+                      className="sm:col-span-2 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/50 border border-cyan-500/50 hover:border-cyan-400 p-6 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group relative overflow-hidden"
                     >
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start justify-between mb-4">
                         <div className="w-10 h-10 rounded-xl bg-cyan-500 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-cyan-500/20">
                           <Stethoscope className="w-5 h-5 stroke-[2.5]" />
                         </div>
-                        <span className="bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-                          Acción Recomendada
+                        <span className="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[10px] font-medium px-2.5 py-0.5 rounded-full">
+                          Acción principal
                         </span>
                       </div>
 
-                      <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-1.5">
-                        Agendar Cita Médica
+                      <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
+                        Agendar cita médica
                         <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform" />
                       </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                      <p className="text-xs text-slate-400 leading-relaxed font-normal">
                         Consulta horarios disponibles en tiempo real por especialidad y reserva tu turno clínico.
                       </p>
                     </div>
 
-                    {/* Tarjeta Filtro Doctora */}
+                    {/* Tarjeta Secundaria Filtro Doctora */}
                     <div
                       onClick={() => handleSend('Quiero una cita con una doctora')}
-                      className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-teal-500/40 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
+                      className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
                     >
-                      <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-300 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 text-cyan-400 flex items-center justify-center mb-3">
                         <Filter className="w-4 h-4" />
                       </div>
-                      <h3 className="text-xs font-bold text-white mb-1">Atención por Doctora</h3>
+                      <h3 className="text-xs font-semibold text-white mb-1">Atención por doctora</h3>
                       <p className="text-[11px] text-slate-400 leading-relaxed">
                         Filtra médicos especialistas por género femenino.
                       </p>
                     </div>
 
-                    {/* Tarjeta Disponibilidad Hoy */}
+                    {/* Tarjeta Secundaria Disponibilidad Hoy */}
                     <div
                       onClick={() => handleSend('Consultar disponibilidad de citas para hoy')}
-                      className="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-sky-500/40 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
+                      className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
                     >
-                      <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-500/40 text-sky-300 flex items-center justify-center mb-3">
+                      <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 text-cyan-400 flex items-center justify-center mb-3">
                         <Zap className="w-4 h-4" />
                       </div>
-                      <h3 className="text-xs font-bold text-white mb-1">Disponibilidad Hoy</h3>
+                      <h3 className="text-xs font-semibold text-white mb-1">Disponibilidad hoy</h3>
                       <p className="text-[11px] text-slate-400 leading-relaxed">
                         Revisa turnos de atención inmediata en la agenda.
                       </p>
@@ -723,17 +723,17 @@ export default function PacienteView({ onLogout }) {
                     {/* Tarjeta Mis Citas / Pagos (Span 2 cols) */}
                     <div
                       onClick={() => setActiveTab('citas')}
-                      className="sm:col-span-2 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-teal-500/40 p-5 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group flex items-center justify-between"
+                      className="sm:col-span-2 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer group flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 text-cyan-400 flex items-center justify-center">
                           <CreditCard className="w-4 h-4" />
                         </div>
                         <div>
-                          <h3 className="text-xs font-bold text-white flex items-center gap-2">
-                            Mis Citas y Pagos Sandbox
+                          <h3 className="text-xs font-semibold text-white flex items-center gap-2">
+                            Mis citas y pagos
                             {pendingCitasCount > 0 && (
-                              <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-extrabold px-2 py-0.5 rounded-full">
+                              <span className="bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[9px] font-medium px-2 py-0.5 rounded-full">
                                 {pendingCitasCount} pend.
                               </span>
                             )}
@@ -743,21 +743,21 @@ export default function PacienteView({ onLogout }) {
                           </p>
                         </div>
                       </div>
-                      <ArrowRight className="w-4 h-4 text-teal-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                      <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform shrink-0" />
                     </div>
                   </div>
 
                   {/* SECCIÓN 2: CONSOLA IA INTEGRADA AL DASHBOARD */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
                       <div className="flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-cyan-400" />
-                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                          Consola de Asistencia Médica IA
+                        <h3 className="text-xs font-semibold text-white">
+                          Consola de asistencia médica IA
                         </h3>
                       </div>
-                      <span className="text-[10px] text-slate-500 font-semibold">
-                        Responde en 1-3 oraciones
+                      <span className="text-[11px] text-slate-400 font-normal">
+                        Asistente Groq LLM v3.8
                       </span>
                     </div>
 
@@ -773,7 +773,7 @@ export default function PacienteView({ onLogout }) {
                       <button
                         onClick={() => handleSend()}
                         disabled={loading || !input.trim()}
-                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 shrink-0 disabled:opacity-40 transition-all shadow-md"
+                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 shrink-0 disabled:opacity-40 transition-all shadow-md"
                       >
                         <span>Consultar</span>
                         <Send className="w-3.5 h-3.5" />
@@ -784,19 +784,19 @@ export default function PacienteView({ onLogout }) {
                     <div className="flex flex-wrap gap-2 pt-1">
                       <button
                         onClick={() => handleSend('¿Qué especialidades médicas tienen disponibles?')}
-                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                        className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-[11px] font-normal px-3 py-1 rounded-full transition-colors"
                       >
                         ¿Qué especialidades hay?
                       </button>
                       <button
                         onClick={() => handleSend('Necesito una cita de cardiología')}
-                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                        className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-[11px] font-normal px-3 py-1 rounded-full transition-colors"
                       >
-                        Cita de Cardiología
+                        Cita de cardiología
                       </button>
                       <button
                         onClick={() => handleSend('Cuáles son mis citas agendadas')}
-                        className="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-slate-300 text-[11px] font-semibold px-3 py-1 rounded-full transition-colors"
+                        className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-[11px] font-normal px-3 py-1 rounded-full transition-colors"
                       >
                         Mis citas registradas
                       </button>
@@ -805,20 +805,20 @@ export default function PacienteView({ onLogout }) {
                 </div>
 
                 {/* COLUMNA DERECHA (1/3 WIDE): WIDGET DE PROXIMA CITA & RESUMEN DE SALUD */}
-                <div className="space-y-6">
+                <div className="space-y-8">
 
                   {/* WIDGET 1: ESTADO DE PRÓXIMA CITA */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
                       <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-teal-400" />
-                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                          Próxima Cita
+                        <Clock className="w-4 h-4 text-cyan-400" />
+                        <h3 className="text-xs font-semibold text-white">
+                          Próxima cita
                         </h3>
                       </div>
                       <button
                         onClick={() => setActiveTab('citas')}
-                        className="text-[10px] text-cyan-400 hover:underline font-bold"
+                        className="text-[11px] text-cyan-400 hover:underline font-medium"
                       >
                         Ver todas
                       </button>
@@ -827,20 +827,20 @@ export default function PacienteView({ onLogout }) {
                     {nextCita ? (
                       <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="bg-cyan-500/20 text-cyan-300 text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full border border-cyan-500/30">
+                          <span className="bg-cyan-500/10 text-cyan-300 text-[10px] font-medium px-2 py-0.5 rounded-full border border-cyan-500/20">
                             {nextCita.especialidad_nombre || 'Medicina General'}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                             nextCita.estado === 'confirmada'
-                              ? 'bg-teal-950 text-teal-300 border border-teal-700'
-                              : 'bg-amber-950 text-amber-300 border border-amber-700'
+                              ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/60'
+                              : 'bg-amber-950/60 text-amber-300 border border-amber-800/60'
                           }`}>
                             {nextCita.estado === 'confirmada' ? 'Confirmada' : 'Pend. Pago'}
                           </span>
                         </div>
 
                         <div>
-                          <p className="text-xs font-bold text-white">{nextCita.medico_nombre}</p>
+                          <p className="text-xs font-semibold text-white">{nextCita.medico_nombre}</p>
                           <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
                             <MapPin className="w-3 h-3 text-slate-500" />
                             {nextCita.sede_nombre}
@@ -849,8 +849,8 @@ export default function PacienteView({ onLogout }) {
 
                         <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
                           <div>
-                            <span className="text-[10px] text-slate-500 block">Fecha & Hora</span>
-                            <span className="text-slate-200 font-bold">
+                            <span className="text-[10px] text-slate-500 block">Fecha y hora</span>
+                            <span className="text-slate-200 font-semibold">
                               {formatFecha(nextCita.fecha_hora)} - {formatHora(nextCita.fecha_hora)}
                             </span>
                           </div>
@@ -859,7 +859,7 @@ export default function PacienteView({ onLogout }) {
                             <button
                               onClick={() => handlePagarCita(nextCita.id)}
                               disabled={payingCitaId === nextCita.id}
-                              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1.5 rounded-lg text-[11px] shrink-0"
+                              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold px-2.5 py-1.5 rounded-lg text-[11px] shrink-0"
                             >
                               Pagar Wompi
                             </button>
@@ -868,47 +868,47 @@ export default function PacienteView({ onLogout }) {
                       </div>
                     ) : (
                       <div className="text-center py-6 bg-slate-950/40 rounded-xl border border-dashed border-slate-800">
-                        <Calendar className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                        <p className="text-xs font-bold text-slate-400">Sin citas próximas</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Agenda tu turno mediante el asistente</p>
+                        <Calendar className="w-7 h-7 text-slate-600 mx-auto mb-2" />
+                        <p className="text-xs font-medium text-slate-400">Sin citas próximas</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Agenda tu turno mediante el asistente</p>
                       </div>
                     )}
                   </div>
 
-                  {/* WIDGET 2: ESPECIALIDADES MÉDICAS & INFORMACIÓN */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  {/* WIDGET 2: ESPECIALIDADES MÉDICAS & INFORMACIÓN (LISTA LIMPIA SIN CAJAS EXCESIVAS) */}
+                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
                       <div className="flex items-center gap-2">
                         <HeartPulse className="w-4 h-4 text-cyan-400" />
-                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">
-                          Especialidades Disponibles
+                        <h3 className="text-xs font-semibold text-white">
+                          Especialidades disponibles
                         </h3>
                       </div>
                     </div>
 
-                    <div className="space-y-2.5 text-xs">
-                      <div className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                    <div className="divide-y divide-slate-800/80 text-xs">
+                      <div className="pb-3 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-white">Medicina General</p>
-                          <p className="text-[10px] text-slate-500">Atención básica y chequeos</p>
+                          <p className="font-medium text-slate-200">Medicina General</p>
+                          <p className="text-[11px] text-slate-400">Atención básica y chequeos</p>
                         </div>
-                        <span className="text-cyan-400 font-black text-xs">$80.000 COP</span>
+                        <span className="text-cyan-400 font-semibold text-xs">$80.000 COP</span>
                       </div>
 
-                      <div className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                      <div className="py-3 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-white">Cardiología</p>
-                          <p className="text-[10px] text-slate-500">Evaluación cardiovascular</p>
+                          <p className="font-medium text-slate-200">Cardiología</p>
+                          <p className="text-[11px] text-slate-400">Evaluación cardiovascular</p>
                         </div>
-                        <span className="text-cyan-400 font-black text-xs">$150.000 COP</span>
+                        <span className="text-cyan-400 font-semibold text-xs">$150.000 COP</span>
                       </div>
 
-                      <div className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                      <div className="pt-3 flex items-center justify-between">
                         <div>
-                          <p className="font-bold text-white">Pediatría</p>
-                          <p className="text-[10px] text-slate-500">Atención médica infantil</p>
+                          <p className="font-medium text-slate-200">Pediatría</p>
+                          <p className="text-[11px] text-slate-400">Atención médica infantil</p>
                         </div>
-                        <span className="text-cyan-400 font-black text-xs">$120.000 COP</span>
+                        <span className="text-cyan-400 font-semibold text-xs">$120.000 COP</span>
                       </div>
                     </div>
                   </div>
