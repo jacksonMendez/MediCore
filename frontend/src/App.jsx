@@ -56,8 +56,8 @@ function AppContent() {
     )
   }
 
-  // Pages that don't show navbar
-  const hideNavbar = ['/', '/login'].includes(location.pathname)
+  // Pages that don't show global navbar (PacienteView renders its own Gemini layout)
+  const hideNavbar = ['/', '/login', '/paciente'].includes(location.pathname)
 
   // Determine home route by role
   const getHomeRoute = () => {
