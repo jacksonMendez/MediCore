@@ -50,18 +50,19 @@ REGLAS ESTRICTAS QUE DEBES SEGUIR SIEMPRE:
 1. NUNCA formules diagnósticos médicos ni sugieras tratamientos.
 2. NUNCA recetes medicamentos ni dosis.
 3. NUNCA inventes disponibilidad de agenda. Toda información de horarios proviene EXCLUSIVAMENTE de la herramienta consultar_disponibilidad.
-4. Si no tienes datos sobre algo, indica que necesitas consultar el sistema.
-5. Responde SIEMPRE en español, de forma cálida, profesional y empática.
-6. Cuando el paciente quiera agendar una cita, sigue este flujo:
-   a) Pregunta qué especialidad necesita
+4. Si el paciente pregunta por sus citas agendadas, USA la herramienta consultar_mis_citas.
+5. Si el paciente solicita ser atendido por una doctora/mujer o doctor/hombre, USA el parámetro 'genero' ('F' para mujer, 'M' para hombre) en consultar_disponibilidad.
+6. Responde SIEMPRE en español, de forma cálida, profesional y empática.
+7. Cuando el paciente quiera agendar una cita, sigue este flujo:
+   a) Pregunta qué especialidad necesita (y preferencia de género del médico si aplica)
    b) Pregunta la fecha deseada
    c) Usa consultar_disponibilidad para obtener los horarios reales
    d) Presenta las opciones disponibles
    e) Cuando el paciente elija, usa agendar_cita para reservar
-7. Si el paciente no está registrado, usa registrar_paciente primero.
-8. Para médicos, puedes usar consultar_agenda_hoy y consultar_historial_paciente.
-9. Sé conciso pero amable. Usa emojis médicos moderadamente (🏥 📋 ⏰ ✅).
-10. Formatea las listas de horarios de manera clara y legible.
+8. Si el paciente no está registrado, usa registrar_paciente primero.
+9. Para médicos, puedes usar consultar_agenda_hoy y consultar_historial_paciente.
+10. Sé conciso pero amable. Usa emojis médicos moderadamente (🏥 📋 ⏰ ✅).
+11. Formatea las listas de horarios de manera clara y legible.
 
 Tu objetivo es ayudar a los usuarios a gestionar citas médicas de forma eficiente y segura."""
 
@@ -72,7 +73,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "consultar_disponibilidad",
-            "description": "Consulta los horarios disponibles para una especialidad médica en una fecha específica. Cruza los horarios de los médicos con las citas existentes para devolver SOLO los espacios realmente libres.",
+            "description": "Consulta los horarios disponibles para una especialidad médica en una fecha específica. Opcionalmente filtra por género del médico ('M' o 'F'). Cruza los horarios con citas existentes.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -84,8 +85,29 @@ TOOLS = [
                         "type": "string",
                         "description": "Fecha para consultar disponibilidad en formato YYYY-MM-DD",
                     },
+                    "genero": {
+                        "type": "string",
+                        "description": "Filtro opcional por género del médico: 'M' (hombre) o 'F' (mujer)",
+                    },
                 },
                 "required": ["especialidad_nombre", "fecha"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "consultar_mis_citas",
+            "description": "Consulta las citas registradas y activas del paciente autenticado actual.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "paciente_id": {
+                        "type": "string",
+                        "description": "UUID del paciente",
+                    },
+                },
+                "required": ["paciente_id"],
             },
         },
     },
@@ -190,8 +212,9 @@ async def _tool_consultar_disponibilidad(
     db: AsyncSession,
     especialidad_nombre: str,
     fecha: str,
+    genero: str | None = None,
 ) -> str:
-    """Query real availability from the database."""
+    """Query real availability from the database with optional gender filter."""
     try:
         fecha_dt = date.fromisoformat(fecha)
     except ValueError:
@@ -212,22 +235,28 @@ async def _tool_consultar_disponibilidad(
 
     dia_semana = DIAS_SEMANA[fecha_dt.weekday()]
 
+    # Build doctor filter
+    filters = [
+        Medico.especialidad_id == especialidad.id,
+        Medico.activo == True,
+    ]
+    if genero:
+        filters.append(func.upper(Medico.genero) == genero.upper())
+
     # Find doctors for this specialty
     medicos_result = await db.execute(
         select(Medico)
         .options(selectinload(Medico.usuario), selectinload(Medico.sede))
-        .where(and_(
-            Medico.especialidad_id == especialidad.id,
-            Medico.activo == True,
-        ))
+        .where(and_(*filters))
     )
     medicos = medicos_result.scalars().all()
 
     if not medicos:
+        gen_str = " " + ("femeninos" if genero == "F" else "masculinos") if genero else ""
         return json.dumps({
             "disponibilidad": [],
-            "mensaje": f"No hay médicos disponibles para {especialidad_nombre}",
-        })
+            "mensaje": f"No hay médicos{gen_str} disponibles para {especialidad_nombre} en esa fecha.",
+        }, ensure_ascii=False)
 
     slots_disponibles = []
 
@@ -263,6 +292,7 @@ async def _tool_consultar_disponibilidad(
                     slots_disponibles.append({
                         "medico_id": str(medico.id),
                         "medico_nombre": medico.usuario.nombre_completo,
+                        "genero": medico.genero or "M",
                         "sede": medico.sede.nombre,
                         "hora": current.strftime("%H:%M"),
                         "duracion_minutos": medico.duracion_cita_minutos,
@@ -274,8 +304,45 @@ async def _tool_consultar_disponibilidad(
         "especialidad": especialidad.nombre,
         "fecha": fecha,
         "dia": dia_semana,
+        "filtro_genero": genero or "todos",
         "slots_disponibles": slots_disponibles,
         "total": len(slots_disponibles),
+    }, ensure_ascii=False)
+
+
+async def _tool_consultar_mis_citas(
+    db: AsyncSession,
+    paciente_id: str,
+) -> str:
+    """Consult active and past appointments for a patient."""
+    result = await db.execute(
+        select(Cita)
+        .options(
+            selectinload(Cita.medico).selectinload(Medico.usuario),
+            selectinload(Cita.medico).selectinload(Medico.especialidad),
+            selectinload(Cita.sede),
+        )
+        .where(Cita.paciente_id == paciente_id)
+        .order_by(Cita.fecha_hora.desc())
+    )
+    citas = result.scalars().all()
+
+    citas_list = []
+    for c in citas:
+        citas_list.append({
+            "cita_id": str(c.id),
+            "fecha_hora": c.fecha_hora.strftime("%Y-%m-%d %H:%M"),
+            "especialidad": c.medico.especialidad.nombre if c.medico and c.medico.especialidad else "General",
+            "medico": c.medico.usuario.nombre_completo if c.medico and c.medico.usuario else "N/A",
+            "sede": c.sede.nombre if c.sede else "N/A",
+            "estado": c.estado,
+            "motivo": c.motivo or "Sin motivo especificado",
+        })
+
+    return json.dumps({
+        "paciente_id": paciente_id,
+        "total_citas": len(citas_list),
+        "citas": citas_list,
     }, ensure_ascii=False)
 
 
@@ -467,6 +534,7 @@ async def _tool_consultar_historial_paciente(
 
 TOOL_FUNCTIONS = {
     "consultar_disponibilidad": _tool_consultar_disponibilidad,
+    "consultar_mis_citas": _tool_consultar_mis_citas,
     "registrar_paciente": _tool_registrar_paciente,
     "agendar_cita": _tool_agendar_cita,
     "consultar_agenda_hoy": _tool_consultar_agenda_hoy,
