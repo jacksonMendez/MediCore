@@ -14,13 +14,20 @@ from app.routers import auth, chatbot, citas, medicos, pagos
 settings = get_settings()
 
 
+from app.init_db import init_db
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     print("🏥 MediCore OS — Starting up...")
     print(f"   Database: {settings.DATABASE_URL[:40]}...")
-    print(f"   Groq API: {'✅ Configured' if settings.GROQ_API_KEY else '❌ Not configured'}")
+    print(f"   Groq API: {'✅ Configured' if settings.GROQ_API_KEY else '⚠️ Not configured (Demo Mode)'}")
+    try:
+        await init_db()
+    except Exception as e:
+        print(f"   ⚠️ Database init warning: {e}")
     yield
     # Shutdown
     print("🏥 MediCore OS — Shutting down...")

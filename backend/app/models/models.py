@@ -1,6 +1,7 @@
 """
 MediCore OS — SQLAlchemy 2.0 ORM Models
 Maps all 11 database tables using the modern Mapped/mapped_column style.
+Includes cross-dialect GUID type for PostgreSQL and SQLite support.
 """
 
 import uuid
@@ -19,10 +20,51 @@ from sqlalchemy import (
     Text,
     Time,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.types import TypeDecorator, CHAR
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+
+# ── GUID Cross-Dialect Type ───────────────────────────────────
+
+class GUID(TypeDecorator):
+    """Platform-independent GUID type.
+    Uses PostgreSQL's UUID type when available, otherwise CHAR(36).
+    Handles string <-> uuid.UUID transparently.
+    """
+    impl = CHAR(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        else:
+            return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        if dialect.name == 'postgresql':
+            return str(value)
+        else:
+            if isinstance(value, uuid.UUID):
+                return str(value)
+            try:
+                return str(uuid.UUID(str(value)))
+            except Exception:
+                return str(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        if isinstance(value, uuid.UUID):
+            return value
+        try:
+            return uuid.UUID(str(value))
+        except Exception:
+            return value
 
 
 # ── Helpers ──────────────────────────────────────────────────
@@ -41,7 +83,7 @@ class Sede(Base):
     __tablename__ = "sedes"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     nombre: Mapped[str] = mapped_column(String(150), nullable=False)
     direccion: Mapped[str] = mapped_column(String(300), nullable=False)
@@ -59,7 +101,7 @@ class Especialidad(Base):
     __tablename__ = "especialidades"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     nombre: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     descripcion: Mapped[str | None] = mapped_column(Text)
@@ -75,7 +117,7 @@ class Usuario(Base):
     __tablename__ = "usuarios"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     nombre_completo: Mapped[str] = mapped_column(String(200), nullable=False)
     correo: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
@@ -104,10 +146,10 @@ class Paciente(Base):
     __tablename__ = "pacientes"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     usuario_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+        GUID, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
     )
     documento_tipo: Mapped[str] = mapped_column(String(10), default="CC")
     documento_numero: Mapped[str] = mapped_column(
@@ -128,16 +170,16 @@ class Medico(Base):
     __tablename__ = "medicos"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     usuario_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+        GUID, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
     )
     especialidad_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("especialidades.id"), nullable=False
+        GUID, ForeignKey("especialidades.id"), nullable=False
     )
     sede_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sedes.id"), nullable=False
+        GUID, ForeignKey("sedes.id"), nullable=False
     )
     tarjeta_profesional: Mapped[str] = mapped_column(
         String(50), unique=True, nullable=False
@@ -159,10 +201,10 @@ class HorarioMedico(Base):
     __tablename__ = "horarios_medico"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     medico_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("medicos.id", ondelete="CASCADE"), nullable=False
+        GUID, ForeignKey("medicos.id", ondelete="CASCADE"), nullable=False
     )
     dia: Mapped[str] = mapped_column(
         Enum(
@@ -189,16 +231,16 @@ class Cita(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     paciente_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False
+        GUID, ForeignKey("pacientes.id"), nullable=False
     )
     medico_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("medicos.id"), nullable=False
+        GUID, ForeignKey("medicos.id"), nullable=False
     )
     sede_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sedes.id"), nullable=False
+        GUID, ForeignKey("sedes.id"), nullable=False
     )
     fecha_hora: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     duracion_minutos: Mapped[int] = mapped_column(Integer, default=30)
@@ -228,10 +270,10 @@ class Pago(Base):
     __tablename__ = "pagos"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     cita_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID,
         ForeignKey("citas.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
@@ -258,10 +300,10 @@ class ConsultaNota(Base):
     __tablename__ = "consultas_notas"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     cita_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("citas.id", ondelete="CASCADE"), nullable=False
+        GUID, ForeignKey("citas.id", ondelete="CASCADE"), nullable=False
     )
     diagnostico: Mapped[str | None] = mapped_column(Text)
     tratamiento: Mapped[str | None] = mapped_column(Text)
@@ -278,10 +320,10 @@ class SesionChat(Base):
     __tablename__ = "sesiones_chat"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     usuario_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
+        GUID, ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False
     )
     rol_origen: Mapped[str] = mapped_column(String(20), default="paciente")
     creado_en: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -302,10 +344,10 @@ class MensajeChat(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=_new_uuid
+        GUID, primary_key=True, default=_new_uuid
     )
     sesion_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sesiones_chat.id", ondelete="CASCADE"), nullable=False
+        GUID, ForeignKey("sesiones_chat.id", ondelete="CASCADE"), nullable=False
     )
     emisor: Mapped[str] = mapped_column(String(20), nullable=False)  # 'usuario' | 'asistente'
     contenido: Mapped[str] = mapped_column(Text, nullable=False)
