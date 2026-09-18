@@ -12,6 +12,8 @@ import { type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Brand, MobileTopbar } from "./shared";
 
+import { removeToken } from "@/lib/api";
+
 const nav = [
   { label: "Resumen", icon: LayoutDashboard },
   { label: "Citas", icon: CalendarDays },
@@ -44,7 +46,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <Settings />
             Configuración
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-muted-foreground" asChild>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-muted-foreground"
+            onClick={() => removeToken()}
+            asChild
+          >
             <Link to="/">
               <LogOut />
               Salir del portal

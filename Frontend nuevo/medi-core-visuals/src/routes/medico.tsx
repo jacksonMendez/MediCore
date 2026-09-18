@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarCheck, Clock3, FileText, Search, Users, Video } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/medicore/dashboard-shell";
 import { PatientChat } from "@/components/medicore/patient-chat";
 import { AppHeader, SectionHeading, StatCard } from "@/components/medicore/shared";
+import { apiFetch, getUser } from "@/lib/api";
 
 export const Route = createFileRoute("/medico")({
   head: () => ({
@@ -22,28 +24,79 @@ export const Route = createFileRoute("/medico")({
   component: DoctorPage,
 });
 
+interface CitaDoctor {
+  id: string;
+  fecha_hora: string;
+  estado: string;
+  motivo?: string;
+  tipo?: string;
+  paciente_nombre?: string;
+  sede_nombre?: string;
+}
+
 function DoctorPage() {
-  const rows = [
+  const user = getUser();
+  const rawName = user?.nombre_completo || "Dr. Médico";
+  const initials = rawName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase() || "DR";
+
+  const [citas, setCitas] = useState<CitaDoctor[]>([]);
+
+  useEffect(() => {
+    apiFetch<CitaDoctor[]>("/citas/mis-citas")
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setCitas(data);
+        }
+      })
+      .catch(() => {
+        // Fallback to initial rows if offline or error
+      });
+  }, []);
+
+  const defaultRows = [
     ["08:00", "Carlos Ramírez", "Control cardiológico", "Confirmada", "Presencial"],
     ["09:30", "Valentina Soto", "Primera consulta", "En espera", "Virtual"],
     ["11:00", "Miguel Torres", "Lectura de resultados", "Confirmada", "Presencial"],
     ["14:30", "Ana Lucía Gómez", "Seguimiento", "Pendiente", "Virtual"],
   ];
+
+  const rows = citas.length > 0
+    ? citas.map((c) => {
+        const d = new Date(c.fecha_hora);
+        const hora = !isNaN(d.getTime())
+          ? d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+          : "08:00";
+        const paciente = c.paciente_nombre || "Paciente";
+        const motivo = c.motivo || "Consulta médica";
+        const estado = c.estado.charAt(0).toUpperCase() + c.estado.slice(1);
+        const modalidad = c.tipo === "telemedicina" ? "Virtual" : "Presencial";
+        return [hora, paciente, motivo, estado, modalidad];
+      })
+    : defaultRows;
+
+  const virtualCount = rows.filter((r) => r[4] === "Virtual").length;
+  const nextTime = rows[0]?.[0] || "08:00";
+
   return (
     <DashboardShell>
       <AppHeader
         title="Agenda clínica"
-        subtitle="Viernes, 18 de septiembre"
-        name="Dra. M. Ruiz"
-        initials="MR"
+        subtitle="Panel del profesional de salud"
+        name={rawName}
+        initials={initials}
       />
       <div className="space-y-8 p-5 lg:p-8">
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(280px,.65fr)]">
           <PatientChat mode="doctor" className="min-h-[540px]" />
           <div className="grid content-start gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            <StatCard icon={<Clock3 />} label="Próxima consulta" value="08:00" note="en 24 min" />
-            <StatCard icon={<Users />} label="Pacientes hoy" value="8" note="2 virtuales" />
-            <StatCard icon={<CalendarCheck />} label="Ocupación" value="86%" note="6 h 30 min" />
+            <StatCard icon={<Clock3 />} label="Próxima consulta" value={nextTime} note="próximo turno" />
+            <StatCard icon={<Users />} label="Pacientes agendados" value={rows.length.toString()} note={`${virtualCount} virtuales`} />
+            <StatCard icon={<CalendarCheck />} label="Disponibilidad" value="Activa" note="Horario regular" />
           </div>
         </section>
         <section>
@@ -69,8 +122,8 @@ function DoctorPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {rows.map((row) => (
-                  <tr key={row[0]} className="bg-card/50 transition-colors hover:bg-accent">
+                {rows.map((row, idx) => (
+                  <tr key={`${row[0]}-${idx}`} className="bg-card/50 transition-colors hover:bg-accent">
                     <td className="px-5 py-4 font-medium text-primary">{row[0]}</td>
                     <td className="px-5 py-4 font-medium">{row[1]}</td>
                     <td className="px-5 py-4 text-muted-foreground">{row[2]}</td>

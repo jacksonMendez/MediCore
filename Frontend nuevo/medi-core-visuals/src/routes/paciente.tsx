@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, CalendarPlus, Clock3, Filter, MapPin, Stethoscope, Video } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/medicore/dashboard-shell";
 import { PatientChat } from "@/components/medicore/patient-chat";
 import { AppHeader, SectionHeading, StatusLine } from "@/components/medicore/shared";
+import { apiFetch, getUser } from "@/lib/api";
 
 export const Route = createFileRoute("/paciente")({
   head: () => ({
@@ -19,15 +21,111 @@ export const Route = createFileRoute("/paciente")({
   component: PatientPage,
 });
 
+interface CitaItem {
+  id: string;
+  fecha_hora: string;
+  estado: string;
+  motivo?: string;
+  tipo?: string;
+  medico_nombre?: string;
+  sede_nombre?: string;
+  especialidad_nombre?: string;
+  pago_estado?: string;
+  pago_monto?: number;
+}
+
+interface EspecialidadItem {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  precio_base?: number;
+}
+
 function PatientPage() {
-  const specialties = ["Medicina general", "Cardiología", "Dermatología", "Pediatría"];
+  const user = getUser();
+  const rawName = user?.nombre_completo || "Paciente";
+  const firstName = rawName.split(" ")[0];
+  const initials = rawName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase() || "PA";
+
+  const [citas, setCitas] = useState<CitaItem[]>([]);
+  const [specialties, setSpecialties] = useState<string[]>([
+    "Medicina General",
+    "Cardiología",
+    "Pediatría",
+  ]);
+  const [loadingPayId, setLoadingPayId] = useState<string | null>(null);
+
+  const loadData = async () => {
+    try {
+      const [citasRes, espRes] = await Promise.allSettled([
+        apiFetch<CitaItem[]>("/citas/mis-citas"),
+        apiFetch<EspecialidadItem[]>("/especialidades"),
+      ]);
+
+      if (citasRes.status === "fulfilled" && Array.isArray(citasRes.value)) {
+        setCitas(citasRes.value);
+      }
+      if (espRes.status === "fulfilled" && Array.isArray(espRes.value) && espRes.value.length > 0) {
+        setSpecialties(espRes.value.map((e) => e.nombre));
+      }
+    } catch {
+      // Keep defaults if network fails
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSimularPago = async (citaId: string) => {
+    setLoadingPayId(citaId);
+    try {
+      await apiFetch("/pagos/simular", {
+        method: "POST",
+        body: JSON.stringify({
+          cita_id: citaId,
+          metodo: "wompi_sandbox",
+        }),
+      });
+      await loadData();
+    } catch {
+      // ignore
+    } finally {
+      setLoadingPayId(null);
+    }
+  };
+
+  // Encontrar la próxima cita activa
+  const proximaCita = citas.find((c) => c.estado !== "cancelada") || citas[0];
+
+  const formatDateInfo = (isoString?: string) => {
+    if (!isoString) {
+      return { day: "22", month: "Sep", time: "10:30 a. m." };
+    }
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) {
+      return { day: "22", month: "Sep", time: "10:30 a. m." };
+    }
+    const day = d.getDate().toString();
+    const month = d.toLocaleDateString("es-CO", { month: "short" });
+    const time = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+    return { day, month, time };
+  };
+
+  const proximaFecha = formatDateInfo(proximaCita?.fecha_hora);
+
   return (
     <DashboardShell>
       <AppHeader
-        title="Hola, Laura"
+        title={`Hola, ${firstName}`}
         subtitle="Aquí tienes el resumen de tu atención"
-        name="Laura Méndez"
-        initials="LM"
+        name={rawName}
+        initials={initials}
       />
       <div className="grid gap-6 p-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.7fr)] lg:p-8">
         <PatientChat />
@@ -42,7 +140,7 @@ function PatientPage() {
               </span>
               <div>
                 <div className="mt-1 flex items-end justify-between gap-3">
-                   <h2 className="font-display text-xl font-semibold">Agendar una cita</h2>
+                  <h2 className="font-display text-xl font-semibold">Agendar una cita</h2>
                   <ArrowRight className="mb-1 transition-transform group-hover:translate-x-1" />
                 </div>
               </div>
@@ -72,33 +170,47 @@ function PatientPage() {
                 </Button>
               }
             />
-             <div className="relative overflow-hidden rounded-md border border-primary/30 bg-card p-5">
-              <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
-               <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center xl:grid-cols-1">
-                <div className="text-center">
-                  <p className="font-display text-3xl font-semibold">22</p>
-                  <p className="text-sm text-primary">Sep</p>
-                </div>
-                <div>
-                  <p className="font-display text-lg font-semibold">Consulta de cardiología</p>
-                  <p className="mt-1 text-sm text-muted-foreground">Dra. María Fernanda Ruiz</p>
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <Clock3 className="size-4" />
-                      10:30 a. m.
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="size-4" />
-                      Sede Norte · Consultorio 304
-                    </span>
+            {proximaCita ? (
+              <div className="relative overflow-hidden rounded-md border border-primary/30 bg-card p-5">
+                <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
+                <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center xl:grid-cols-1">
+                  <div className="text-center">
+                    <p className="font-display text-3xl font-semibold">{proximaFecha.day}</p>
+                    <p className="text-sm capitalize text-primary">{proximaFecha.month}</p>
                   </div>
+                  <div>
+                    <p className="font-display text-lg font-semibold">
+                      {proximaCita.especialidad_nombre || "Consulta médica"}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {proximaCita.medico_nombre || "Dr. Asignado"}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <Clock3 className="size-4" />
+                        {proximaFecha.time}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <MapPin className="size-4" />
+                        {proximaCita.sede_nombre || "Sede Principal"}
+                      </span>
+                    </div>
+                  </div>
+                  <Button className="sm:col-span-2 xl:col-span-1">
+                    <Video /> Unirme
+                  </Button>
                 </div>
-                 <Button className="sm:col-span-2 xl:col-span-1"><Video /> Unirme</Button>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-md border border-border bg-card p-5 text-center text-sm text-muted-foreground">
+                No tienes citas programadas. Puedes solicitar una usando el chat con el asistente.
+              </div>
+            )}
           </section>
           <details className="group rounded-md border border-border bg-card/40 p-4">
-            <summary className="cursor-pointer list-none font-display text-base font-semibold">Especialidades disponibles</summary>
+            <summary className="cursor-pointer list-none font-display text-base font-semibold">
+              Especialidades disponibles
+            </summary>
             <div className="mt-3 divide-y divide-border">
               {specialties.map((item) => (
                 <Button
@@ -118,21 +230,65 @@ function PatientPage() {
           <section>
             <SectionHeading title="Mis citas y pagos" />
             <div className="space-y-2 rounded-md bg-card/50 px-5">
-              {[
-                ["Confirmada", "Cardiología · 22 Sep", "$145.000 · Pagado"],
-                ["Pendiente", "Dermatología · 2 Oct", "$110.000 · Pendiente"],
-                ["Cancelada", "Medicina general · 9 Sep", "Sin cobro"],
-              ].map(([status, title, detail]) => (
-                <StatusLine key={title} status={status as "Confirmada" | "Pendiente" | "Cancelada"}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium">{title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+              {citas.length > 0 ? (
+                citas.map((cita) => {
+                  const f = formatDateInfo(cita.fecha_hora);
+                  const isPaid = cita.pago_estado === "aprobado";
+                  const statusMap: Record<string, "Confirmada" | "Pendiente" | "Cancelada"> = {
+                    confirmada: "Confirmada",
+                    programada: "Confirmada",
+                    completada: "Confirmada",
+                    pendiente: "Pendiente",
+                    cancelada: "Cancelada",
+                  };
+                  const displayStatus = statusMap[cita.estado.toLowerCase()] || "Pendiente";
+                  const monto = cita.pago_monto ? `$${cita.pago_monto.toLocaleString("es-CO")}` : "$120.000";
+                  const detailText = isPaid ? `${monto} · Pagado` : `${monto} · Pendiente`;
+
+                  return (
+                    <StatusLine key={cita.id} status={displayStatus}>
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium">
+                            {cita.especialidad_nombre || "Consulta"} · {f.day} {f.month}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">{detailText}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!isPaid && cita.estado !== "cancelada" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={loadingPayId === cita.id}
+                              onClick={() => handleSimularPago(cita.id)}
+                            >
+                              {loadingPayId === cita.id ? "Procesando..." : "Pagar"}
+                            </Button>
+                          )}
+                          <span className="text-xs text-muted-foreground">{displayStatus}</span>
+                        </div>
+                      </div>
+                    </StatusLine>
+                  );
+                })
+              ) : (
+                [
+                  ["Confirmada", "Cardiología · 22 Sep", "$145.000 · Pagado"],
+                  ["Pendiente", "Dermatología · 2 Oct", "$110.000 · Pendiente"],
+                  ["Cancelada", "Medicina general · 9 Sep", "Sin cobro"],
+                ].map(([status, title, detail]) => (
+                  <StatusLine key={title} status={status as "Confirmada" | "Pendiente" | "Cancelada"}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-medium">{title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{status}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{status}</span>
-                  </div>
-                </StatusLine>
-              ))}
+                  </StatusLine>
+                ))
+              )}
             </div>
           </section>
         </div>

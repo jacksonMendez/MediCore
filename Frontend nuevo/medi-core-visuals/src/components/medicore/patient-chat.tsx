@@ -1,35 +1,81 @@
 import { ArrowUp, Bot, Paperclip } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { apiFetch, getUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Message = { id: number; from: "assistant" | "user"; text: string };
-const initial: Message[] = [
-  {
-    id: 1,
-    from: "assistant",
-    text: "Hola, Laura. Puedo orientarte sobre tus citas, pagos o síntomas generales. ¿En qué te ayudo hoy?",
-  },
-];
+
 const suggestions = ["Ver mi próxima cita", "¿Cómo prepararme?", "Consultar un pago"];
 
 export function PatientChat({ compact = false, className, mode = "patient" }: { compact?: boolean; className?: string; mode?: "patient" | "doctor" }) {
-  const [messages, setMessages] = useState<Message[]>(() => mode === "doctor" ? [{ id: 1, from: "assistant", text: "Buenos días, doctora. Puedo ayudarle a preparar consultas, resumir notas y organizar seguimientos. ¿Qué necesita revisar?" }] : initial);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (mode === "doctor") {
+      return [{ id: 1, from: "assistant", text: "Buenos días, doctor. Puedo ayudarle a preparar consultas, resumir notas y organizar seguimientos. ¿Qué necesita revisar?" }];
+    }
+    const user = getUser();
+    const nombre = user?.nombre_completo ? user.nombre_completo.split(" ")[0] : "estimado paciente";
+    return [{ id: 1, from: "assistant", text: `Hola, ${nombre}. Puedo orientarte sobre tus citas, pagos o síntomas generales. ¿En qué te ayudo hoy?` }];
+  });
   const [draft, setDraft] = useState("");
-  const send = (text: string) => {
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  const send = async (text: string) => {
     const clean = text.trim();
-    if (!clean) return;
+    if (!clean || loading) return;
+
+    const userMsgId = Date.now();
     setMessages((current) => [
       ...current,
-      { id: Date.now(), from: "user", text: clean },
-      {
-        id: Date.now() + 1,
-        from: "assistant",
-        text: "Entendido. Esta es una respuesta de demostración; tu integración podrá reemplazarla con la respuesta de Groq.",
-      },
+      { id: userMsgId, from: "user", text: clean },
     ]);
     setDraft("");
+    setLoading(true);
+
+    try {
+      const res = await apiFetch<{
+        respuesta: string;
+        sesion_id?: string;
+        herramientas_usadas?: any[];
+      }>("/chat/mensaje", {
+        method: "POST",
+        body: JSON.stringify({
+          mensaje: clean,
+          sesion_id: sessionId || undefined,
+        }),
+      });
+
+      if (res.sesion_id) {
+        setSessionId(res.sesion_id);
+      }
+
+      setMessages((current) => [
+        ...current,
+        {
+          id: Date.now() + 1,
+          from: "assistant",
+          text: res.respuesta || "No recibí respuesta del asistente.",
+        },
+      ]);
+    } catch (err: any) {
+      setMessages((current) => [
+        ...current,
+        {
+          id: Date.now() + 1,
+          from: "assistant",
+          text: err.message || "Lo sentimos, ocurrió un error al consultar al asistente.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -70,6 +116,14 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
             </div>
           </div>
         ))}
+        {loading && (
+          <div className="flex">
+            <div className="max-w-[84%] text-sm leading-6 text-muted-foreground animate-pulse">
+              Consultando asistente...
+            </div>
+          </div>
+        )}
+        <div ref={scrollRef} />
       </div>
       <div className="space-y-3 border-t border-border p-4">
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -81,6 +135,7 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
               size="sm"
               className="shrink-0"
               onClick={() => send(suggestion)}
+              disabled={loading}
             >
               {suggestion}
             </Button>
@@ -92,12 +147,13 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Escribe tu consulta…"
             className="min-h-20 resize-none pb-11 pr-12"
+            disabled={loading}
           />
           <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-            <Button type="button" size="icon" variant="ghost" aria-label="Adjuntar archivo">
+            <Button type="button" size="icon" variant="ghost" aria-label="Adjuntar archivo" disabled={loading}>
               <Paperclip />
             </Button>
-            <Button type="submit" size="icon" aria-label="Enviar consulta" disabled={!draft.trim()}>
+            <Button type="submit" size="icon" aria-label="Enviar consulta" disabled={!draft.trim() || loading}>
               <ArrowUp />
             </Button>
           </div>
