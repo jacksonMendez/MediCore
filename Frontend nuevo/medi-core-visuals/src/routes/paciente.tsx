@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, CalendarPlus, Clock3, Filter, MapPin, Stethoscope, Video } from "lucide-react";
+import { ArrowRight, CalendarPlus, Clock3, Filter, MapPin, Stethoscope, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/medicore/dashboard-shell";
@@ -58,7 +58,7 @@ function PatientPage() {
     "Cardiología",
     "Pediatría",
   ]);
-  const [loadingPayId, setLoadingPayId] = useState<string | null>(null);
+  const [showDetalleModal, setShowDetalleModal] = useState(false);
 
   const loadData = async () => {
     try {
@@ -81,24 +81,6 @@ function PatientPage() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const handleSimularPago = async (citaId: string) => {
-    setLoadingPayId(citaId);
-    try {
-      await apiFetch("/pagos/simular", {
-        method: "POST",
-        body: JSON.stringify({
-          cita_id: citaId,
-          metodo: "wompi_sandbox",
-        }),
-      });
-      await loadData();
-    } catch {
-      // ignore
-    } finally {
-      setLoadingPayId(null);
-    }
-  };
 
   // Encontrar la próxima cita activa
   const proximaCita = citas.find((c) => c.estado !== "cancelada") || citas[0];
@@ -167,7 +149,7 @@ function PatientPage() {
             <SectionHeading
               title="Próxima cita"
               action={
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" onClick={() => setShowDetalleModal(true)}>
                   Ver detalles <ArrowRight />
                 </Button>
               }
@@ -198,9 +180,6 @@ function PatientPage() {
                       </span>
                     </div>
                   </div>
-                  <Button className="sm:col-span-2 xl:col-span-1">
-                    <Video /> Unirme
-                  </Button>
                 </div>
               </div>
             ) : (
@@ -257,17 +236,6 @@ function PatientPage() {
                           <p className="mt-1 text-xs text-muted-foreground">{detailText}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {!isPaid && cita.estado !== "cancelada" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs"
-                              disabled={loadingPayId === cita.id}
-                              onClick={() => handleSimularPago(cita.id)}
-                            >
-                              {loadingPayId === cita.id ? "Procesando..." : "Pagar"}
-                            </Button>
-                          )}
                           <span className="text-xs text-muted-foreground">{displayStatus}</span>
                         </div>
                       </div>
@@ -295,6 +263,53 @@ function PatientPage() {
           </section>
         </div>
       </div>
+
+      {showDetalleModal && proximaCita && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-lg font-semibold text-foreground">Detalle de la Cita</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowDetalleModal(false)}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+            <div className="mt-4 space-y-3.5 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Especialidad</p>
+                <p className="font-medium text-foreground">{proximaCita.especialidad_nombre || "Medicina General"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Profesional médico</p>
+                <p className="font-medium text-foreground">{proximaCita.medico_nombre || "Dr. Asignado"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Fecha y hora</p>
+                <p className="font-medium text-foreground">{proximaFecha.day} {proximaFecha.month} — {proximaFecha.time}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Sede de atención (Presencial)</p>
+                <p className="font-medium text-foreground">{proximaCita.sede_nombre || "Sede Principal"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Motivo de consulta</p>
+                <p className="font-medium text-foreground">{proximaCita.motivo || "Consulta médica general"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Estado de la cita</p>
+                <p className="font-medium capitalize text-primary">{proximaCita.estado}</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setShowDetalleModal(false)}>Cerrar</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardShell>
   );
 }
