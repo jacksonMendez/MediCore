@@ -66,3 +66,34 @@ class ConsultaNota(models.Model):
 
     def __str__(self):
         return f"Nota Cita {self.cita_id}"
+
+
+class PQRSolicitud(models.Model):
+    ESTADO_CHOICES = [
+        ('pendiente_revision', 'Pendiente de Revisión'),
+        ('aprobada', 'Aprobada'),
+        ('rechazada', 'Rechazada'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    cita = models.ForeignKey(
+        Cita,
+        on_delete=models.CASCADE,
+        related_name='pqr_solicitudes',
+    )
+    paciente = models.ForeignKey(
+        'clinica.Paciente',
+        on_delete=models.CASCADE,
+        related_name='pqr_solicitudes',
+    )
+    motivo = models.TextField()
+    estado = models.CharField(max_length=30, choices=ESTADO_CHOICES, default='pendiente_revision')
+    creado_en = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'pqr_solicitudes'
+        verbose_name = 'Solicitud PQR'
+        verbose_name_plural = 'Solicitudes PQR'
+
+    def __str__(self):
+        return f"PQR {self.id} - Cita {self.cita_id} ({self.estado})"

@@ -1,6 +1,8 @@
 import http from 'node:http';
 
 const server = http.createServer((req, res) => {
+  req.on('error', () => {});
+  res.on('error', () => {});
   const options = {
     hostname: '127.0.0.1',
     port: 5173,
@@ -14,12 +16,15 @@ const server = http.createServer((req, res) => {
   });
   req.pipe(proxyReq, { end: true });
   proxyReq.on('error', (err) => {
-    res.writeHead(502);
-    res.end('Proxy Error: ' + err.message);
+    if (!res.headersSent) {
+      res.writeHead(502);
+      res.end('Proxy Error: ' + err.message);
+    }
   });
 });
 
 server.on('upgrade', (req, socket, head) => {
+  socket.on('error', () => {});
   const proxyReq = http.request({
     hostname: '127.0.0.1',
     port: 5173,
@@ -28,6 +33,7 @@ server.on('upgrade', (req, socket, head) => {
     headers: { ...req.headers, host: '127.0.0.1:5173' },
   });
   proxyReq.on('upgrade', (proxyRes, proxySocket, proxyHead) => {
+    proxySocket.on('error', () => {});
     socket.write(
       'HTTP/1.1 101 Switching Protocols\r\n' +
         Object.entries(proxyRes.headers)
@@ -42,6 +48,10 @@ server.on('upgrade', (req, socket, head) => {
     socket.destroy();
   });
   proxyReq.end();
+});
+
+server.on('error', (err) => {
+  console.error('Server error:', err);
 });
 
 server.listen(8080, '127.0.0.1', () => {

@@ -10,7 +10,8 @@ from django.conf import settings
 from django.utils import timezone
 from apps.authentication.models import Usuario
 from apps.clinica.models import Especialidad, Medico, Paciente
-from apps.citas.models import Cita, ConsultaNota
+from apps.citas.models import Cita, ConsultaNota, PQRSolicitud
+from apps.pagos.models import Pago
 from apps.citas.services import get_disponibilidad
 from apps.chatbot.models import MensajeChat
 
@@ -27,6 +28,12 @@ REGLAS ESTRICTAS DE RESPUESTA:
 6. NUNCA inventes horarios. Toda disponibilidad proviene EXCLUSIVAMENTE de `consultar_disponibilidad`.
 7. NUNCA recetes medicamentos ni des diagnósticos médicos definitivos.
 8. Sé directo, formal, empático y resolutivo. Responde en 1 a 3 oraciones claras utilizando viñetas limpias si se requieren opciones de horarios o citas.
+9. CANCELACIÓN DE CITAS Y REEMBOLSOS:
+   - Si el usuario quiere cancelar una cita pero no especifica cuál, consulta primero `consultar_mis_citas` para identificarla.
+   - Si la cita está en estado 'pendiente_pago' (sin pagar), procede a cancelarla usando la herramienta `cancelar_cita`.
+   - Si la cita YA FUE PAGADA o está en estado 'confirmada': NO puedes cancelarla de inmediato. Explica de forma empática que, debido a que el pago ya fue procesado, se debe radicar una solicitud formal de PQR (Petición, Queja o Reclamo) para el reembolso del dinero. Solicita el motivo si no fue provisto y utiliza la herramienta `solicitar_pqr_reembolso`. Confírmale al paciente que su solicitud de PQR fue registrada con éxito y que el equipo administrativo la evaluará.
+10. FORMATO DE HORARIOS:
+   - Al presentar opciones de horarios disponibles al paciente, preséntalos SIEMPRE en formato de 12 horas con a.m. o p.m. (por ejemplo: '8:00 a. m.', '9:30 a. m.', '2:00 p. m.').
 """
 
 TOOLS = [
@@ -161,6 +168,44 @@ TOOLS = [
                     },
                 },
                 "required": ["documento_numero"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "cancelar_cita",
+            "description": "Cancela una cita médica que se encuentra en estado 'pendiente_pago' (sin pagar). Si la cita ya está pagada o confirmada, la herramienta rechaza la cancelación directa e indica que se debe radicar una PQR de reembolso.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cita_id": {
+                        "type": "string",
+                        "description": "UUID de la cita médica a cancelar",
+                    },
+                },
+                "required": ["cita_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solicitar_pqr_reembolso",
+            "description": "Registra una solicitud formal de PQR (Petición, Queja, Reclamo) y devolución/reembolso de dinero para una cita médica que ya fue pagada. Registra la solicitud en estado 'pendiente_revision' para administración.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cita_id": {
+                        "type": "string",
+                        "description": "UUID de la cita médica sobre la que se solicita el reembolso",
+                    },
+                    "motivo": {
+                        "type": "string",
+                        "description": "Motivo o explicación del paciente para solicitar la cancelación y reembolso",
+                    },
+                },
+                "required": ["cita_id", "motivo"],
             },
         },
     },
@@ -381,6 +426,75 @@ def _tool_consultar_historial_paciente(documento_numero: str) -> str:
     }, ensure_ascii=False)
 
 
+def _tool_cancelar_cita(cita_id: str) -> str:
+    try:
+        cita = Cita.objects.select_related('paciente__usuario', 'medico__usuario', 'medico__especialidad').get(id=cita_id)
+    except (Cita.DoesNotExist, ValueError):
+        return json.dumps({"error": f"No se encontró ninguna cita con el identificador {cita_id}."})
+
+    # Verificar si la cita ya está pagada
+    pago_aprobado = Pago.objects.filter(cita=cita, estado="aprobado").exists()
+
+    if pago_aprobado or cita.estado == "confirmada":
+        return json.dumps({
+            "error": "cita_ya_pagada",
+            "mensaje": (
+                f"La cita de {cita.medico.especialidad.nombre} programada para el {cita.fecha_hora.strftime('%Y-%m-%d %H:%M')} "
+                "ya fue pagada y confirmada. Por políticas clínicas y de seguridad financiera, las citas pagadas no pueden "
+                "cancelarse directamente. Para solicitar la devolución del dinero, es necesario radicar una solicitud de PQR "
+                "(Petición, Queja o Reclamo) de reembolso que será evaluada por el área administrativa."
+            ),
+            "cita_id": str(cita.id),
+            "requiere_pqr": True,
+        }, ensure_ascii=False)
+
+    if cita.estado == "cancelada":
+        return json.dumps({
+            "mensaje": "La cita ya se encontraba cancelada en el sistema.",
+            "cita_id": str(cita.id),
+        }, ensure_ascii=False)
+
+    cita.estado = "cancelada"
+    cita.save(update_fields=['estado'])
+
+    return json.dumps({
+        "mensaje": "Cita cancelada exitosamente.",
+        "cita_id": str(cita.id),
+        "especialidad": cita.medico.especialidad.nombre,
+        "medico": cita.medico.usuario.nombre_completo,
+        "fecha_hora": cita.fecha_hora.strftime("%Y-%m-%d %H:%M"),
+        "estado": "cancelada",
+    }, ensure_ascii=False)
+
+
+def _tool_solicitar_pqr_reembolso(cita_id: str, motivo: str) -> str:
+    try:
+        cita = Cita.objects.select_related('paciente__usuario', 'medico__usuario', 'medico__especialidad').get(id=cita_id)
+    except (Cita.DoesNotExist, ValueError):
+        return json.dumps({"error": f"No se encontró la cita con identificador {cita_id}."})
+
+    pqr = PQRSolicitud.objects.create(
+        cita=cita,
+        paciente=cita.paciente,
+        motivo=motivo,
+        estado="pendiente_revision",
+    )
+
+    return json.dumps({
+        "mensaje": "Solicitud de PQR y reembolso radicada exitosamente.",
+        "pqr_id": str(pqr.id),
+        "cita_id": str(cita.id),
+        "paciente": cita.paciente.usuario.nombre_completo,
+        "especialidad": cita.medico.especialidad.nombre,
+        "medico": cita.medico.usuario.nombre_completo,
+        "fecha_cita": cita.fecha_hora.strftime("%Y-%m-%d %H:%M"),
+        "motivo": motivo,
+        "estado": pqr.estado,
+        "fecha_radicacion": pqr.creado_en.strftime("%Y-%m-%d %H:%M"),
+        "aviso": "Su solicitud ha quedado registrada en el sistema bajo el número de radicado indicado y será revisada por el área administrativa.",
+    }, ensure_ascii=False)
+
+
 TOOL_FUNCTIONS = {
     "consultar_disponibilidad": _tool_consultar_disponibilidad,
     "consultar_mis_citas": _tool_consultar_mis_citas,
@@ -388,6 +502,8 @@ TOOL_FUNCTIONS = {
     "agendar_cita": _tool_agendar_cita,
     "consultar_agenda_hoy": _tool_consultar_agenda_hoy,
     "consultar_historial_paciente": _tool_consultar_historial_paciente,
+    "cancelar_cita": _tool_cancelar_cita,
+    "solicitar_pqr_reembolso": _tool_solicitar_pqr_reembolso,
 }
 
 
