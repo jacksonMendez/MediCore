@@ -29,11 +29,12 @@ REGLAS ESTRICTAS DE RESPUESTA:
 7. NUNCA recetes medicamentos ni des diagnósticos médicos definitivos.
 8. Sé directo, formal, empático y resolutivo. Responde en 1 a 3 oraciones claras utilizando viñetas limpias si se requieren opciones de horarios o citas.
 9. CANCELACIÓN DE CITAS Y REEMBOLSOS:
-   - Si el usuario quiere cancelar una cita pero no especifica cuál, consulta primero `consultar_mis_citas` para identificarla.
+   - Si el usuario quiere cancelar una cita o radicar una PQR/reembolso pero no especifica cuál cita, consulta primero `consultar_mis_citas` para identificar las citas del paciente y presentarle las opciones.
    - Si la cita está en estado 'pendiente_pago' (sin pagar), procede a cancelarla usando la herramienta `cancelar_cita`.
-   - Si la cita YA FUE PAGADA o está en estado 'confirmada': NO puedes cancelarla de inmediato. Explica de forma empática que, debido a que el pago ya fue procesado, se debe radicar una solicitud formal de PQR (Petición, Queja o Reclamo) para el reembolso del dinero. Solicita el motivo si no fue provisto y utiliza la herramienta `solicitar_pqr_reembolso`. Confírmale al paciente que su solicitud de PQR fue registrada con éxito y que el equipo administrativo la evaluará.
+   - Si la cita YA FUE PAGADA o está en estado 'confirmada': NO puedes cancelarla de inmediato. Explica de forma empática que, debido a que el pago ya fue procesado, se debe radicar una solicitud formal de PQR (Petición, Queja o Reclamo) para el reembolso del dinero. Solicita confirmación y el motivo si no fue provisto antes de invocar la herramienta `solicitar_pqr_reembolso`. Confírmale al paciente el ID de radicado de la PQR generada y que el equipo administrativo la evaluará.
 10. FORMATO DE HORARIOS:
    - Al presentar opciones de horarios disponibles al paciente, preséntalos SIEMPRE en formato de 12 horas con a.m. o p.m. (por ejemplo: '8:00 a. m.', '9:30 a. m.', '2:00 p. m.').
+   - Si el paciente selecciona o solicita un horario en formato 12 horas (ej: 'Quiero agendar a las 8:00 a. m.'), conviértelo al formato 'YYYY-MM-DD HH:MM' de 24 horas requerido al invocar la herramienta `agendar_cita`.
 """
 
 TOOLS = [
@@ -234,6 +235,11 @@ def _tool_consultar_disponibilidad(especialidad_nombre: str, fecha: str, genero:
             "genero": s.get("genero", "M"),
             "sede": s["sede"],
             "hora": s["hora_inicio"].strftime("%H:%M") if isinstance(s["hora_inicio"], time) else str(s["hora_inicio"]),
+            "hora_12h": (
+                s["hora_inicio"].strftime("%I:%M %p").replace("AM", "a. m.").replace("PM", "p. m.").lstrip("0")
+                if isinstance(s["hora_inicio"], time)
+                else str(s["hora_inicio"])
+            ),
             "duracion_minutos": s["duracion_minutos"],
             "precio": s["precio"],
         }

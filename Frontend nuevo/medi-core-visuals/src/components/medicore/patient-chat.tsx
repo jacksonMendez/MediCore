@@ -1,4 +1,4 @@
-import { ArrowUp, Bot, Paperclip } from "lucide-react";
+import { ArrowUp, Bot, Clock3, FileText, Paperclip } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,6 +6,85 @@ import { apiFetch, getUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Message = { id: number; from: "assistant" | "user"; text: string };
+
+export function extractAvailableTimeSlots(text: string): string[] {
+  if (!text) return [];
+
+  const lower = text.toLowerCase();
+
+  // Exclude messages that are confirmations, cancellations, or info messages
+  if (
+    lower.includes("cita agendada") ||
+    lower.includes("cita confirmada") ||
+    lower.includes("cita cancelada") ||
+    lower.includes("ha sido cancelada") ||
+    lower.includes("pqr registrada") ||
+    lower.includes("pqr radicada") ||
+    lower.includes("solicitud de pqr") ||
+    lower.includes("horario de atención")
+  ) {
+    return [];
+  }
+
+  // Must be in a context suggesting availability or booking
+  const isAvailabilityContext =
+    lower.includes("disponib") ||
+    lower.includes("horario") ||
+    lower.includes("turno") ||
+    lower.includes("agenda") ||
+    lower.includes("agendar") ||
+    lower.includes("elegir") ||
+    lower.includes("prefieres") ||
+    lower.includes("opciones") ||
+    lower.includes("cupo");
+
+  if (!isAvailabilityContext) return [];
+
+  const slots: string[] = [];
+  const seen = new Set<string>();
+
+  // 1. Match 12-hour times: e.g. 8:00 a. m., 9:30 a.m., 2:00 p. m., 11:00 am, 4:30 PM
+  const regex12 = /(?:^|[^\d])([0-1]?[0-9]):([0-5][0-9])\s*(a\.?\s*m\.?|p\.?\s*m\.?|am|pm|AM|PM)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex12.exec(text)) !== null) {
+    const hour = parseInt(match[1], 10);
+    const minute = match[2];
+    const period = match[3].toLowerCase();
+
+    if (hour >= 1 && hour <= 12) {
+      const isPm = period.includes("p");
+      const formattedPeriod = isPm ? "p. m." : "a. m.";
+      const formatted = `${hour}:${minute} ${formattedPeriod}`;
+      if (!seen.has(formatted)) {
+        seen.add(formatted);
+        slots.push(formatted);
+      }
+    }
+  }
+
+  // 2. If no 12-hour matches, look for 24-hour times: e.g. 08:00, 09:30, 14:00
+  if (slots.length === 0) {
+    const regex24 = /(?:^|[^\d])([0-2]?[0-9]):([0-5][0-9])(?!\s*(?:a|p|A|P))/g;
+    while ((match = regex24.exec(text)) !== null) {
+      const rawHour = parseInt(match[1], 10);
+      const minute = match[2];
+      if (rawHour >= 6 && rawHour <= 21) {
+        const isPm = rawHour >= 12;
+        let hour12 = rawHour % 12;
+        if (hour12 === 0) hour12 = 12;
+        const formattedPeriod = isPm ? "p. m." : "a. m.";
+        const formatted = `${hour12}:${minute} ${formattedPeriod}`;
+        if (!seen.has(formatted)) {
+          seen.add(formatted);
+          slots.push(formatted);
+        }
+      }
+    }
+  }
+
+  return slots;
+}
 
 const suggestions = ["Ver mi próxima cita", "¿Cómo prepararme?", "Consultar un pago"];
 
@@ -102,20 +181,41 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
         </div>
       </div>
       <div className="flex-1 min-h-0 space-y-5 overflow-y-auto p-5">
-        {messages.map((message) => (
-          <div key={message.id} className={cn("flex", message.from === "user" && "justify-end")}>
-            <div
-              className={cn(
-                "max-w-[84%] text-sm leading-6",
-                message.from === "user"
-                  ? "rounded-md bg-primary px-4 py-2.5 text-primary-foreground"
-                  : "text-foreground",
+        {messages.map((message) => {
+          const slots = message.from === "assistant" ? extractAvailableTimeSlots(message.text) : [];
+          return (
+            <div key={message.id} className={cn("flex flex-col", message.from === "user" ? "items-end" : "items-start")}>
+              <div
+                className={cn(
+                  "max-w-[84%] text-sm leading-6 whitespace-pre-wrap",
+                  message.from === "user"
+                    ? "rounded-md bg-primary px-4 py-2.5 text-primary-foreground"
+                    : "text-foreground",
+                )}
+              >
+                {message.text}
+              </div>
+              {slots.length > 0 && (
+                <div className="mt-2.5 flex flex-wrap gap-2 max-w-[84%]">
+                  {slots.map((slot) => (
+                    <Button
+                      key={slot}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs font-medium border-border/80 bg-background/60 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors cursor-pointer group"
+                      disabled={loading}
+                      onClick={() => send(`Quiero agendar a las ${slot}`)}
+                    >
+                      <Clock3 className="size-3 mr-1 text-primary group-hover:text-primary-foreground transition-colors" />
+                      {slot}
+                    </Button>
+                  ))}
+                </div>
               )}
-            >
-              {message.text}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {loading && (
           <div className="flex">
             <div className="max-w-[84%] text-sm leading-6 text-muted-foreground animate-pulse">
@@ -150,11 +250,26 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
             disabled={loading}
           />
           <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-            <Button type="button" size="icon" variant="ghost" aria-label="Adjuntar archivo" disabled={loading}>
-              <Paperclip />
-            </Button>
-            <Button type="submit" size="icon" aria-label="Enviar consulta" disabled={!draft.trim() || loading}>
-              <ArrowUp />
+            <div className="flex items-center gap-1.5">
+              <Button type="button" size="icon" variant="ghost" aria-label="Adjuntar archivo" disabled={loading} className="size-8">
+                <Paperclip className="size-4" />
+              </Button>
+              {mode === "patient" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2.5 text-xs font-normal border-border/80 bg-background/50 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                  onClick={() => send("Quiero solicitar una PQR o reembolso para una cita médica")}
+                  disabled={loading}
+                >
+                  <FileText className="size-3.5 mr-1.5 opacity-70" />
+                  Solicitar PQR / Reembolso
+                </Button>
+              )}
+            </div>
+            <Button type="submit" size="icon" aria-label="Enviar consulta" disabled={!draft.trim() || loading} className="size-8">
+              <ArrowUp className="size-4" />
             </Button>
           </div>
         </form>
