@@ -3,7 +3,7 @@
  * Centralized client for interacting with the Django REST backend.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
+const API_BASE = (import.meta.env as Record<string, string>)?.[ 'VITE_API_BASE' ] || 'http://localhost:8000/api';
 
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;

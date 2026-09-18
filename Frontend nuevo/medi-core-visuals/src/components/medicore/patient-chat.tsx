@@ -34,7 +34,7 @@ export function extractAvailableTimeSlots(text: string): string[] {
 
   // 2. Check for explicit structured tag from backend
   const slotsTagMatch = text.match(/<!--SLOTS:(.*?)-->/s);
-  if (slotsTagMatch) {
+  if (slotsTagMatch && slotsTagMatch[1]) {
     try {
       const parsed = JSON.parse(slotsTagMatch[1]);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -67,6 +67,7 @@ export function extractAvailableTimeSlots(text: string): string[] {
   let match: RegExpExecArray | null;
 
   while ((match = regex12.exec(text)) !== null) {
+    if (!match[1] || !match[2] || !match[3]) continue;
     const hour = parseInt(match[1], 10);
     const minute = match[2];
     const period = match[3].toLowerCase();

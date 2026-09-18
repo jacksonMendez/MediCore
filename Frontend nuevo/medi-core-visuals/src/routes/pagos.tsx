@@ -41,7 +41,7 @@ interface PagoItem {
   actualizado_en?: string;
 }
 
-export function PagosPage() {
+function PagosPage() {
   const user = getUser();
   const rawName = user?.nombre_completo || "Paciente";
   const firstName = rawName.split(" ")[0];

@@ -43,7 +43,7 @@ interface CitaItem {
 
 type FilterStatus = "todas" | "confirmada" | "pendiente" | "cancelada";
 
-export function CitasPage() {
+function CitasPage() {
   const navigate = useNavigate();
   const user = getUser();
   const rawName = user?.nombre_completo || "Paciente";

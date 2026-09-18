@@ -124,11 +124,19 @@ export function StatusLine({
   );
 }
 
-export function SearchBox({ placeholder = "Buscar..." }: { placeholder?: string }) {
+export function SearchBox({
+  placeholder = "Buscar...",
+  value,
+  onChange,
+}: {
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
   return (
     <div className="relative">
       <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input className="pl-9" placeholder={placeholder} />
+      <Input className="pl-9" placeholder={placeholder} value={value} onChange={onChange} />
     </div>
   );
 }
