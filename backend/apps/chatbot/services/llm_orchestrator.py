@@ -27,14 +27,20 @@ REGLAS ESTRICTAS DE RESPUESTA:
 5. Si el usuario pide especialista hombre o mujer ("doctora", "médico hombre"), USA el parámetro 'genero' ('F' o 'M') en `consultar_disponibilidad`.
 6. NUNCA inventes horarios. Toda disponibilidad proviene EXCLUSIVAMENTE de `consultar_disponibilidad`.
 7. NUNCA recetes medicamentos ni des diagnósticos médicos definitivos.
-8. Sé directo, formal, empático y resolutivo. Responde en 1 a 3 oraciones claras utilizando viñetas limpias si se requieren opciones de horarios o citas.
+8. Sé directo, formal, empático y resolutivo. Responde en 1 a 3 oraciones claras.
 9. CANCELACIÓN DE CITAS Y REEMBOLSOS:
    - Si el usuario quiere cancelar una cita o radicar una PQR/reembolso pero no especifica cuál cita, consulta primero `consultar_mis_citas` para identificar las citas del paciente y presentarle las opciones.
    - Si la cita está en estado 'pendiente_pago' (sin pagar), procede a cancelarla usando la herramienta `cancelar_cita`.
    - Si la cita YA FUE PAGADA o está en estado 'confirmada': NO puedes cancelarla de inmediato. Explica de forma empática que, debido a que el pago ya fue procesado, se debe radicar una solicitud formal de PQR (Petición, Queja o Reclamo) para el reembolso del dinero. Solicita confirmación y el motivo si no fue provisto antes de invocar la herramienta `solicitar_pqr_reembolso`. Confírmale al paciente el ID de radicado de la PQR generada y que el equipo administrativo la evaluará.
-10. FORMATO DE HORARIOS:
-   - Al presentar opciones de horarios disponibles al paciente, preséntalos SIEMPRE en formato de 12 horas con a.m. o p.m. (por ejemplo: '8:00 a. m.', '9:30 a. m.', '2:00 p. m.').
-   - Si el paciente selecciona o solicita un horario en formato 12 horas (ej: 'Quiero agendar a las 8:00 a. m.'), conviértelo al formato 'YYYY-MM-DD HH:MM' de 24 horas requerido al invocar la herramienta `agendar_cita`.
+10. FORMATO DE HORARIOS Y PRESENTACIÓN DE DISPONIBILIDAD:
+   - Al responder sobre disponibilidad de horarios (`consultar_disponibilidad`), NUNCA hagas una lista con viñetas ni escribas las horas en el texto de tu respuesta. El sistema mostrará automáticamente los botones interactivos para cada hora.
+   - Tu respuesta de texto debe ser MUY BREVE (ejemplo: 'Tenemos horarios disponibles para Cardiología con el Dr. Carlos García el 18/09/2026. Por favor selecciona el que prefieras a continuación:').
+   - PROHIBIDO repetir las horas en texto plano.
+   - Si el paciente selecciona o solicita un horario (ej: 'Quiero agendar a las 8:00 a. m.' o 'a las 2:00 p. m.'), conviértelo al formato 'YYYY-MM-DD HH:MM' de 24 horas requerido al invocar la herramienta `agendar_cita`.
+11. AGENDAMIENTO DE CITAS:
+   - Cuando el usuario indique que quiere agendar una cita o elija una hora, DEBES INVOCAR OBLIGATORIAMENTE la herramienta `agendar_cita` con `paciente_id`, `medico_id`, `fecha_hora` ('YYYY-MM-DD HH:MM') y `motivo`.
+   - Si falta el motivo, pídelo brevemente; una vez provisto el motivo o si el usuario indica 'control', 'chequeo' o similar, LLAMA DE INMEDIATO a `agendar_cita`.
+   - ESTÁ TOTALMENTE PROHIBIDO responder que la cita fue agendada sin haber ejecutado la herramienta `agendar_cita`.
 """
 
 TOOLS = [
@@ -552,14 +558,18 @@ class LLMOrchestrator:
             logger.error(f"Tool execution error ({tool_name}): {e}")
             return json.dumps({"error": f"Error al ejecutar {tool_name}: {str(e)}"})
 
-    def chat(self, mensaje: str, sesion_id, usuario: Usuario) -> str:
+    def chat(self, mensaje: str, sesion_id, usuario: Usuario) -> dict:
         if not self.client:
-            return (
-                "🏥 ¡Hola! Soy MediCore, tu asistente médico virtual. "
-                "Actualmente el servicio de IA no está configurado. "
-                "Por favor, contacta al administrador para configurar la API Key de Groq. "
-                "Mientras tanto, puedes usar el sistema de citas directamente desde el panel."
-            )
+            return {
+                "respuesta": (
+                    "🏥 ¡Hola! Soy MediCore, tu asistente médico virtual. "
+                    "Actualmente el servicio de IA no está configurado. "
+                    "Por favor, contacta al administrador para configurar la API Key de Groq. "
+                    "Mientras tanto, puedes usar el sistema de citas directamente desde el panel."
+                ),
+                "actualizo_citas": False,
+                "herramientas_usadas": [],
+            }
 
         context = self._load_context(sesion_id)
 
@@ -578,6 +588,9 @@ class LLMOrchestrator:
             *context,
             {"role": "user", "content": mensaje},
         ]
+
+        tools_executed = []
+        available_slots_12h = []
 
         try:
             response = self.client.chat.completions.create(
@@ -616,6 +629,17 @@ class LLMOrchestrator:
 
                     logger.info(f"Executing tool: {func_name} with args: {func_args}")
                     tool_result = self._execute_tool(func_name, func_args)
+                    tools_executed.append(func_name)
+
+                    if func_name == "consultar_disponibilidad":
+                        try:
+                            parsed_res = json.loads(tool_result)
+                            if "slots_disponibles" in parsed_res:
+                                for s in parsed_res["slots_disponibles"]:
+                                    if "hora_12h" in s and s["hora_12h"] not in available_slots_12h:
+                                        available_slots_12h.append(s["hora_12h"])
+                        except Exception as parse_err:
+                            logger.error(f"Error parsing slots: {parse_err}")
 
                     messages.append({
                         "role": "tool",
@@ -633,12 +657,27 @@ class LLMOrchestrator:
                 )
                 response_message = response.choices[0].message
 
-            return response_message.content or "No pude generar una respuesta. ¿Podrías reformular tu pregunta?"
+            final_content = response_message.content or "No pude generar una respuesta. ¿Podrías reformular tu pregunta?"
+            if available_slots_12h:
+                final_content += f"\n<!--SLOTS:{json.dumps(available_slots_12h)}-->"
+
+            actualizo_citas = any(t in tools_executed for t in ["agendar_cita", "cancelar_cita", "solicitar_pqr_reembolso"])
+
+            return {
+                "respuesta": final_content,
+                "actualizo_citas": actualizo_citas,
+                "herramientas_usadas": tools_executed,
+            }
 
         except Exception as e:
             logger.error(f"LLM orchestration error: {e}")
-            return (
-                "⚠️ Lo siento, ocurrió un error al procesar tu solicitud. "
-                "Por favor, intenta de nuevo en unos momentos. "
-                f"Error: {str(e)[:100]}"
-            )
+            return {
+                "respuesta": (
+                    "⚠️ Lo siento, ocurrió un error al procesar tu solicitud. "
+                    "Por favor, intenta de nuevo en unos momentos. "
+                    f"Error: {str(e)[:100]}"
+                ),
+                "actualizo_citas": False,
+                "herramientas_usadas": tools_executed,
+            }
+

@@ -43,11 +43,20 @@ class EnviarMensajeView(APIView):
 
         # Call orchestrator
         orchestrator = LLMOrchestrator()
-        respuesta = orchestrator.chat(
+        result = orchestrator.chat(
             mensaje=mensaje,
             sesion_id=sesion.id,
             usuario=request.user,
         )
+
+        if isinstance(result, dict):
+            respuesta = result.get("respuesta", "")
+            actualizo_citas = result.get("actualizo_citas", False)
+            herramientas_usadas = result.get("herramientas_usadas", [])
+        else:
+            respuesta = str(result)
+            actualizo_citas = False
+            herramientas_usadas = []
 
         # Save assistant message
         MensajeChat.objects.create(
@@ -60,6 +69,8 @@ class EnviarMensajeView(APIView):
             "respuesta": respuesta,
             "sesion_id": sesion.id,
             "emisor": "asistente",
+            "actualizo_citas": actualizo_citas,
+            "herramientas_usadas": herramientas_usadas,
         })
 
 

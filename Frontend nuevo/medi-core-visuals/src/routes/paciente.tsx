@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowRight, CalendarPlus, Clock3, Filter, MapPin, Stethoscope, X } from "lucide-react";
+import { ArrowRight, Clock3, MapPin, Stethoscope, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/medicore/dashboard-shell";
@@ -80,6 +80,15 @@ function PatientPage() {
 
   useEffect(() => {
     loadData();
+
+    const handleCitasUpdated = () => {
+      loadData();
+    };
+
+    window.addEventListener("medicore:citas-updated", handleCitasUpdated);
+    return () => {
+      window.removeEventListener("medicore:citas-updated", handleCitasUpdated);
+    };
   }, []);
 
   // Encontrar la próxima cita activa
@@ -114,42 +123,11 @@ function PatientPage() {
           <PatientChat className="h-full min-h-0" />
         </div>
         <div className="h-full min-h-0 lg:overflow-y-auto space-y-6 pr-1">
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <Button
-              className="group h-auto min-h-36 flex-col items-stretch justify-between whitespace-normal p-5 text-left"
-              size="lg"
-            >
-              <span className="grid size-10 place-items-center rounded-md bg-background/15">
-                <CalendarPlus />
-              </span>
-              <div>
-                <div className="mt-1 flex items-end justify-between gap-3">
-                  <h2 className="font-display text-xl font-semibold">Agendar una cita</h2>
-                  <ArrowRight className="mb-1 transition-transform group-hover:translate-x-1" />
-                </div>
-              </div>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-auto min-h-36 flex-col items-stretch justify-between whitespace-normal bg-card p-5 text-left"
-              size="lg"
-            >
-              <span className="grid size-10 place-items-center rounded-md bg-secondary text-primary">
-                <Filter />
-              </span>
-              <div>
-                <h2 className="font-display text-lg font-semibold">Filtrar por doctor</h2>
-                <p className="mt-2 text-sm font-normal text-muted-foreground">
-                  Encuentra disponibilidad por especialista.
-                </p>
-              </div>
-            </Button>
-          </section>
           <section>
             <SectionHeading
               title="Próxima cita"
               action={
-                <Button variant="ghost" size="sm" onClick={() => setShowDetalleModal(true)}>
+                <Button variant="ghost" size="sm" onClick={() => setShowDetalleModal(true)} className="cursor-pointer">
                   Ver detalles <ArrowRight />
                 </Button>
               }
@@ -197,10 +175,17 @@ function PatientPage() {
                 <Button
                   key={item}
                   variant="ghost"
-                  className="h-auto w-full justify-between rounded-none py-4"
+                  className="h-auto w-full justify-between rounded-none py-4 cursor-pointer hover:bg-muted/50"
+                  onClick={() => {
+                    window.dispatchEvent(
+                      new CustomEvent("medicore:chat-send", {
+                        detail: `Quiero consultar disponibilidad para ${item}`,
+                      })
+                    );
+                  }}
                 >
                   <span className="flex items-center gap-3">
-                    <Stethoscope className="size-4 text-muted-foreground" />
+                    <Stethoscope className="size-4 text-primary" />
                     {item}
                   </span>
                   <ArrowRight className="size-4" />

@@ -10,6 +10,19 @@ type Message = { id: number; from: "assistant" | "user"; text: string };
 export function extractAvailableTimeSlots(text: string): string[] {
   if (!text) return [];
 
+  // Check for explicit structured tag first
+  const slotsTagMatch = text.match(/<!--SLOTS:(.*?)-->/s);
+  if (slotsTagMatch) {
+    try {
+      const parsed = JSON.parse(slotsTagMatch[1]);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch {
+      // fallback to regex below
+    }
+  }
+
   const lower = text.toLowerCase();
 
   // Exclude messages that are confirmations, cancellations, or info messages
@@ -86,17 +99,19 @@ export function extractAvailableTimeSlots(text: string): string[] {
   return slots;
 }
 
-const suggestions = ["Ver mi próxima cita", "¿Cómo prepararme?", "Consultar un pago"];
+const suggestions = ["Agendar una cita", "Ver mi próxima cita", "¿Cómo prepararme?", "Consultar un pago"];
 
 export function PatientChat({ compact = false, className, mode = "patient" }: { compact?: boolean; className?: string; mode?: "patient" | "doctor" }) {
-  const [messages, setMessages] = useState<Message[]>(() => {
+  const getInitialGreeting = (): Message[] => {
     if (mode === "doctor") {
       return [{ id: 1, from: "assistant", text: "Buenos días, doctor. Puedo ayudarle a preparar consultas, resumir notas y organizar seguimientos. ¿Qué necesita revisar?" }];
     }
     const user = getUser();
     const nombre = user?.nombre_completo ? user.nombre_completo.split(" ")[0] : "estimado paciente";
     return [{ id: 1, from: "assistant", text: `Hola, ${nombre}. Puedo orientarte sobre tus citas, pagos o síntomas generales. ¿En qué te ayudo hoy?` }];
-  });
+  };
+
+  const [messages, setMessages] = useState<Message[]>(getInitialGreeting);
   const [draft, setDraft] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -105,6 +120,55 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    const handleSelectSession = async (e: any) => {
+      const targetId = e.detail;
+      if (!targetId) return;
+      setLoading(true);
+      try {
+        const history = await apiFetch<Array<{ id: string; emisor: string; contenido: string }>>(`/chat/sesiones/${targetId}/mensajes`);
+        if (Array.isArray(history) && history.length > 0) {
+          setSessionId(targetId);
+          setMessages(
+            history.map((m, idx) => ({
+              id: idx + 1,
+              from: m.emisor === "usuario" ? "user" : "assistant",
+              text: m.contenido,
+            }))
+          );
+          window.dispatchEvent(new CustomEvent("medicore:active-session-changed", { detail: targetId }));
+        }
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleNewChat = () => {
+      setSessionId(null);
+      setMessages(getInitialGreeting());
+      setDraft("");
+      window.dispatchEvent(new CustomEvent("medicore:active-session-changed", { detail: null }));
+    };
+
+    const handleChatSend = (e: any) => {
+      if (e.detail) {
+        send(e.detail);
+      }
+    };
+
+    window.addEventListener("medicore:select-session", handleSelectSession);
+    window.addEventListener("medicore:new-chat", handleNewChat);
+    window.addEventListener("medicore:chat-send", handleChatSend);
+
+    return () => {
+      window.removeEventListener("medicore:select-session", handleSelectSession);
+      window.removeEventListener("medicore:new-chat", handleNewChat);
+      window.removeEventListener("medicore:chat-send", handleChatSend);
+    };
+  }, []);
 
   const send = async (text: string) => {
     const clean = text.trim();
@@ -122,6 +186,7 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
       const res = await apiFetch<{
         respuesta: string;
         sesion_id?: string;
+        actualizo_citas?: boolean;
         herramientas_usadas?: any[];
       }>("/chat/mensaje", {
         method: "POST",
@@ -133,6 +198,22 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
 
       if (res.sesion_id) {
         setSessionId(res.sesion_id);
+        window.dispatchEvent(new CustomEvent("medicore:chat-session-created", { detail: res.sesion_id }));
+        window.dispatchEvent(new CustomEvent("medicore:active-session-changed", { detail: res.sesion_id }));
+      }
+
+      const textLower = (res.respuesta || "").toLowerCase();
+      const mentionsUpdate =
+        Boolean(res.actualizo_citas) ||
+        textLower.includes("fue agendada") ||
+        textLower.includes("cita agendada") ||
+        textLower.includes("fue cancelada") ||
+        textLower.includes("cita cancelada") ||
+        textLower.includes("pqr radicada") ||
+        textLower.includes("pqr registrada");
+
+      if (mentionsUpdate) {
+        window.dispatchEvent(new CustomEvent("medicore:citas-updated"));
       }
 
       setMessages((current) => [
@@ -183,6 +264,7 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
       <div className="flex-1 min-h-0 space-y-5 overflow-y-auto p-5">
         {messages.map((message) => {
           const slots = message.from === "assistant" ? extractAvailableTimeSlots(message.text) : [];
+          const cleanText = message.text.replace(/<!--SLOTS:.*?-->/gs, "").trim();
           return (
             <div key={message.id} className={cn("flex flex-col", message.from === "user" ? "items-end" : "items-start")}>
               <div
@@ -193,7 +275,7 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
                     : "text-foreground",
                 )}
               >
-                {message.text}
+                {cleanText}
               </div>
               {slots.length > 0 && (
                 <div className="mt-2.5 flex flex-wrap gap-2 max-w-[84%]">
@@ -233,8 +315,14 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
               type="button"
               variant="outline"
               size="sm"
-              className="shrink-0"
-              onClick={() => send(suggestion)}
+              className="shrink-0 cursor-pointer"
+              onClick={() => {
+                if (suggestion === "Agendar una cita") {
+                  send("Quiero agendar una cita");
+                } else {
+                  send(suggestion);
+                }
+              }}
               disabled={loading}
             >
               {suggestion}
