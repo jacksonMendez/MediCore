@@ -3,33 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import {
   Send,
   Plus,
-  Clock,
+  Calendar,
   MessageCircle,
   CreditCard,
-  Calendar,
-  Sparkles,
   RefreshCw,
   CheckCircle,
   AlertCircle,
   MapPin,
   Stethoscope,
-  Check,
   PanelLeft,
-  Search,
   LogOut,
-  Settings,
-  Activity,
-  Filter,
-  UserCheck,
-  Zap,
-  ArrowRight,
-  ShieldCheck,
-  ChevronRight,
-  User as UserIcon,
-  LayoutDashboard,
-  HeartPulse,
-  Award,
-  FileText,
+  Trash2,
+  X,
 } from 'lucide-react'
 
 const API_BASE = '/api'
@@ -59,15 +44,14 @@ export default function PacienteView({ onLogout }) {
   const navigate = useNavigate()
   const user = getUser()
 
-  const [activeTab, setActiveTab] = useState('chat') // 'chat' | 'citas'
+  const [activeTab, setActiveTab] = useState('chat')
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       emisor: 'asistente',
       contenido:
-        '🏥 ¡Hola! Soy **MediCore**, tu asistente médico virtual.\n\nPuedo ayudarte a agendar citas, buscar doctores por género, o revisar tus citas agendadas.',
+        '¡Hola! Soy **MediCore**, tu asistente médico.\n\nPuedo ayudarte a:\n• Agendar citas médicas\n• Buscar doctores por especialidad o género\n• Consultar tus citas programadas',
     },
   ])
   const [input, setInput] = useState('')
@@ -78,6 +62,8 @@ export default function PacienteView({ onLogout }) {
   const [loadingCitas, setLoadingCitas] = useState(false)
   const [payingCitaId, setPayingCitaId] = useState(null)
   const [paymentSuccessCitaId, setPaymentSuccessCitaId] = useState(null)
+  const [deletingSessionId, setDeletingSessionId] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null) // session id to confirm delete
 
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
@@ -125,6 +111,29 @@ export default function PacienteView({ onLogout }) {
     }
   }
 
+  const handleDeleteSession = async (sid, e) => {
+    e.stopPropagation()
+    if (confirmDelete !== sid) {
+      setConfirmDelete(sid)
+      return
+    }
+    setConfirmDelete(null)
+    setDeletingSessionId(sid)
+    try {
+      await apiFetch(`/chat/sesiones/${sid}`, { method: 'DELETE' })
+      setSessions((prev) => prev.filter((s) => s.id !== sid))
+      if (sesionId === sid) {
+        startNewChat()
+      }
+    } catch (e) {
+      // If endpoint doesn't exist, just remove from UI
+      setSessions((prev) => prev.filter((s) => s.id !== sid))
+      if (sesionId === sid) startNewChat()
+    } finally {
+      setDeletingSessionId(null)
+    }
+  }
+
   const handleSend = async (textToSend) => {
     const query = textToSend || input
     if (!query.trim() || loading) return
@@ -165,8 +174,7 @@ export default function PacienteView({ onLogout }) {
         {
           id: Date.now() + 1,
           emisor: 'asistente',
-          contenido:
-            '⚠️ No se pudo conectar con el servidor. Por favor verifica tu conexión.',
+          contenido: '⚠️ No se pudo conectar con el servidor. Por favor verifica tu conexión.',
         },
       ])
     } finally {
@@ -182,7 +190,7 @@ export default function PacienteView({ onLogout }) {
         id: 'welcome',
         emisor: 'asistente',
         contenido:
-          '🏥 ¡Hola de nuevo! ¿En qué puedo ayudarte hoy?\n\nPuedo buscar disponibilidad de citas, filtrar doctores por género, o consultar tus citas programadas.',
+          '¡Hola de nuevo! ¿En qué puedo ayudarte hoy?\n\nPuedo buscar disponibilidad de citas, filtrar doctores por género, o consultar tus citas programadas.',
       },
     ])
     setActiveTab('chat')
@@ -217,7 +225,6 @@ export default function PacienteView({ onLogout }) {
             estado: 'aprobado',
           }),
         })
-
         setPaymentSuccessCitaId(citaId)
         setTimeout(() => setPaymentSuccessCitaId(null), 4000)
         await loadMisCitas()
@@ -257,356 +264,262 @@ export default function PacienteView({ onLogout }) {
     return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
   }
 
-  // Filtered session list
-  const filteredSessions = sessions.filter((s) =>
-    s.ultimo_mensaje?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  // User initials
   const initials = user?.nombre_completo
-    ? user.nombre_completo
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .substring(0, 2)
-        .toUpperCase()
+    ? user.nombre_completo.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()
     : 'P'
 
-  const firstName = user?.nombre_completo?.split(' ')[0] || 'Paciente'
   const pendingCitasCount = citas.filter((c) => c.estado === 'pendiente_pago').length
-  const nextCita = citas.find((c) => c.estado === 'confirmada' || c.estado === 'pendiente_pago')
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex bg-slate-950 text-slate-100 font-sans select-none relative">
-      {/* ── SIDEBAR COMPACTO Y ELEGANTE ───────────────────────────────────── */}
-      <aside
-        className={`flex flex-col h-full bg-slate-900/90 text-slate-200 backdrop-blur-2xl border-r border-slate-800/80 transition-all duration-300 ease-in-out z-30 shrink-0 ${
-          sidebarOpen ? 'w-64 p-3.5 shadow-2xl opacity-100' : 'w-0 p-0 opacity-0 border-none overflow-hidden pointer-events-none'
-        }`}
-      >
-        {/* Header Marca */}
-        <div className="flex items-center justify-between mb-4 px-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-teal-400 flex items-center justify-center shadow-md shadow-cyan-500/20">
-              <Activity className="w-4 h-4 text-slate-950 font-bold" />
-            </div>
-            <div>
-              <h2 className="text-sm font-black tracking-tight text-white leading-none">
-                MediCore<span className="text-cyan-400">OS</span>
-              </h2>
-              <span className="text-[9px] font-bold text-cyan-400/80 uppercase tracking-widest block mt-0.5">
-                Clinical SaaS
-              </span>
-            </div>
-          </div>
+    <div className="h-screen w-screen overflow-hidden flex bg-[#0F1724] text-slate-200 font-sans">
 
+      {/* ── SIDEBAR ── */}
+      <aside
+        className={`flex flex-col h-full border-r border-white/[0.07] transition-all duration-200 shrink-0 ${
+          sidebarOpen ? 'w-60' : 'w-0 opacity-0 overflow-hidden pointer-events-none'
+        }`}
+        style={{ background: '#111927' }}
+      >
+        {/* Logo */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-[#4FA8A0] flex items-center justify-center">
+              <Stethoscope className="w-3.5 h-3.5 text-[#0F1724]" />
+            </div>
+            <span className="text-sm font-semibold text-white">
+              Medi<span className="text-[#4FA8A0]">Core</span>
+            </span>
+          </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
-            title="Colapsar navegación"
+            className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/[0.05] transition-colors"
           >
             <PanelLeft className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Botón "+ Nueva Consulta" */}
-        <button
-          onClick={startNewChat}
-          className="w-full bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-400 hover:to-teal-400 text-slate-950 font-bold py-2.5 px-3.5 rounded-xl flex items-center justify-center gap-2 text-xs shadow-lg shadow-cyan-500/15 transition-all mb-3 hover:scale-[1.01]"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Nueva Consulta</span>
-        </button>
+        {/* Nueva Consulta */}
+        <div className="px-3 pt-3">
+          <button
+            onClick={startNewChat}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium border border-white/[0.1] text-slate-300 hover:bg-white/[0.05] transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Nueva consulta
+          </button>
+        </div>
 
-        {/* Grupo de Navegación Principal */}
-        <div className="space-y-1 mb-4">
+        {/* Nav tabs */}
+        <div className="px-3 pt-3 space-y-0.5">
           <button
             onClick={() => setActiveTab('chat')}
-            className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-all ${
-              activeTab === 'chat' && messages.length <= 1
-                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
+              activeTab === 'chat'
+                ? 'bg-[#4FA8A0]/15 text-[#4FA8A0]'
+                : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
             }`}
           >
-            <LayoutDashboard className="w-4 h-4 text-cyan-400" />
-            <span>Dashboard Principal</span>
+            <MessageCircle className="w-3.5 h-3.5" />
+            Asistente IA
           </button>
-
           <button
-            onClick={() => setActiveTab(activeTab === 'citas' ? 'chat' : 'citas')}
-            className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition-all ${
+            onClick={() => setActiveTab('citas')}
+            className={`w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
               activeTab === 'citas'
-                ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-xs'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                ? 'bg-[#4FA8A0]/15 text-[#4FA8A0]'
+                : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
             }`}
           >
-            <div className="flex items-center gap-2.5">
-              <Calendar className="w-4 h-4 text-teal-400" />
-              <span>Mis Citas Médicas</span>
-            </div>
-            {pendingCitasCount > 0 ? (
-              <span className="bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+            <span className="flex items-center gap-2.5">
+              <Calendar className="w-3.5 h-3.5" />
+              Mis citas
+            </span>
+            {pendingCitasCount > 0 && (
+              <span className="bg-amber-500/20 text-amber-400 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
                 {pendingCitasCount}
-              </span>
-            ) : (
-              <span className="bg-slate-800 text-slate-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full">
-                {citas.length}
               </span>
             )}
           </button>
         </div>
 
-        {/* Separador */}
-        <div className="h-px bg-slate-800/80 my-2" />
-
-        {/* Buscador de Consultas */}
-        <div className="relative mb-3">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
-          <input
-            type="text"
-            placeholder="Buscar consulta..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-800/50 text-xs pl-8 pr-2.5 py-1.5 rounded-lg border border-slate-800 placeholder-slate-500 text-slate-200 focus:outline-none focus:border-cyan-500/50"
-          />
-        </div>
-
-        {/* Historial Independiente */}
-        <div className="flex-1 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 px-2 block mb-1">
-            Historial de Consultas
-          </span>
-
-          {filteredSessions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => loadSessionMessages(s.id)}
-              className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-center gap-2 text-xs ${
-                sesionId === s.id && activeTab === 'chat' && messages.length > 1
-                  ? 'bg-slate-800 border-l-2 border-cyan-400 text-cyan-300 font-semibold'
-                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-              }`}
-            >
-              <MessageCircle className="w-3.5 h-3.5 text-cyan-400/70 shrink-0" />
-              <span className="truncate flex-1">
-                {s.ultimo_mensaje || 'Consulta previa'}
-              </span>
-            </button>
-          ))}
-
-          {filteredSessions.length === 0 && (
-            <span className="text-[11px] text-slate-600 block text-center py-4">
-              Sin historial
-            </span>
+        {/* Historial */}
+        <div className="flex-1 overflow-y-auto px-3 pt-4 custom-scrollbar">
+          {sessions.length > 0 && (
+            <p className="text-[10px] text-slate-600 px-1 mb-2 uppercase tracking-wider">
+              Conversaciones
+            </p>
           )}
+          <div className="space-y-0.5">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`group flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                  sesionId === s.id && activeTab === 'chat'
+                    ? 'bg-white/[0.07] text-slate-200'
+                    : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-300'
+                }`}
+                onClick={() => loadSessionMessages(s.id)}
+              >
+                <MessageCircle className="w-3 h-3 shrink-0 opacity-60" />
+                <span className="truncate flex-1 text-[11px]">
+                  {s.ultimo_mensaje || 'Consulta previa'}
+                </span>
+                <button
+                  onClick={(e) => handleDeleteSession(s.id, e)}
+                  disabled={deletingSessionId === s.id}
+                  className={`shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded transition-all ${
+                    confirmDelete === s.id
+                      ? 'opacity-100 text-red-400'
+                      : 'text-slate-600 hover:text-red-400'
+                  }`}
+                  title={confirmDelete === s.id ? 'Clic para confirmar borrado' : 'Borrar conversación'}
+                >
+                  {deletingSessionId === s.id ? (
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                  ) : confirmDelete === s.id ? (
+                    <X className="w-3 h-3" />
+                  ) : (
+                    <Trash2 className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+            ))}
+            {sessions.length === 0 && (
+              <p className="text-[11px] text-slate-600 text-center py-4">Sin historial</p>
+            )}
+          </div>
         </div>
 
-        {/* Footer Sidebar: User Badge & Action Icons */}
-        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+        {/* Footer */}
+        <div className="px-3 py-3 border-t border-white/[0.06] flex items-center justify-between">
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-teal-400 text-slate-950 font-black text-xs flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-full bg-[#4FA8A0]/20 text-[#4FA8A0] text-xs font-semibold flex items-center justify-center shrink-0">
               {initials}
             </div>
             <div className="overflow-hidden">
-              <p className="text-xs font-bold text-white truncate">
+              <p className="text-xs text-slate-300 truncate leading-none">
                 {user?.nombre_completo || 'Paciente'}
               </p>
-              <span className="text-[9px] text-cyan-400 font-semibold uppercase block">
-                {user?.rol || 'paciente'}
-              </span>
+              <span className="text-[10px] text-slate-600">paciente</span>
             </div>
           </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleLogoutAction}
-              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 transition-colors"
-              title="Cerrar sesión"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <button
+            onClick={handleLogoutAction}
+            className="p-1.5 text-slate-600 hover:text-red-400 transition-colors"
+            title="Cerrar sesión"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
         </div>
       </aside>
 
-      {/* ── CANVAS PRINCIPAL (HEALTHCARE SAAS DASHBOARD GRID) ─────────────── */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-950 relative">
-        {/* Header Superior del Dashboard */}
-        <header className="h-14 px-6 flex items-center justify-between border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl shrink-0 z-20">
+      {/* ── MAIN ── */}
+      <main className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header */}
+        <header className="h-12 px-4 flex items-center justify-between border-b border-white/[0.06] shrink-0" style={{ background: '#111927' }}>
           <div className="flex items-center gap-3">
             {!sidebarOpen && (
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-xl bg-slate-800 text-cyan-400 border border-slate-700/60 transition-colors"
-                title="Abrir menú"
+                className="p-1.5 text-slate-500 hover:text-slate-300 transition-colors"
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
             )}
-
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-extrabold text-white tracking-tight">
-                MediCore<span className="text-cyan-400">OS</span>
-              </h1>
-              <span className="bg-slate-800 text-slate-300 border border-slate-700/60 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase">
-                Panel Clínico
-              </span>
-            </div>
+            <span className="text-sm font-medium text-slate-300">
+              {activeTab === 'citas' ? 'Mis citas médicas' : 'Asistente Médico IA'}
+            </span>
           </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 px-3 py-1 rounded-full text-xs font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Groq LLM v3.8 Conectado</span>
-            </div>
-
-            {messages.length > 1 && activeTab === 'chat' && (
-              <button
-                onClick={startNewChat}
-                className="bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 px-3 py-1.5 rounded-xl border border-slate-700 transition-all flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5 text-cyan-400" />
-                Volver al Dashboard
-              </button>
-            )}
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#34C77B]" />
+            <span>Groq LLM</span>
           </div>
         </header>
 
-        {/* ── CONTENIDO DINÁMICO DE LA APLICACIÓN ───────────────────────────── */}
+        {/* ── CITAS VIEW ── */}
         {activeTab === 'citas' ? (
-          /* VISTA: GESTIÓN DE CITAS MÉRIDICAS */
-          <div className="flex-1 overflow-y-auto p-6 max-w-5xl w-full mx-auto custom-scrollbar">
-            <div className="flex items-center justify-between mb-6 bg-slate-900/80 p-5 rounded-2xl border border-slate-800 shadow-xl">
-              <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-teal-400" />
-                  Gestión de Citas Médicas
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Revisa tus citas agendadas y gestiona los pagos Sandbox Wompi en Supabase.
-                </p>
-              </div>
-
+          <div className="flex-1 overflow-y-auto p-5 max-w-3xl w-full mx-auto custom-scrollbar">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-semibold text-slate-200">Citas agendadas</h2>
               <button
                 onClick={loadMisCitas}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-2 px-3 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+                className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
               >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${loadingCitas ? 'animate-spin text-teal-400' : ''}`}
-                />
+                <RefreshCw className={`w-3 h-3 ${loadingCitas ? 'animate-spin' : ''}`} />
                 Actualizar
               </button>
             </div>
 
             {paymentSuccessCitaId && (
-              <div className="mb-6 p-4 rounded-xl bg-teal-950/80 border border-teal-700 text-teal-200 flex items-center gap-3 shadow-md animate-fade-in">
-                <CheckCircle className="w-5 h-5 text-teal-400 shrink-0" />
-                <div>
-                  <p className="text-sm font-bold">¡Pago Sandbox Confirmado!</p>
-                  <p className="text-xs text-teal-300">
-                    La cita médica ha sido activada exitosamente en el sistema.
-                  </p>
-                </div>
+              <div className="mb-4 p-3 rounded-lg bg-[#34C77B]/10 border border-[#34C77B]/20 text-[#34C77B] flex items-center gap-2 text-xs">
+                <CheckCircle className="w-4 h-4 shrink-0" />
+                ¡Pago confirmado! La cita ha sido activada exitosamente.
               </div>
             )}
 
             {loadingCitas ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="w-8 h-8 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+              <div className="flex justify-center py-16">
+                <div className="w-6 h-6 border-2 border-[#4FA8A0]/30 border-t-[#4FA8A0] rounded-full animate-spin" />
               </div>
             ) : citas.length === 0 ? (
-              <div className="text-center py-16 bg-slate-900/40 border border-slate-800 rounded-2xl p-8 max-w-md mx-auto">
-                <Calendar className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                <h3 className="text-sm font-bold text-white mb-1">Sin Citas Registradas</h3>
-                <p className="text-xs text-slate-400 mb-4">
-                  Usa la consola de IA del dashboard para consultar agenda y agendar tu cita.
+              <div className="text-center py-16">
+                <Calendar className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                <p className="text-sm text-slate-400 mb-1">Sin citas registradas</p>
+                <p className="text-xs text-slate-600 mb-4">
+                  Usa el asistente de IA para agendar tu cita
                 </p>
                 <button
                   onClick={() => setActiveTab('chat')}
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs"
+                  className="text-xs bg-[#4FA8A0] text-[#0F1724] font-semibold px-4 py-2 rounded-lg"
                 >
-                  Ir al Dashboard
+                  Ir al asistente
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-3">
                 {citas.map((c) => {
                   const isPending = c.estado === 'pendiente_pago'
                   const isConfirmed = c.estado === 'confirmada'
-
                   return (
                     <div
                       key={c.id}
-                      className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl hover:border-slate-700 transition-all"
+                      className="rounded-xl p-4 border border-white/[0.06]"
+                      style={{ background: '#111927', borderLeft: `3px solid ${isConfirmed ? '#34C77B' : isPending ? '#F0B429' : '#5A7A94'}` }}
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-slate-950 font-black flex items-center justify-center text-base shrink-0 shadow-md">
-                            {c.medico_nombre?.charAt(0) || 'D'}
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-800/60">
-                              {c.especialidad_nombre || 'Medicina General'}
-                            </span>
-                            <h3 className="text-sm font-bold text-white mt-1">
-                              {c.medico_nombre || 'Doctor Asignado'}
-                            </h3>
-                            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-slate-500" />
-                              {c.sede_nombre || 'Sede Principal'}
-                            </p>
-                          </div>
-                        </div>
-
+                      <div className="flex items-start justify-between gap-3 mb-3">
                         <div>
-                          {isPending && (
-                            <span className="inline-flex items-center gap-1.5 bg-amber-950/80 text-amber-300 border border-amber-700/80 px-3 py-1 rounded-full text-xs font-bold">
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                              Pendiente de Pago
-                            </span>
-                          )}
-                          {isConfirmed && (
-                            <span className="inline-flex items-center gap-1.5 bg-teal-950/80 text-teal-300 border border-teal-700/80 px-3 py-1 rounded-full text-xs font-bold">
-                              <CheckCircle className="w-3.5 h-3.5 text-teal-400" />
-                              Confirmada
-                            </span>
-                          )}
-                          {!isPending && !isConfirmed && (
-                            <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-full text-xs font-bold">
-                              {c.estado}
-                            </span>
-                          )}
+                          <span className="text-[10px] text-[#4FA8A0] bg-[#4FA8A0]/10 px-2 py-0.5 rounded-md">
+                            {c.especialidad_nombre || 'Medicina General'}
+                          </span>
+                          <p className="text-sm font-medium text-slate-200 mt-1">
+                            {c.medico_nombre || 'Doctor Asignado'}
+                          </p>
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" />
+                            {c.sede_nombre || 'Sede Principal'}
+                          </p>
                         </div>
+                        <span className={`badge ${isConfirmed ? 'badge-confirmed' : isPending ? 'badge-pending' : ''}`}>
+                          {isConfirmed && <CheckCircle className="w-3 h-3" />}
+                          {isPending && <AlertCircle className="w-3 h-3" />}
+                          {isConfirmed ? 'Confirmada' : isPending ? 'Pend. pago' : c.estado}
+                        </span>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <span className="text-slate-500 font-semibold block">Fecha</span>
-                            <span className="text-slate-200 font-bold">{formatFecha(c.fecha_hora)}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 font-semibold block">Hora</span>
-                            <span className="text-slate-200 font-bold">{formatHora(c.fecha_hora)}</span>
-                          </div>
-                        </div>
-
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>
+                          {formatFecha(c.fecha_hora)} · {formatHora(c.fecha_hora)}
+                        </span>
                         {isPending && (
                           <button
                             onClick={() => handlePagarCita(c.id)}
                             disabled={payingCitaId === c.id}
-                            className="bg-gradient-to-r from-amber-500 to-teal-500 hover:from-amber-400 hover:to-teal-400 text-slate-950 font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-2 shadow-lg disabled:opacity-50"
+                            className="flex items-center gap-1.5 bg-[#4FA8A0] hover:bg-[#5DBEB7] text-[#0F1724] font-semibold py-1.5 px-3 rounded-lg text-xs disabled:opacity-50 transition-colors"
                           >
                             {payingCitaId === c.id ? (
-                              <>
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                Procesando Wompi...
-                              </>
+                              <><RefreshCw className="w-3 h-3 animate-spin" /> Procesando...</>
                             ) : (
-                              <>
-                                <CreditCard className="w-4 h-4" />
-                                Pagar Cita (Sandbox Wompi)
-                              </>
+                              <><CreditCard className="w-3 h-3" /> Pagar (Wompi)</>
                             )}
                           </button>
                         )}
@@ -617,387 +530,103 @@ export default function PacienteView({ onLogout }) {
               </div>
             )}
           </div>
-        ) : messages.length <= 1 ? (
-          /* ── DASHBOARD GRID COMPOSITION (CUANDO NO HAY CHAT ACTIVO) ─────── */
-          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-            <div className="max-w-6xl mx-auto space-y-8">
-              
-              {/* HERO WELCOME BANNER (BANNER COMPACTO DE DASHBOARD) */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-96 h-full bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none" />
-
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full">
-                        Portal Paciente
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {new Date().toLocaleDateString('es-CO', { weekday: 'long', month: 'long', day: 'numeric' })}
-                      </span>
-                    </div>
-
-                    <h2 className="text-2xl font-bold text-white tracking-tight">
-                      Bienvenido, <span className="text-cyan-400">{firstName}</span>
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-1 max-w-xl font-normal leading-relaxed">
-                      Gestión integral de agendamientos médicos, consulta de doctores por género y pagos seguros con Sandbox Wompi.
-                    </p>
-                  </div>
-
-                  {/* Tarjetas de Métricas Rápidas */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className="bg-slate-950/60 border border-slate-800 px-4 py-3 rounded-xl text-center min-w-[110px]">
-                      <span className="text-[11px] font-normal text-slate-400 block">Citas registradas</span>
-                      <span className="text-lg font-bold text-white mt-0.5 block">{citas.length}</span>
-                    </div>
-
-                    <div className="bg-slate-950/60 border border-slate-800 px-4 py-3 rounded-xl text-center min-w-[110px]">
-                      <span className="text-[11px] font-normal text-slate-400 block">Pagos pendientes</span>
-                      <span className="text-lg font-bold text-amber-400 mt-0.5 block">{pendingCitasCount}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* GRID PRINCIPAL DE 2 COLUMNAS (ACCIONES & PROXIMA CITA + CONSOLA IA) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                {/* COLUMNA IZQUIERDA (2/3 WIDE): ACCIONES Y CONSOLA IA */}
-                <div className="lg:col-span-2 space-y-8">
-
-                  {/* SECCIÓN 1: ACCIONES PRINCIPALES CON HÉROE DESTACADO */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-                    {/* Tarjeta HERO Principal Agendamiento (Span 2 cols) */}
-                    <div
-                      onClick={() => handleSend('Quiero agendar una cita médica')}
-                      className="sm:col-span-2 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/50 border border-cyan-500/50 hover:border-cyan-400 p-6 rounded-2xl shadow-xl transition-all duration-200 hover:scale-[1.01] cursor-pointer group relative overflow-hidden"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-cyan-500 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-cyan-500/20">
-                          <Stethoscope className="w-5 h-5 stroke-[2.5]" />
-                        </div>
-                        <span className="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-[10px] font-medium px-2.5 py-0.5 rounded-full">
-                          Acción principal
-                        </span>
-                      </div>
-
-                      <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
-                        Agendar cita médica
-                        <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform" />
-                      </h3>
-                      <p className="text-xs text-slate-400 leading-relaxed font-normal">
-                        Consulta horarios disponibles en tiempo real por especialidad y reserva tu turno clínico.
-                      </p>
-                    </div>
-
-                    {/* Tarjeta Secundaria Filtro Doctora */}
-                    <div
-                      onClick={() => handleSend('Quiero una cita con una doctora')}
-                      className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 text-cyan-400 flex items-center justify-center mb-3">
-                        <Filter className="w-4 h-4" />
-                      </div>
-                      <h3 className="text-xs font-semibold text-white mb-1">Atención por doctora</h3>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">
-                        Filtra médicos especialistas por género femenino.
-                      </p>
-                    </div>
-
-                    {/* Tarjeta Secundaria Disponibilidad Hoy */}
-                    <div
-                      onClick={() => handleSend('Consultar disponibilidad de citas para hoy')}
-                      className="bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer group"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 text-cyan-400 flex items-center justify-center mb-3">
-                        <Zap className="w-4 h-4" />
-                      </div>
-                      <h3 className="text-xs font-semibold text-white mb-1">Disponibilidad hoy</h3>
-                      <p className="text-[11px] text-slate-400 leading-relaxed">
-                        Revisa turnos de atención inmediata en la agenda.
-                      </p>
-                    </div>
-
-                    {/* Tarjeta Mis Citas / Pagos (Span 2 cols) */}
-                    <div
-                      onClick={() => setActiveTab('citas')}
-                      className="sm:col-span-2 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 p-5 rounded-2xl shadow-md transition-all duration-200 hover:scale-[1.01] cursor-pointer group flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700/60 text-cyan-400 flex items-center justify-center">
-                          <CreditCard className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h3 className="text-xs font-semibold text-white flex items-center gap-2">
-                            Mis citas y pagos
-                            {pendingCitasCount > 0 && (
-                              <span className="bg-amber-500/10 text-amber-300 border border-amber-500/30 text-[9px] font-medium px-2 py-0.5 rounded-full">
-                                {pendingCitasCount} pend.
-                              </span>
-                            )}
-                          </h3>
-                          <p className="text-[11px] text-slate-400">
-                            Revisa el estado de tus consultas y gestiona el pago de tus citas.
-                          </p>
-                        </div>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform shrink-0" />
-                    </div>
-                  </div>
-
-                  {/* SECCIÓN 2: CONSOLA IA INTEGRADA AL DASHBOARD */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-5">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-cyan-400" />
-                        <h3 className="text-xs font-semibold text-white">
-                          Consola de asistencia médica IA
-                        </h3>
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-normal">
-                        Asistente Groq LLM v3.8
-                      </span>
-                    </div>
-
-                    <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 flex items-center gap-3">
-                      <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder="Escribe tu consulta clínica... (ej: 'Quiero agendar cita de cardiología para el viernes')"
-                        className="w-full bg-transparent text-xs text-slate-100 placeholder-slate-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => handleSend()}
-                        disabled={loading || !input.trim()}
-                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 shrink-0 disabled:opacity-40 transition-all shadow-md"
-                      >
-                        <span>Consultar</span>
-                        <Send className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    {/* Chips de sugerencias rápidas */}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        onClick={() => handleSend('¿Qué especialidades médicas tienen disponibles?')}
-                        className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-[11px] font-normal px-3 py-1 rounded-full transition-colors"
-                      >
-                        ¿Qué especialidades hay?
-                      </button>
-                      <button
-                        onClick={() => handleSend('Necesito una cita de cardiología')}
-                        className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-[11px] font-normal px-3 py-1 rounded-full transition-colors"
-                      >
-                        Cita de cardiología
-                      </button>
-                      <button
-                        onClick={() => handleSend('Cuáles son mis citas agendadas')}
-                        className="bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-[11px] font-normal px-3 py-1 rounded-full transition-colors"
-                      >
-                        Mis citas registradas
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* COLUMNA DERECHA (1/3 WIDE): WIDGET DE PROXIMA CITA & RESUMEN DE SALUD */}
-                <div className="space-y-8">
-
-                  {/* WIDGET 1: ESTADO DE PRÓXIMA CITA */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-cyan-400" />
-                        <h3 className="text-xs font-semibold text-white">
-                          Próxima cita
-                        </h3>
-                      </div>
-                      <button
-                        onClick={() => setActiveTab('citas')}
-                        className="text-[11px] text-cyan-400 hover:underline font-medium"
-                      >
-                        Ver todas
-                      </button>
-                    </div>
-
-                    {nextCita ? (
-                      <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="bg-cyan-500/10 text-cyan-300 text-[10px] font-medium px-2 py-0.5 rounded-full border border-cyan-500/20">
-                            {nextCita.especialidad_nombre || 'Medicina General'}
-                          </span>
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                            nextCita.estado === 'confirmada'
-                              ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/60'
-                              : 'bg-amber-950/60 text-amber-300 border border-amber-800/60'
-                          }`}>
-                            {nextCita.estado === 'confirmada' ? 'Confirmada' : 'Pend. Pago'}
-                          </span>
-                        </div>
-
-                        <div>
-                          <p className="text-xs font-semibold text-white">{nextCita.medico_nombre}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-slate-500" />
-                            {nextCita.sede_nombre}
-                          </p>
-                        </div>
-
-                        <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
-                          <div>
-                            <span className="text-[10px] text-slate-500 block">Fecha y hora</span>
-                            <span className="text-slate-200 font-semibold">
-                              {formatFecha(nextCita.fecha_hora)} - {formatHora(nextCita.fecha_hora)}
-                            </span>
-                          </div>
-
-                          {nextCita.estado === 'pendiente_pago' && (
-                            <button
-                              onClick={() => handlePagarCita(nextCita.id)}
-                              disabled={payingCitaId === nextCita.id}
-                              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold px-2.5 py-1.5 rounded-lg text-[11px] shrink-0"
-                            >
-                              Pagar Wompi
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 bg-slate-950/40 rounded-xl border border-dashed border-slate-800">
-                        <Calendar className="w-7 h-7 text-slate-600 mx-auto mb-2" />
-                        <p className="text-xs font-medium text-slate-400">Sin citas próximas</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">Agenda tu turno mediante el asistente</p>
+        ) : (
+          /* ── CHAT VIEW ── */
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto py-6 px-4 custom-scrollbar">
+              <div className="max-w-2xl mx-auto space-y-4">
+                {messages.map((msg, idx) => (
+                  <div
+                    key={msg.id || idx}
+                    className={`flex gap-3 ${msg.emisor === 'usuario' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {msg.emisor === 'asistente' && (
+                      <div className="w-7 h-7 rounded-lg bg-[#4FA8A0]/15 text-[#4FA8A0] flex items-center justify-center shrink-0 mt-0.5">
+                        <Stethoscope className="w-3.5 h-3.5" />
                       </div>
                     )}
-                  </div>
-
-                  {/* WIDGET 2: ESPECIALIDADES MÉDICAS & INFORMACIÓN (LISTA LIMPIA SIN CAJAS EXCESIVAS) */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-                      <div className="flex items-center gap-2">
-                        <HeartPulse className="w-4 h-4 text-cyan-400" />
-                        <h3 className="text-xs font-semibold text-white">
-                          Especialidades disponibles
-                        </h3>
-                      </div>
+                    <div
+                      className={`max-w-[80%] px-4 py-3 rounded-xl text-sm leading-relaxed ${
+                        msg.emisor === 'usuario'
+                          ? 'bg-[#4FA8A0] text-[#0F1724] font-medium rounded-tr-sm'
+                          : 'bg-[#1A2736] text-slate-200 border border-white/[0.06] rounded-tl-sm'
+                      }`}
+                    >
+                      <p
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.contenido) }}
+                      />
                     </div>
+                  </div>
+                ))}
 
-                    <div className="divide-y divide-slate-800/80 text-xs">
-                      <div className="pb-3 flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-slate-200">Medicina General</p>
-                          <p className="text-[11px] text-slate-400">Atención básica y chequeos</p>
-                        </div>
-                        <span className="text-cyan-400 font-semibold text-xs">$80.000 COP</span>
-                      </div>
-
-                      <div className="py-3 flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-slate-200">Cardiología</p>
-                          <p className="text-[11px] text-slate-400">Evaluación cardiovascular</p>
-                        </div>
-                        <span className="text-cyan-400 font-semibold text-xs">$150.000 COP</span>
-                      </div>
-
-                      <div className="pt-3 flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-slate-200">Pediatría</p>
-                          <p className="text-[11px] text-slate-400">Atención médica infantil</p>
-                        </div>
-                        <span className="text-cyan-400 font-semibold text-xs">$120.000 COP</span>
+                {loading && (
+                  <div className="flex gap-3 justify-start">
+                    <div className="w-7 h-7 rounded-lg bg-[#4FA8A0]/15 text-[#4FA8A0] flex items-center justify-center shrink-0 mt-0.5">
+                      <Stethoscope className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="bg-[#1A2736] border border-white/[0.06] px-4 py-3 rounded-xl rounded-tl-sm">
+                      <div className="typing-indicator">
+                        <div className="typing-dot" />
+                        <div className="typing-dot" />
+                        <div className="typing-dot" />
                       </div>
                     </div>
                   </div>
+                )}
 
-                </div>
-
+                <div ref={messagesEndRef} />
               </div>
-
             </div>
-          </div>
-        ) : (
-          /* ── VISTA DE CONVERSACIÓN DE CHAT ACTIVA (`messages.length > 1`) ── */
-          <div className="flex-1 flex flex-col h-full overflow-hidden relative justify-between">
-            {/* Mensajes de la Conversaciones Activas */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 space-y-6 max-w-3xl mx-auto w-full custom-scrollbar">
-              {messages.map((msg, idx) => (
-                <div
-                  key={msg.id || idx}
-                  className={`flex ${
-                    msg.emisor === 'usuario' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  {msg.emisor === 'asistente' && (
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-slate-950 flex items-center justify-center font-extrabold text-xs shrink-0 mr-3 shadow-md">
-                      <Stethoscope className="w-4.5 h-4.5 text-slate-950 stroke-[2.5]" />
-                    </div>
-                  )}
 
-                  <div
-                    className={`max-w-[85%] p-4 sm:p-5 ${
-                      msg.emisor === 'usuario'
-                        ? 'bg-gradient-to-r from-cyan-600 via-teal-600 to-cyan-700 text-white rounded-2xl rounded-tr-none shadow-lg text-xs leading-relaxed font-medium'
-                        : 'bg-slate-900/90 border border-slate-800 text-slate-100 rounded-2xl rounded-tl-none shadow-xl backdrop-blur-xl text-xs leading-relaxed'
-                    }`}
+            {/* Sugerencias rápidas (solo al inicio) */}
+            {messages.length <= 1 && (
+              <div className="px-4 pb-2">
+                <div className="max-w-2xl mx-auto flex flex-wrap gap-2">
+                  {[
+                    'Quiero agendar una cita médica',
+                    'Cita con una doctora',
+                    'Disponibilidad para hoy',
+                    'Ver mis citas',
+                  ].map((sugg) => (
+                    <button
+                      key={sugg}
+                      onClick={() => handleSend(sugg)}
+                      className="text-[11px] text-slate-400 hover:text-slate-200 bg-[#1A2736] hover:bg-[#1E2F42] border border-white/[0.06] px-3 py-1.5 rounded-full transition-colors"
+                    >
+                      {sugg}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Input */}
+            <div className="px-4 pb-4 pt-2">
+              <div className="max-w-2xl mx-auto">
+                <div className="flex items-center gap-2 bg-[#1A2736] border border-white/[0.08] rounded-xl px-3 py-2 focus-within:border-[#4FA8A0]/40 transition-colors">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="Escribe tu mensaje..."
+                    disabled={loading}
+                    className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 focus:outline-none"
+                  />
+                  <button
+                    onClick={() => handleSend()}
+                    disabled={loading || !input.trim()}
+                    className="w-8 h-8 bg-[#4FA8A0] hover:bg-[#5DBEB7] text-[#0F1724] rounded-lg flex items-center justify-center disabled:opacity-30 transition-colors shrink-0"
                   >
-                    <p
-                      className="text-xs leading-relaxed"
-                      dangerouslySetInnerHTML={{
-                        __html: renderMarkdown(msg.contenido),
-                      }}
-                    />
-                  </div>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              ))}
-
-              {loading && (
-                <div className="flex justify-start items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 text-slate-950 flex items-center justify-center font-bold text-xs shrink-0 shadow-md">
-                    <Stethoscope className="w-4 h-4 text-slate-950 animate-spin" />
-                  </div>
-                  <div className="bg-slate-900 border border-slate-800 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm text-xs font-semibold text-cyan-400 flex items-center gap-2">
-                    <div className="typing-indicator">
-                      <div className="typing-dot" />
-                      <div className="typing-dot" />
-                      <div className="typing-dot" />
-                    </div>
-                    <span>MediCore consultando base de datos clínica en tiempo real...</span>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Console Prompt Bar Flotante */}
-            <div className="p-4 mb-2 max-w-3xl w-full mx-auto shrink-0">
-              <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-2.5 shadow-2xl backdrop-blur-2xl flex items-center gap-3">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="Escribe tu mensaje..."
-                  className="w-full bg-transparent px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none"
-                  disabled={loading}
-                />
-                <button
-                  onClick={() => handleSend()}
-                  disabled={loading || !input.trim()}
-                  className="w-9 h-9 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center justify-center shadow-md transition-all disabled:opacity-40 shrink-0 font-bold"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
+                <p className="text-center text-[10px] text-slate-700 mt-2">
+                  MediCore IA — Asistente administrativo clínico. Consulta siempre a un médico profesional.
+                </p>
               </div>
-
-              <p className="text-center mt-2 text-[10px] text-slate-500 font-medium">
-                MediCore IA — Asistente administrativo clínico. Consulta siempre a un médico profesional.
-              </p>
             </div>
           </div>
         )}

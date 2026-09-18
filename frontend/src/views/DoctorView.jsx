@@ -140,13 +140,13 @@ export default function DoctorView() {
   }
 
   return (
-    <div className="mt-16 p-8 max-w-7xl mx-auto relative z-10">
+    <div className="mt-14 p-8 max-w-7xl mx-auto relative z-10">
       {/* Header */}
       <div className="mb-8 animate-fade-in-up">
-        <h1 className="text-2xl font-bold mb-1 text-white tracking-tight">
+        <h1 className="text-xl font-semibold mb-1 text-text-primary tracking-tight">
           Dashboard clínico
         </h1>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-text-muted">
           {new Date().toLocaleDateString('es-CO', {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
           })}
@@ -154,7 +154,7 @@ export default function DoctorView() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <StatCard icon={Calendar} label="Citas hoy" value={stats.total} color="cyan" delay={0} />
         <StatCard icon={CheckCircle} label="Confirmadas" value={stats.confirmadas} color="teal" delay={100} />
         <StatCard icon={Clock} label="Pendientes" value={stats.pendientes} color="amber" delay={200} />
@@ -162,10 +162,10 @@ export default function DoctorView() {
       </div>
 
       {/* Appointments Table */}
-      <div className="glass-panel p-6 border border-slate-800 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards' }}>
-        <div className="flex items-center justify-between mb-6 border-b border-slate-800/80 pb-4">
-          <h2 className="text-base font-bold flex items-center gap-2 text-white">
-            <Activity className="w-5 h-5 text-cyan-400" />
+      <div className="p-5 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards', background: 'rgba(22, 33, 52, 0.4)', borderRadius: '14px' }}>
+        <div className="flex items-center justify-between mb-5 border-b border-white/[0.06] pb-3">
+          <h2 className="text-sm font-semibold flex items-center gap-2 text-text-primary">
+            <Activity className="w-4 h-4 text-primary-cyan" />
             Agenda del día
           </h2>
           <button onClick={loadAgenda} className="glass-btn glass-btn-secondary text-xs">
@@ -175,16 +175,16 @@ export default function DoctorView() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-xs text-slate-400">Cargando agenda...</p>
+            <div className="w-8 h-8 border-2 border-white/[0.08] border-t-primary-cyan rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-text-muted">Cargando agenda...</p>
           </div>
         ) : todayCitas.length === 0 ? (
           <div className="text-center py-12">
-            <Calendar className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-            <p className="text-xs font-semibold text-slate-300">
+            <Calendar className="w-10 h-10 mx-auto mb-3 text-text-muted/40" />
+            <p className="text-xs font-medium text-text-secondary">
               No hay citas programadas para hoy
             </p>
-            <p className="text-[11px] mt-1 text-slate-500">
+            <p className="text-[11px] mt-1 text-text-muted">
               Las citas aparecerán aquí cuando los pacientes las agenden
             </p>
           </div>
@@ -203,19 +203,19 @@ export default function DoctorView() {
               <tbody>
                 {todayCitas.map((cita) => (
                   <React.Fragment key={cita.id}>
-                    <tr className="cursor-pointer hover:bg-slate-800/40" onClick={() => setExpandedCita(expandedCita === cita.id ? null : cita.id)}>
-                      <td className="font-semibold text-white">
+                    <tr className="cursor-pointer hover:bg-white/[0.025]" onClick={() => setExpandedCita(expandedCita === cita.id ? null : cita.id)}>
+                      <td className="font-medium text-text-primary">
                         {new Date(cita.fecha_hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                       </td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-xs font-bold text-cyan-300">
+                          <div className="w-7 h-7 rounded-full bg-primary-cyan/10 flex items-center justify-center text-xs font-medium text-primary-cyan">
                             {cita.paciente_nombre?.charAt(0) || 'P'}
                           </div>
-                          <span className="text-slate-200">{cita.paciente_nombre || 'Paciente'}</span>
+                          <span className="text-text-secondary">{cita.paciente_nombre || 'Paciente'}</span>
                         </div>
                       </td>
-                      <td className="text-slate-400">{cita.motivo || 'Sin motivo especificado'}</td>
+                      <td className="text-text-muted">{cita.motivo || 'Sin motivo especificado'}</td>
                       <td>{statusBadge(cita.estado)}</td>
                       <td>
                         <div className="flex items-center gap-2">
@@ -228,8 +228,8 @@ export default function DoctorView() {
                             </button>
                           )}
                           {expandedCita === cita.id
-                            ? <ChevronUp className="w-4 h-4 text-slate-500" />
-                            : <ChevronDown className="w-4 h-4 text-slate-500" />
+                            ? <ChevronUp className="w-4 h-4 text-text-muted" />
+                            : <ChevronDown className="w-4 h-4 text-text-muted" />
                           }
                         </div>
                       </td>
@@ -237,23 +237,23 @@ export default function DoctorView() {
                     {expandedCita === cita.id && (
                       <tr>
                         <td colSpan={5}>
-                          <div className="glass-panel-sm p-4 m-2 bg-slate-950/60 border border-slate-800 rounded-xl animate-fade-in">
+                          <div className="p-4 m-2 bg-white/[0.02] rounded-lg animate-fade-in">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                               <div>
-                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Sede</p>
-                                <p className="text-slate-200 font-semibold">{cita.sede_nombre || 'N/A'}</p>
+                                <p className="text-[11px] text-text-muted mb-0.5">Sede</p>
+                                <p className="text-text-secondary font-medium">{cita.sede_nombre || 'N/A'}</p>
                               </div>
                               <div>
-                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Especialidad</p>
-                                <p className="text-slate-200 font-semibold">{cita.especialidad_nombre || 'N/A'}</p>
+                                <p className="text-[11px] text-text-muted mb-0.5">Especialidad</p>
+                                <p className="text-text-secondary font-medium">{cita.especialidad_nombre || 'N/A'}</p>
                               </div>
                               <div>
-                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Duración</p>
-                                <p className="text-slate-200 font-semibold">{cita.duracion_minutos} minutos</p>
+                                <p className="text-[11px] text-text-muted mb-0.5">Duración</p>
+                                <p className="text-text-secondary font-medium">{cita.duracion_minutos} minutos</p>
                               </div>
                               <div>
-                                <p className="text-[11px] font-medium text-slate-500 mb-0.5">Creada</p>
-                                <p className="text-slate-200 font-semibold">
+                                <p className="text-[11px] text-text-muted mb-0.5">Creada</p>
+                                <p className="text-text-secondary font-medium">
                                   {new Date(cita.creado_en).toLocaleString('es-CO')}
                                 </p>
                               </div>
@@ -272,9 +272,9 @@ export default function DoctorView() {
 
       {/* All Appointments */}
       {citas.length > 0 && (
-        <div className="glass-panel p-6 mt-8 border border-slate-800 animate-fade-in-up" style={{ animationDelay: '500ms', opacity: 0, animationFillMode: 'forwards' }}>
-          <h2 className="text-base font-bold flex items-center gap-2 mb-5 text-white">
-            <FileText className="w-5 h-5 text-cyan-400" />
+        <div className="p-5 mt-8 animate-fade-in-up" style={{ animationDelay: '500ms', opacity: 0, animationFillMode: 'forwards', background: 'rgba(22, 33, 52, 0.4)', borderRadius: '14px' }}>
+          <h2 className="text-sm font-semibold flex items-center gap-2 mb-4 text-text-primary">
+            <FileText className="w-4 h-4 text-primary-cyan" />
             Todas las citas ({citas.length})
           </h2>
           <div className="overflow-x-auto">
@@ -290,13 +290,13 @@ export default function DoctorView() {
               <tbody>
                 {citas.slice(0, 20).map((c) => (
                   <tr key={c.id}>
-                    <td className="font-semibold text-slate-200">
+                    <td className="font-medium text-text-secondary">
                       {new Date(c.fecha_hora).toLocaleString('es-CO', {
                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                       })}
                     </td>
-                    <td className="text-slate-300">{c.paciente_nombre || 'Paciente'}</td>
-                    <td className="text-slate-400">{c.motivo || '—'}</td>
+                    <td className="text-text-secondary">{c.paciente_nombre || 'Paciente'}</td>
+                    <td className="text-text-muted">{c.motivo || '—'}</td>
                     <td>{statusBadge(c.estado)}</td>
                   </tr>
                 ))}
@@ -309,40 +309,40 @@ export default function DoctorView() {
       {/* AI Copilot Floating Button */}
       <button
         onClick={() => setShowCopilot(!showCopilot)}
-        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center shadow-xl shadow-cyan-500/20 transition-transform hover:scale-105"
+        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-primary-cyan text-slate-950 flex items-center justify-center shadow-lg transition-transform hover:scale-105"
         style={{
           animation: showCopilot ? 'none' : 'pulse-glow 2.5s infinite',
         }}
       >
-        <Stethoscope className="w-6 h-6 stroke-[2.5]" />
+        <Stethoscope className="w-5 h-5" />
       </button>
 
       {/* AI Copilot Panel */}
       {showCopilot && (
         <div
-          className="fixed bottom-22 right-6 z-50 glass-panel-strong border border-slate-800 shadow-2xl animate-fade-in-up rounded-2xl overflow-hidden"
+          className="fixed bottom-22 right-6 z-50 glass-panel-strong border border-white/[0.06] shadow-2xl animate-fade-in-up rounded-xl overflow-hidden"
           style={{ width: '380px', maxHeight: '500px' }}
         >
           {/* Copilot Header */}
-          <div className="p-4 flex items-center gap-3 border-b border-slate-800/80 bg-slate-900">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500 text-slate-950 flex items-center justify-center font-bold">
-              <Stethoscope className="w-4 h-4 stroke-[2.5]" />
+          <div className="p-3.5 flex items-center gap-3 border-b border-white/[0.06] bg-slate-900/50">
+            <div className="w-7 h-7 rounded-lg bg-primary-cyan/15 text-primary-cyan flex items-center justify-center">
+              <Stethoscope className="w-3.5 h-3.5" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-white">
+              <h3 className="text-xs font-medium text-text-primary">
                 Copiloto IA
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[10px] text-text-muted">
                 Asistente clínico inteligente
               </p>
             </div>
           </div>
 
           {/* Messages */}
-          <div className="p-4 overflow-y-auto space-y-3 bg-slate-950/80 custom-scrollbar" style={{ maxHeight: '320px' }}>
+          <div className="p-3.5 overflow-y-auto space-y-3 bg-clinical-bg/80 custom-scrollbar" style={{ maxHeight: '320px' }}>
             {copilotMessages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.emisor === 'usuario' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] px-3.5 py-2.5 text-xs leading-relaxed ${
+                <div className={`max-w-[85%] px-3 py-2 text-xs leading-relaxed ${
                   msg.emisor === 'usuario' ? 'chat-bubble-user' : 'chat-bubble-assistant'
                 }`}>
                   {msg.contenido}
@@ -364,7 +364,7 @@ export default function DoctorView() {
           </div>
 
           {/* Input */}
-          <div className="p-3 bg-slate-900 border-t border-slate-800/80">
+          <div className="p-3 border-t border-white/[0.06] bg-slate-900/50">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -372,12 +372,12 @@ export default function DoctorView() {
                 onChange={(e) => setCopilotInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && sendCopilotMessage()}
                 placeholder="Pregunta al copiloto..."
-                className="glass-input text-xs py-2 bg-slate-950/80 border-slate-800 text-slate-100 placeholder-slate-500"
+                className="glass-input text-xs py-2 bg-clinical-bg/60 text-text-primary placeholder-text-muted"
               />
               <button
                 onClick={sendCopilotMessage}
                 disabled={copilotLoading || !copilotInput.trim()}
-                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold p-2 rounded-lg shrink-0 disabled:opacity-40 transition-all shadow-md"
+                className="bg-primary-cyan hover:bg-primary-cyan-hover text-slate-950 font-medium p-2 rounded-lg shrink-0 disabled:opacity-40 transition-all"
               >
                 <Send className="w-3.5 h-3.5" />
               </button>
@@ -388,5 +388,3 @@ export default function DoctorView() {
     </div>
   )
 }
-
-

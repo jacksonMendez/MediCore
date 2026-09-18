@@ -3,8 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Activity, LogOut, User, PanelLeft } from 'lucide-react'
 
 /**
- * GlassNavbar — Top navigation bar with Dark Liquid Glass styling.
- * Fixed height h-16 with crisp borders and user actions.
+ * GlassNavbar — Top navigation bar. Clean and minimal.
+ * Fixed height h-14 with subtle borders.
  */
 export default function GlassNavbar({ user, onLogout, onToggleSidebar }) {
   const navigate = useNavigate()
@@ -19,28 +19,28 @@ export default function GlassNavbar({ user, onLogout, onToggleSidebar }) {
   const currentLabel = portalLabels[location.pathname] || 'MediCore OS'
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-40 h-16 px-6 bg-slate-900/80 backdrop-blur-2xl border-b border-slate-800/80 flex items-center justify-between shadow-lg">
-      {/* Brand & Optional Sidebar Toggle */}
+    <nav className="fixed top-0 left-0 right-0 z-40 h-14 px-5 bg-slate-900/75 backdrop-blur-2xl border-b border-white/[0.06] flex items-center justify-between">
+      {/* Brand & Sidebar Toggle */}
       <div className="flex items-center gap-3">
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 text-slate-300 hover:text-white transition-colors mr-1"
+            className="p-1.5 rounded-lg hover:bg-white/[0.05] text-slate-400 hover:text-white transition-colors"
             title="Alternar panel de conversaciones"
           >
-            <PanelLeft className="w-5 h-5 text-cyan-400" />
+            <PanelLeft className="w-4 h-4" />
           </button>
         )}
 
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-9 h-9 rounded-xl bg-cyan-500 flex items-center justify-center shadow-md shadow-cyan-500/20">
-            <Activity className="w-5 h-5 text-slate-950 font-bold" />
+        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
+          <div className="w-7 h-7 rounded-lg bg-primary-cyan flex items-center justify-center">
+            <Activity className="w-3.5 h-3.5 text-slate-950" />
           </div>
           <div>
-            <h1 className="text-base font-bold tracking-tight text-white leading-none">
-              MediCore<span className="text-cyan-400">OS</span>
+            <h1 className="text-sm font-semibold tracking-tight text-white leading-none">
+              MediCore<span className="text-primary-cyan">OS</span>
             </h1>
-            <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+            <p className="text-[10px] text-text-muted mt-0.5">
               {currentLabel}
             </p>
           </div>
@@ -48,14 +48,14 @@ export default function GlassNavbar({ user, onLogout, onToggleSidebar }) {
       </div>
 
       {/* User actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         {user && (
-          <div className="flex items-center gap-2.5 bg-slate-800/60 border border-slate-700/60 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-xs">
-            <User className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs font-medium text-slate-200">
+          <div className="flex items-center gap-2 bg-white/[0.04] px-3 py-1.5 rounded-lg">
+            <User className="w-3.5 h-3.5 text-primary-cyan" />
+            <span className="text-xs text-text-secondary">
               {user.nombre_completo}
             </span>
-            <span className="bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide">
+            <span className="text-[10px] text-primary-cyan bg-primary-cyan/10 px-1.5 py-0.5 rounded-full">
               {user.rol}
             </span>
           </div>
@@ -63,7 +63,7 @@ export default function GlassNavbar({ user, onLogout, onToggleSidebar }) {
         {user && (
           <button
             onClick={onLogout}
-            className="p-2 rounded-xl bg-slate-800/60 hover:bg-rose-950/40 border border-slate-700/60 text-slate-400 hover:text-rose-300 transition-all"
+            className="p-1.5 rounded-lg hover:bg-white/[0.05] text-slate-400 hover:text-rose-400 transition-colors"
             title="Cerrar sesión"
           >
             <LogOut className="w-4 h-4" />
@@ -73,5 +73,3 @@ export default function GlassNavbar({ user, onLogout, onToggleSidebar }) {
     </nav>
   )
 }
-
-

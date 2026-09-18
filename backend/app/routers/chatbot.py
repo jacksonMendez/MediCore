@@ -5,8 +5,8 @@ Endpoints for AI-assisted chat using the Groq LLM orchestrator.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -138,3 +138,31 @@ async def listar_mensajes(
         .order_by(MensajeChat.creado_en)
     )
     return [MensajeChatResponse.model_validate(m) for m in result.scalars().all()]
+
+
+@router.delete("/sesiones/{sesion_id}", status_code=204)
+async def eliminar_sesion(
+    sesion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user),
+):
+    """Delete a chat session and all its messages (only the session owner can do this)."""
+    # Verify session belongs to current user
+    session_result = await db.execute(
+        select(SesionChat).where(
+            SesionChat.id == sesion_id,
+            SesionChat.usuario_id == current_user.id,
+        )
+    )
+    sesion = session_result.scalar_one_or_none()
+    if not sesion:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+
+    # Delete all messages first (FK cascade may not be set)
+    await db.execute(
+        delete(MensajeChat).where(MensajeChat.sesion_id == sesion_id)
+    )
+    await db.delete(sesion)
+    await db.commit()
+    return Response(status_code=204)
+

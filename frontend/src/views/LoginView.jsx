@@ -4,7 +4,7 @@ import { Activity, Eye, EyeOff, LogIn, Sparkles, UserCheck } from 'lucide-react'
 import BackgroundOrbs from '../components/BackgroundOrbs'
 
 /**
- * LoginView — Centralized Apple Liquid Glass authentication portal.
+ * LoginView — Clean authentication portal.
  * Handles unified login, quick demo fill, and auto-role redirection.
  */
 export default function LoginView({ onLogin }) {
@@ -102,42 +102,41 @@ export default function LoginView({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-clinical-bg">
       <BackgroundOrbs />
 
       <div className="w-full max-w-md relative z-10 my-8">
-        {/* Central Liquid Glass Card */}
-        <div className="glass-panel-strong p-8 sm:p-10 animate-fade-in-up border border-slate-800 shadow-2xl backdrop-blur-2xl">
-          {/* Header with Glow Animation */}
+        {/* Central Card */}
+        <div className="glass-panel-strong p-8 sm:p-10 animate-fade-in-up shadow-2xl">
+          {/* Header */}
           <div className="text-center mb-8">
             <div className="relative inline-block mb-3">
-              <div className="w-14 h-14 rounded-2xl bg-cyan-500 flex items-center justify-center mx-auto shadow-lg shadow-cyan-500/20 transition-transform hover:scale-105">
-                <Activity className="w-7 h-7 text-slate-950 font-bold" />
+              <div className="w-12 h-12 rounded-xl bg-primary-cyan flex items-center justify-center mx-auto">
+                <Activity className="w-6 h-6 text-slate-950" />
               </div>
-              <div className="absolute -inset-1 rounded-2xl bg-cyan-400/20 blur-lg -z-10 animate-pulse" />
             </div>
 
-            <h1 className="text-2xl font-bold tracking-tight text-white">
-              MediCore<span className="text-cyan-400">OS</span>
+            <h1 className="text-xl font-semibold tracking-tight text-text-primary">
+              MediCore<span className="text-primary-cyan">OS</span>
             </h1>
-            <p className="text-xs font-normal text-slate-400 mt-1">
+            <p className="text-xs text-text-muted mt-1">
               {isRegister ? 'Registro de usuario' : 'Acceso al sistema médico'}
             </p>
           </div>
 
           {/* Error notification */}
           {error && (
-            <div className="mb-6 p-3.5 rounded-xl text-xs font-medium bg-rose-950/60 border border-rose-800/80 text-rose-300 animate-fade-in text-center">
+            <div className="mb-5 p-3 rounded-lg text-xs bg-rose-950/50 border border-rose-800/60 text-rose-300 animate-fade-in text-center">
               {error}
             </div>
           )}
 
           {/* Login / Register Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {isRegister && (
               <>
                 <div>
-                  <label className="text-xs font-medium text-slate-400 mb-1 block">
+                  <label className="text-xs text-text-secondary mb-1.5 block">
                     Nombre completo
                   </label>
                   <input
@@ -151,7 +150,7 @@ export default function LoginView({ onLogin }) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-400 mb-1 block">
+                  <label className="text-xs text-text-secondary mb-1.5 block">
                     Documento de identidad
                   </label>
                   <input
@@ -168,7 +167,7 @@ export default function LoginView({ onLogin }) {
             )}
 
             <div>
-              <label className="text-xs font-medium text-slate-400 mb-1 block">
+              <label className="text-xs text-text-secondary mb-1.5 block">
                 Correo electrónico
               </label>
               <input
@@ -183,7 +182,7 @@ export default function LoginView({ onLogin }) {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-slate-400 mb-1 block">
+              <label className="text-xs text-text-secondary mb-1.5 block">
                 Contraseña
               </label>
               <div className="relative">
@@ -199,7 +198,7 @@ export default function LoginView({ onLogin }) {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -209,7 +208,7 @@ export default function LoginView({ onLogin }) {
             {isRegister && (
               <>
                 <div>
-                  <label className="text-xs font-medium text-slate-400 mb-1 block">
+                  <label className="text-xs text-text-secondary mb-1.5 block">
                     Teléfono
                   </label>
                   <input
@@ -222,7 +221,7 @@ export default function LoginView({ onLogin }) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-400 mb-1 block">
+                  <label className="text-xs text-text-secondary mb-1.5 block">
                     Rol de cuenta
                   </label>
                   <select
@@ -242,7 +241,7 @@ export default function LoginView({ onLogin }) {
             <button
               type="submit"
               disabled={loading}
-              className="glass-btn glass-btn-primary w-full py-3 text-sm font-semibold shadow-md mt-2"
+              className="glass-btn glass-btn-primary w-full py-2.5 text-sm mt-1"
             >
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -259,11 +258,11 @@ export default function LoginView({ onLogin }) {
           </form>
 
           {/* Toggle Register / Login */}
-          <div className="mt-5 text-center text-xs text-slate-400">
+          <div className="mt-5 text-center text-xs text-text-muted">
             {isRegister ? '¿Ya tienes una cuenta?' : '¿No tienes cuenta registrada?'}{' '}
             <button
               onClick={() => { setIsRegister(!isRegister); setError('') }}
-              className="font-medium text-cyan-400 hover:underline ml-1"
+              className="text-primary-cyan hover:underline ml-1"
             >
               {isRegister ? 'Iniciar sesión' : 'Registrarse'}
             </button>
@@ -271,9 +270,9 @@ export default function LoginView({ onLogin }) {
 
           {/* Quick Demo Login Accounts */}
           {!isRegister && (
-            <div className="mt-6 pt-5 border-t border-slate-800/80">
-              <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400 mb-3">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            <div className="mt-6 pt-5 border-t border-white/[0.06]">
+              <div className="flex items-center justify-center gap-1.5 text-xs text-text-muted mb-3">
+                <Sparkles className="w-3.5 h-3.5 text-primary-cyan" />
                 Acceso rápido (Cuentas Demo)
               </div>
 
@@ -281,25 +280,25 @@ export default function LoginView({ onLogin }) {
                 <button
                   type="button"
                   onClick={() => demoLogin('paciente@medicore.com', 'Password123!')}
-                  className="glass-btn glass-btn-secondary text-xs py-2 flex-col gap-1 hover:border-cyan-500/40"
+                  className="glass-btn glass-btn-secondary text-xs py-2 flex-col gap-1 hover:border-primary-cyan/30"
                 >
-                  <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
+                  <UserCheck className="w-3.5 h-3.5 text-primary-cyan" />
                   <span>Paciente</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => demoLogin('medico@medicore.com', 'Password123!')}
-                  className="glass-btn glass-btn-secondary text-xs py-2 flex-col gap-1 hover:border-cyan-500/40"
+                  className="glass-btn glass-btn-secondary text-xs py-2 flex-col gap-1 hover:border-primary-cyan/30"
                 >
-                  <UserCheck className="w-3.5 h-3.5 text-teal-400" />
+                  <UserCheck className="w-3.5 h-3.5 text-primary-cyan" />
                   <span>Doctor</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => demoLogin('admin@medicore.com', 'Password123!')}
-                  className="glass-btn glass-btn-secondary text-xs py-2 flex-col gap-1 hover:border-cyan-500/40"
+                  className="glass-btn glass-btn-secondary text-xs py-2 flex-col gap-1 hover:border-primary-cyan/30"
                 >
-                  <UserCheck className="w-3.5 h-3.5 text-sky-400" />
+                  <UserCheck className="w-3.5 h-3.5 text-primary-cyan" />
                   <span>Admin</span>
                 </button>
               </div>

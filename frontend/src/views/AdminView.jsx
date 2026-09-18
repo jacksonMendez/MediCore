@@ -154,19 +154,19 @@ export default function AdminView() {
   }
 
   return (
-    <div className="mt-16 p-8 max-w-7xl mx-auto relative z-10">
+    <div className="mt-14 p-8 max-w-7xl mx-auto relative z-10">
       {/* Header */}
       <div className="mb-8 animate-fade-in-up">
-        <h1 className="text-2xl font-bold mb-1 text-white tracking-tight">
+        <h1 className="text-xl font-semibold mb-1 text-text-primary tracking-tight">
           Panel de administración
         </h1>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-text-muted">
           Gestión central de MediCore OS
         </p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         <StatCard icon={Stethoscope} label="Médicos activos" value={medicos.length} color="cyan" delay={0} />
         <StatCard icon={Building2} label="Sedes" value={sedes.length} color="teal" delay={100} />
         <StatCard icon={BookOpen} label="Especialidades" value={especialidades.length} color="blue" delay={200} />
@@ -178,18 +178,20 @@ export default function AdminView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-3 mb-6 animate-fade-in-up" style={{ animationDelay: '300ms', opacity: 0, animationFillMode: 'forwards' }}>
+      <div className="flex items-center gap-2 mb-6 animate-fade-in-up" style={{ animationDelay: '300ms', opacity: 0, animationFillMode: 'forwards' }}>
         {tabs.map((tab) => {
           const Icon = tab.icon
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`glass-btn text-xs py-2 px-4 transition-all ${
-                activeTab === tab.id ? 'glass-btn-primary' : 'glass-btn-secondary'
+              className={`text-xs font-medium px-4 py-2 rounded-lg transition-all ${
+                activeTab === tab.id
+                  ? 'bg-primary-cyan/15 text-primary-cyan border-b-2 border-primary-cyan'
+                  : 'text-text-muted hover:text-text-secondary hover:bg-white/[0.04]'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-4 h-4 inline mr-1.5" />
               {tab.label}
             </button>
           )
@@ -203,7 +205,7 @@ export default function AdminView() {
             else if (activeTab === 'sedes') openModal('sede')
             else openModal('especialidad')
           }}
-          className="glass-btn glass-btn-primary text-xs font-semibold"
+          className="glass-btn glass-btn-primary text-xs font-medium"
         >
           <Plus className="w-4 h-4" />
           Agregar
@@ -215,11 +217,11 @@ export default function AdminView() {
       </div>
 
       {/* Content */}
-      <div className="glass-panel p-6 border border-slate-800 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards' }}>
+      <div className="p-5 animate-fade-in-up" style={{ animationDelay: '400ms', opacity: 0, animationFillMode: 'forwards', background: 'rgba(22, 33, 52, 0.4)', borderRadius: '14px' }}>
         {loading ? (
           <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-slate-700 border-t-cyan-500 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-xs text-slate-400">Cargando datos...</p>
+            <div className="w-8 h-8 border-2 border-white/[0.08] border-t-primary-cyan rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-text-muted">Cargando datos...</p>
           </div>
         ) : (
           <>
@@ -228,8 +230,8 @@ export default function AdminView() {
               <div className="overflow-x-auto">
                 {medicos.length === 0 ? (
                   <div className="text-center py-12">
-                    <Stethoscope className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-                    <p className="text-xs text-slate-400">
+                    <Stethoscope className="w-10 h-10 mx-auto mb-3 text-text-muted/40" />
+                    <p className="text-xs text-text-muted">
                       No hay médicos registrados
                     </p>
                   </div>
@@ -250,28 +252,28 @@ export default function AdminView() {
                         <tr key={m.id}>
                           <td>
                             <div className="flex items-center gap-2">
-                              <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-xs font-bold text-cyan-300">
+                              <div className="w-7 h-7 rounded-full bg-primary-cyan/10 flex items-center justify-center text-xs font-medium text-primary-cyan">
                                 {m.nombre_completo?.charAt(0) || 'D'}
                               </div>
                               <div>
-                                <p className="text-xs font-semibold text-slate-200">
+                                <p className="text-xs font-medium text-text-secondary">
                                   {m.nombre_completo || 'Doctor'}
                                 </p>
-                                <p className="text-[11px] text-slate-500">
+                                <p className="text-[11px] text-text-muted">
                                   {m.correo}
                                 </p>
                               </div>
                             </div>
                           </td>
-                          <td className="text-slate-300">{m.especialidad_nombre || 'N/A'}</td>
+                          <td className="text-text-secondary">{m.especialidad_nombre || 'N/A'}</td>
                           <td>
-                            <div className="flex items-center gap-1 text-slate-300">
-                              <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                            <div className="flex items-center gap-1 text-text-secondary">
+                              <MapPin className="w-3.5 h-3.5 text-text-muted" />
                               {m.sede_nombre || 'N/A'}
                             </div>
                           </td>
-                          <td className="font-mono text-xs text-slate-400">{m.tarjeta_profesional}</td>
-                          <td className="text-slate-300">{m.duracion_cita_minutos} min</td>
+                          <td className="font-mono text-xs text-text-muted">{m.tarjeta_profesional}</td>
+                          <td className="text-text-secondary">{m.duracion_cita_minutos} min</td>
                           <td>
                             <span className={`badge ${m.activo ? 'badge-confirmed' : 'badge-cancelled'}`}>
                               {m.activo ? 'Activo' : 'Inactivo'}
@@ -290,28 +292,28 @@ export default function AdminView() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {sedes.length === 0 ? (
                   <div className="col-span-2 text-center py-12">
-                    <Building2 className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-                    <p className="text-xs text-slate-400">
+                    <Building2 className="w-10 h-10 mx-auto mb-3 text-text-muted/40" />
+                    <p className="text-xs text-text-muted">
                       No hay sedes registradas
                     </p>
                   </div>
                 ) : (
                   sedes.map((s) => (
-                    <div key={s.id} className="glass-panel-sm p-5 bg-slate-950/60 border border-slate-800 rounded-xl">
+                    <div key={s.id} className="p-4 bg-white/[0.02] rounded-lg">
                       <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 rounded-lg bg-primary-cyan/10 text-primary-cyan flex items-center justify-center shrink-0">
                           <Building2 className="w-4 h-4" />
                         </div>
                         <div>
-                          <h3 className="text-xs font-semibold text-white">
+                          <h3 className="text-xs font-medium text-text-primary">
                             {s.nombre}
                           </h3>
-                          <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-slate-500" /> {s.direccion}
+                          <p className="text-[11px] text-text-muted mt-1 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" /> {s.direccion}
                           </p>
                           {s.telefono && (
-                            <p className="text-[11px] text-slate-500 mt-1">
-                              📞 {s.telefono}
+                            <p className="text-[11px] text-text-muted mt-1">
+                              {s.telefono}
                             </p>
                           )}
                           <span className={`badge mt-3 ${s.activa ? 'badge-confirmed' : 'badge-cancelled'}`}>
@@ -330,30 +332,30 @@ export default function AdminView() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {especialidades.length === 0 ? (
                   <div className="col-span-3 text-center py-12">
-                    <BookOpen className="w-10 h-10 mx-auto mb-3 text-slate-600" />
-                    <p className="text-xs text-slate-400">
+                    <BookOpen className="w-10 h-10 mx-auto mb-3 text-text-muted/40" />
+                    <p className="text-xs text-text-muted">
                       No hay especialidades registradas
                     </p>
                   </div>
                 ) : (
                   especialidades.map((e) => (
-                    <div key={e.id} className="glass-panel-sm p-5 bg-slate-950/60 border border-slate-800 rounded-xl">
+                    <div key={e.id} className="p-4 bg-white/[0.02] rounded-lg">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center">
+                        <div className="w-9 h-9 rounded-lg bg-primary-cyan/10 text-primary-cyan flex items-center justify-center">
                           <BookOpen className="w-4 h-4" />
                         </div>
-                        <h3 className="text-xs font-semibold text-white">
+                        <h3 className="text-xs font-medium text-text-primary">
                           {e.nombre}
                         </h3>
                       </div>
                       {e.descripcion && (
-                        <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
+                        <p className="text-[11px] text-text-muted leading-relaxed mb-3">
                           {e.descripcion}
                         </p>
                       )}
                       <div className="flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5 text-cyan-400" />
-                        <span className="text-xs font-bold text-cyan-400">
+                        <DollarSign className="w-3.5 h-3.5 text-text-muted" />
+                        <span className="text-xs font-medium text-text-secondary">
                           ${e.precio_base?.toLocaleString()} COP
                         </span>
                       </div>
@@ -378,8 +380,7 @@ export default function AdminView() {
         maxWidth="550px"
       >
         {formError && (
-          <div className="mb-4 p-3 rounded-xl text-sm font-medium"
-               style={{ background: 'rgba(225,29,72,0.1)', color: 'var(--color-alert-rose)' }}>
+          <div className="mb-4 p-3 rounded-lg text-sm font-medium bg-rose-950/40 border border-rose-800/50 text-rose-300">
             {formError}
           </div>
         )}
@@ -388,20 +389,17 @@ export default function AdminView() {
           {modalType === 'sede' && (
             <>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                       style={{ color: 'var(--color-text-muted)' }}>Nombre</label>
+                <label className="text-xs text-text-secondary mb-1.5 block">Nombre</label>
                 <input name="nombre" className="glass-input" required
                        placeholder="Sede Norte" onChange={handleFormChange} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                       style={{ color: 'var(--color-text-muted)' }}>Dirección</label>
+                <label className="text-xs text-text-secondary mb-1.5 block">Dirección</label>
                 <input name="direccion" className="glass-input" required
                        placeholder="Calle 100 #15-25" onChange={handleFormChange} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                       style={{ color: 'var(--color-text-muted)' }}>Teléfono</label>
+                <label className="text-xs text-text-secondary mb-1.5 block">Teléfono</label>
                 <input name="telefono" className="glass-input"
                        placeholder="+57 601 555 0101" onChange={handleFormChange} />
               </div>
@@ -411,20 +409,17 @@ export default function AdminView() {
           {modalType === 'especialidad' && (
             <>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                       style={{ color: 'var(--color-text-muted)' }}>Nombre</label>
+                <label className="text-xs text-text-secondary mb-1.5 block">Nombre</label>
                 <input name="nombre" className="glass-input" required
                        placeholder="Dermatología" onChange={handleFormChange} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                       style={{ color: 'var(--color-text-muted)' }}>Descripción</label>
+                <label className="text-xs text-text-secondary mb-1.5 block">Descripción</label>
                 <textarea name="descripcion" className="glass-input" rows={3}
                           placeholder="Descripción de la especialidad..." onChange={handleFormChange} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                       style={{ color: 'var(--color-text-muted)' }}>Precio Base (COP)</label>
+                <label className="text-xs text-text-secondary mb-1.5 block">Precio Base (COP)</label>
                 <input name="precio_base" type="number" className="glass-input" required
                        placeholder="50000" onChange={handleFormChange} />
               </div>
@@ -435,36 +430,31 @@ export default function AdminView() {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Nombre Completo</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Nombre Completo</label>
                   <input name="nombre_completo" className="glass-input" required
                          placeholder="Dr. Juan Rodríguez" onChange={handleFormChange} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Correo</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Correo</label>
                   <input name="correo" type="email" className="glass-input" required
                          placeholder="dr.rodriguez@medicore.com" onChange={handleFormChange} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Contraseña</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Contraseña</label>
                   <input name="password" type="password" className="glass-input" required
                          placeholder="••••••••" onChange={handleFormChange} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Teléfono</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Teléfono</label>
                   <input name="telefono" className="glass-input"
                          placeholder="+57 300 123 4567" onChange={handleFormChange} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Especialidad</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Especialidad</label>
                   <select name="especialidad_id" className="glass-input" required onChange={handleFormChange}>
                     <option value="">Seleccionar...</option>
                     {especialidades.map((e) => (
@@ -473,8 +463,7 @@ export default function AdminView() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Sede</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Sede</label>
                   <select name="sede_id" className="glass-input" required onChange={handleFormChange}>
                     <option value="">Seleccionar...</option>
                     {sedes.map((s) => (
@@ -485,14 +474,12 @@ export default function AdminView() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Tarjeta Profesional</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Tarjeta Profesional</label>
                   <input name="tarjeta_profesional" className="glass-input" required
                          placeholder="TP-DERM-003" onChange={handleFormChange} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-1 block"
-                         style={{ color: 'var(--color-text-muted)' }}>Duración Cita (min)</label>
+                  <label className="text-xs text-text-secondary mb-1.5 block">Duración Cita (min)</label>
                   <input name="duracion_cita_minutos" type="number" className="glass-input"
                          placeholder="30" defaultValue={30} onChange={handleFormChange} />
                 </div>
@@ -500,7 +487,7 @@ export default function AdminView() {
             </>
           )}
 
-          <button type="submit" className="glass-btn glass-btn-primary w-full py-3">
+          <button type="submit" className="glass-btn glass-btn-primary w-full py-2.5">
             <Plus className="w-4 h-4" />
             {modalType === 'medico' ? 'Crear Médico' :
              modalType === 'sede' ? 'Crear Sede' : 'Crear Especialidad'}

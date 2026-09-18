@@ -5,7 +5,7 @@ import BackgroundOrbs from '../components/BackgroundOrbs'
 
 /**
  * PortalSelector — Landing page to choose between Patient, Doctor, and Admin portals.
- * Features dark glass cards with hover effects and unified cyan accent.
+ * Clean glass cards with subtle hover effects.
  */
 
 const portals = [
@@ -42,34 +42,34 @@ export default function PortalSelector() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 relative bg-slate-950">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 relative bg-clinical-bg">
       <BackgroundOrbs />
 
       {/* Hero */}
-      <div className="text-center mb-12 relative z-10 animate-fade-in-up">
-        <div className="inline-flex items-center gap-2 bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-full mb-5">
-          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-          <span className="text-xs font-medium text-slate-400">
+      <div className="text-center mb-14 relative z-10 animate-fade-in-up">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary-cyan animate-pulse" />
+          <span className="text-xs text-text-muted">
             Sistema médico integral
           </span>
         </div>
-        <h1 className="text-4xl sm:text-5xl font-bold mb-3 tracking-tight text-white">
-          MediCore<span className="text-cyan-400">OS</span>
+        <h1 className="text-4xl sm:text-5xl font-semibold mb-3 tracking-tight text-text-primary">
+          MediCore<span className="text-primary-cyan">OS</span>
         </h1>
-        <p className="text-sm sm:text-base text-slate-400 max-w-lg mx-auto font-normal leading-relaxed">
+        <p className="text-sm sm:text-base text-text-secondary max-w-lg mx-auto leading-relaxed">
           Plataforma médica asistida por inteligencia artificial.
           <br />Selecciona tu portal para comenzar.
         </p>
       </div>
 
       {/* Portal Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full relative z-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl w-full relative z-10">
         {portals.map((portal, i) => {
           const Icon = portal.icon
           return (
             <div
               key={portal.id}
-              className="glass-panel p-6 cursor-pointer group border border-slate-800 hover:border-cyan-500/50 animate-fade-in-up"
+              className="glass-panel p-6 cursor-pointer group hover:border-primary-cyan/30 animate-fade-in-up"
               style={{
                 animationDelay: `${(i + 1) * 120}ms`,
                 opacity: 0,
@@ -78,25 +78,25 @@ export default function PortalSelector() {
               onClick={() => navigate(portal.path, { state: { role: portal.role } })}
             >
               {/* Icon */}
-              <div className="w-12 h-12 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center mb-5 text-cyan-400 transition-transform group-hover:scale-105">
-                <Icon className="w-6 h-6 stroke-[2]" />
+              <div className="w-11 h-11 rounded-xl bg-primary-cyan/10 flex items-center justify-center mb-5 text-primary-cyan transition-transform group-hover:scale-105">
+                <Icon className="w-5 h-5" />
               </div>
 
               {/* Text */}
-              <h3 className="text-lg font-bold text-white mb-1">
+              <h3 className="text-base font-semibold text-text-primary mb-1">
                 {portal.title}
               </h3>
-              <p className="text-xs font-medium text-cyan-400 mb-3">
+              <p className="text-xs text-primary-cyan mb-3">
                 {portal.subtitle}
               </p>
-              <p className="text-xs text-slate-400 leading-relaxed mb-6 font-normal">
+              <p className="text-xs text-text-secondary leading-relaxed mb-6">
                 {portal.description}
               </p>
 
               {/* CTA */}
-              <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 transition-all group-hover:gap-3">
+              <div className="flex items-center gap-2 text-xs font-medium text-primary-cyan transition-all group-hover:gap-3">
                 <span>Ingresar</span>
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
               </div>
             </div>
           )
@@ -104,10 +104,9 @@ export default function PortalSelector() {
       </div>
 
       {/* Footer */}
-      <p className="mt-12 text-xs text-slate-500 relative z-10">
+      <p className="mt-14 text-xs text-text-muted relative z-10">
         MediCore OS v1.0 — Sistema médico integral asistido por IA
       </p>
     </div>
   )
 }
-
