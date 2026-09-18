@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, CheckCircle2, HeartPulse, LockKeyhole, Mail, Shi
 import { FormEvent, type ReactNode, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiFetch, setToken, setUser } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -26,26 +27,60 @@ function Index() {
   const [showSplash, setShowSplash] = useState(true);
   const [view, setView] = useState<"login" | "forgot" | "register" | "verify">("login");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1500);
     return () => window.clearTimeout(timer);
   }, []);
 
-  const signIn = (event: FormEvent<HTMLFormElement>) => {
+  const signIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const destinations: Record<string, "/paciente" | "/medico" | "/admin"> = {
-      "paciente@medicore.com": "/paciente",
-      "medico@medicore.com": "/medico",
-      "admin@medicore.com": "/admin",
-    };
-    const destination = destinations[email.trim().toLowerCase()];
-    if (!destination) {
-      setError("Usa uno de los correos de demostración de MediCore.");
+    if (!email.trim()) {
+      setError("Por favor ingresa tu correo electrónico.");
       return;
     }
-    navigate({ to: destination });
+    if (!password.trim()) {
+      setError("Por favor ingresa tu contraseña.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await apiFetch<{
+        access_token: string;
+        token_type: string;
+        usuario: import("@/lib/api").Usuario;
+      }>("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          correo: email.trim(),
+          password: password,
+        }),
+      });
+
+      setToken(res.access_token);
+      setUser(res.usuario);
+
+      // Redirección dinámica basada en el rol del backend
+      if (res.usuario.rol === "paciente") {
+        navigate({ to: "/paciente" });
+      } else if (res.usuario.rol === "medico") {
+        navigate({ to: "/medico" });
+      } else if (res.usuario.rol === "admin") {
+        navigate({ to: "/admin" });
+      } else {
+        navigate({ to: "/paciente" });
+      }
+    } catch (err: any) {
+      setError(err.message || "Correo o contraseña incorrectos");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (showSplash) {
@@ -90,7 +125,21 @@ function Index() {
           <ArrowLeft /> Volver
         </Button>
       )}
-      {view === "login" && <LoginForm email={email} setEmail={setEmail} error={error} setError={setError} onSubmit={signIn} onForgot={() => setView("forgot")} onRegister={() => setView("register")} onGoogle={() => navigate({ to: "/paciente" })} />}
+      {view === "login" && (
+        <LoginForm
+          email={email}
+          setEmail={setEmail}
+          password={password}
+          setPassword={setPassword}
+          error={error}
+          setError={setError}
+          loading={loading}
+          onSubmit={signIn}
+          onForgot={() => setView("forgot")}
+          onRegister={() => setView("register")}
+          onGoogle={() => navigate({ to: "/paciente" })}
+        />
+      )}
       {view === "forgot" && <ForgotForm email={email} setEmail={setEmail} onComplete={() => setView("verify")} />}
       {view === "register" && <RegisterForm email={email} setEmail={setEmail} onComplete={() => setView("verify")} />}
     </AuthLayout>
@@ -117,8 +166,90 @@ function Field({ label, icon: Icon, ...props }: React.ComponentProps<typeof Inpu
   return <label className="block text-sm"><span className="mb-2 block text-muted-foreground">{label}</span><span className="relative block"><Icon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-11 pl-10" {...props} /></span></label>;
 }
 
-function LoginForm({ email, setEmail, error, setError, onSubmit, onForgot, onRegister, onGoogle }: { email: string; setEmail: (value: string) => void; error: string; setError: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onForgot: () => void; onRegister: () => void; onGoogle: () => void }) {
-  return <><div className="mb-7"><h1 className="font-display text-2xl font-semibold">Accede a tu cuenta</h1><p className="mt-2 text-sm text-muted-foreground">Ingresa tus credenciales para continuar.</p></div><form className="space-y-5" onSubmit={onSubmit}><Field label="Correo electrónico" icon={Mail} type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="tu@medicore.com" required /><div><Field label="Contraseña" icon={LockKeyhole} type="password" placeholder="••••••••" required /><div className="mt-2 text-right"><Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={onForgot}>¿Olvidaste tu contraseña?</Button></div></div>{error && <p role="alert" className="text-sm text-destructive">{error}</p>}<Button type="submit" className="h-11 w-full">Ingresar <ArrowRight /></Button></form><div className="my-6 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />o continúa con<span className="h-px flex-1 bg-border" /></div><Button type="button" variant="outline" className="h-11 w-full bg-background/30" onClick={onGoogle}><GoogleMark /> Continuar con Google</Button><p className="mt-6 text-center text-sm text-muted-foreground">¿No tienes cuenta? <Button variant="link" className="h-auto p-0" onClick={onRegister}>Regístrate</Button></p><p className="mt-5 border-t border-border pt-4 text-center text-[11px] leading-5 text-muted-foreground">Demo: paciente@medicore.com, medico@medicore.com o admin@medicore.com. Cualquier contraseña funciona.</p></>;
+function LoginForm({
+  email,
+  setEmail,
+  password,
+  setPassword,
+  error,
+  setError,
+  loading,
+  onSubmit,
+  onForgot,
+  onRegister,
+  onGoogle,
+}: {
+  email: string;
+  setEmail: (value: string) => void;
+  password: string;
+  setPassword: (value: string) => void;
+  error: string;
+  setError: (value: string) => void;
+  loading: boolean;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onForgot: () => void;
+  onRegister: () => void;
+  onGoogle: () => void;
+}) {
+  return (
+    <>
+      <div className="mb-7">
+        <h1 className="font-display text-2xl font-semibold">Accede a tu cuenta</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Ingresa tus credenciales para continuar.</p>
+      </div>
+      <form className="space-y-5" onSubmit={onSubmit}>
+        <Field
+          label="Correo electrónico"
+          icon={Mail}
+          type="email"
+          value={email}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            setError("");
+          }}
+          placeholder="tu@medicore.com"
+          required
+        />
+        <div>
+          <Field
+            label="Contraseña"
+            icon={LockKeyhole}
+            type="password"
+            placeholder="••••••••"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              setError("");
+            }}
+            required
+          />
+          <div className="mt-2 text-right">
+            <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={onForgot}>
+              ¿Olvidaste tu contraseña?
+            </Button>
+          </div>
+        </div>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <Button type="submit" className="h-11 w-full" disabled={loading}>
+          {loading ? "Ingresando..." : <>Ingresar <ArrowRight /></>}
+        </Button>
+      </form>
+      <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        o continúa con
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <Button type="button" variant="outline" className="h-11 w-full bg-background/30" onClick={onGoogle}>
+        <GoogleMark /> Continuar con Google
+      </Button>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        ¿No tienes cuenta? <Button variant="link" className="h-auto p-0" onClick={onRegister}>Regístrate</Button>
+      </p>
+      <p className="mt-5 border-t border-border pt-4 text-center text-[11px] leading-5 text-muted-foreground">
+        Demo: paciente@medicore.com, medico@medicore.com o admin@medicore.com (Contraseña: Password123!).
+      </p>
+    </>
+  );
 }
 
 function ForgotForm({ email, setEmail, onComplete }: { email: string; setEmail: (value: string) => void; onComplete: () => void }) {
