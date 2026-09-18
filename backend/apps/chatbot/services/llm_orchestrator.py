@@ -5,7 +5,8 @@ Zero-hallucination medical assistant with tool calling.
 
 import json
 import logging
-from datetime import date, datetime, time
+import re
+from datetime import date, datetime, time, timedelta
 from django.conf import settings
 from django.utils import timezone
 from apps.authentication.models import Usuario
@@ -33,8 +34,10 @@ REGLAS ESTRICTAS DE RESPUESTA:
    - Si la cita está en estado 'pendiente_pago' (sin pagar), procede a cancelarla usando la herramienta `cancelar_cita`.
    - Si la cita YA FUE PAGADA o está en estado 'confirmada': NO puedes cancelarla de inmediato. Explica de forma empática que, debido a que el pago ya fue procesado, se debe radicar una solicitud formal de PQR (Petición, Queja o Reclamo) para el reembolso del dinero. Solicita confirmación y el motivo si no fue provisto antes de invocar la herramienta `solicitar_pqr_reembolso`. Confírmale al paciente el ID de radicado de la PQR generada y que el equipo administrativo la evaluará.
 10. FORMATO DE HORARIOS Y PRESENTACIÓN DE DISPONIBILIDAD:
-   - Al responder sobre disponibilidad de horarios (`consultar_disponibilidad`), NUNCA hagas una lista con viñetas ni escribas las horas en el texto de tu respuesta. El sistema mostrará automáticamente los botones interactivos para cada hora.
-   - Tu respuesta de texto debe ser MUY BREVE (ejemplo: 'Tenemos horarios disponibles para Cardiología con el Dr. Carlos García el 18/09/2026. Por favor selecciona el que prefieras a continuación:').
+   - Para responder sobre disponibilidad de una especialidad o fecha, DEBES LLAMAR OBLIGATORIAMENTE a la herramienta `consultar_disponibilidad`. NUNCA afirmes que hay horarios disponibles sin haber ejecutado `consultar_disponibilidad`.
+   - Si el usuario menciona un día, número o fecha (ej: '21', '21/09/2026', 'el 23', 'mañana', 'el lunes'), identifica la especialidad médica que se viene consultando y LLAMA INMEDIATAMENTE a `consultar_disponibilidad`.
+   - Al responder tras ejecutar `consultar_disponibilidad`, NUNCA hagas una lista con viñetas ni escribas las horas en el texto de tu respuesta. El sistema mostrará automáticamente los botones interactivos para cada hora debajo de tu mensaje.
+   - Tu respuesta de texto debe ser MUY BREVE (ejemplo: 'Tenemos horarios disponibles para Medicina General el 21/09/2026. Por favor, selecciona el que prefieras a continuación:').
    - PROHIBIDO repetir las horas en texto plano.
    - Si el paciente selecciona o solicita un horario (ej: 'Quiero agendar a las 8:00 a. m.' o 'a las 2:00 p. m.'), conviértelo al formato 'YYYY-MM-DD HH:MM' de 24 horas requerido al invocar la herramienta `agendar_cita`.
 11. AGENDAMIENTO DE CITAS:
@@ -219,17 +222,84 @@ TOOLS = [
 ]
 
 
-def _tool_consultar_disponibilidad(especialidad_nombre: str, fecha: str, genero: str = None) -> str:
+def _parse_flexible_date(fecha: str) -> date | None:
+    if not fecha or not isinstance(fecha, str):
+        return None
+    s = fecha.strip().lower()
+    hoy = timezone.localdate() if settings.USE_TZ else date.today()
+    if s in ["hoy", "today"]:
+        return hoy
+    if s in ["mañana", "manana", "tomorrow"]:
+        return hoy + timedelta(days=1)
+
     try:
-        fecha_dt = date.fromisoformat(fecha)
+        return date.fromisoformat(s)
     except ValueError:
-        return json.dumps({"error": "Formato de fecha inválido. Use YYYY-MM-DD"})
+        pass
+
+    for fmt in ["%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%d/%m/%y", "%d-%m-%y"]:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            pass
+
+    for fmt in ["%d/%m", "%d-%m"]:
+        try:
+            d = datetime.strptime(s, fmt).date()
+            return d.replace(year=hoy.year)
+        except ValueError:
+            pass
+
+    if s.isdigit():
+        day_num = int(s)
+        if 1 <= day_num <= 31:
+            try:
+                candidate = hoy.replace(day=day_num)
+                if candidate < hoy and hoy.month < 12:
+                    candidate = hoy.replace(month=hoy.month + 1, day=day_num)
+                return candidate
+            except ValueError:
+                pass
+
+    meses = {
+        "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+        "julio": 7, "agosto": 8, "septiembre": 9, "setiembre": 9, "septimebre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12,
+        "sept": 9, "ene": 1, "feb": 2, "mar": 3, "abr": 4, "may": 5, "jun": 6,
+        "jul": 7, "ago": 8, "oct": 10, "nov": 11, "dic": 12
+    }
+    m = re.search(r'(\d{1,2})\s+(?:de\s+)?([a-záéíóú]+)(?:\s+(?:de|del)?\s+(\d{4}))?', s)
+    if m:
+        day = int(m.group(1))
+        mes_str = m.group(2).lower()
+        year = int(m.group(3)) if m.group(3) else hoy.year
+        month = meses.get(mes_str)
+        if month:
+            try:
+                return date(year, month, day)
+            except ValueError:
+                pass
+
+    return None
+
+
+def _tool_consultar_disponibilidad(especialidad_nombre: str, fecha: str, genero: str = None) -> str:
+    fecha_dt = _parse_flexible_date(fecha)
+    if not fecha_dt:
+        return json.dumps({"error": f"Formato de fecha inválido: '{fecha}'. Use YYYY-MM-DD o DD/MM/YYYY"})
 
     data, err = get_disponibilidad(
         fecha=fecha_dt,
         especialidad_nombre=especialidad_nombre,
         genero=genero,
     )
+    if err and especialidad_nombre:
+        esp = Especialidad.objects.filter(nombre__icontains=especialidad_nombre.strip()).first()
+        if esp:
+            data, err = get_disponibilidad(
+                fecha=fecha_dt,
+                especialidad_id=esp.id,
+                genero=genero,
+            )
     if err:
         return json.dumps({"error": err})
 
@@ -658,6 +728,37 @@ class LLMOrchestrator:
                 response_message = response.choices[0].message
 
             final_content = response_message.content or "No pude generar una respuesta. ¿Podrías reformular tu pregunta?"
+
+            # Safety fallback: if LLM mentions availability or asks to pick a slot, but available_slots_12h is empty
+            if not available_slots_12h and any(k in final_content.lower() for k in ["horarios disponibles", "seleccione el que prefiera", "selecciona el que prefiera", "horario disponible", "a continuación"]):
+                combined_text = f"{mensaje} {final_content}"
+                date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4}|\d{1,2}\s+de\s+[a-záéíóú]+(?:\s+(?:de|del)?\s+\d{4})?)', combined_text, re.IGNORECASE)
+                parsed_dt = _parse_flexible_date(date_match.group(1)) if date_match else None
+                if not parsed_dt:
+                    day_m = re.search(r'\b([1-9]|[12]\d|3[01])\b', mensaje)
+                    if day_m:
+                        parsed_dt = _parse_flexible_date(day_m.group(1))
+
+                found_esp = None
+                for esp in Especialidad.objects.filter(activo=True):
+                    if esp.nombre.lower() in combined_text.lower():
+                        found_esp = esp
+                        break
+                if not found_esp:
+                    found_esp = Especialidad.objects.filter(activo=True).first()
+
+                if parsed_dt and found_esp:
+                    data, err = get_disponibilidad(fecha=parsed_dt, especialidad_id=found_esp.id)
+                    if data and data.get("slots"):
+                        for s in data["slots"]:
+                            h12 = (
+                                s["hora_inicio"].strftime("%I:%M %p").replace("AM", "a. m.").replace("PM", "p. m.").lstrip("0")
+                                if isinstance(s["hora_inicio"], time)
+                                else str(s["hora_inicio"])
+                            )
+                            if h12 not in available_slots_12h:
+                                available_slots_12h.append(h12)
+
             if available_slots_12h:
                 final_content += f"\n<!--SLOTS:{json.dumps(available_slots_12h)}-->"
 

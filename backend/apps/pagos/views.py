@@ -92,3 +92,27 @@ class DetallePagoView(APIView):
             return Response({"detail": "No se encontró pago para esta cita"}, status=status.HTTP_404_NOT_FOUND)
 
         return Response(PagoResponseSerializer(pago).data)
+
+
+class MisPagosView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.rol == "paciente":
+            from apps.clinica.models import Paciente
+            paciente = Paciente.objects.filter(usuario=request.user).first()
+            if paciente:
+                pagos = Pago.objects.filter(cita__paciente=paciente).select_related(
+                    'cita__medico__usuario', 'cita__medico__especialidad'
+                ).order_by('-actualizado_en')
+            else:
+                pagos = Pago.objects.none()
+        elif request.user.rol in ["admin", "recepcionista"]:
+            pagos = Pago.objects.all().select_related(
+                'cita__medico__usuario', 'cita__medico__especialidad'
+            ).order_by('-actualizado_en')
+        else:
+            pagos = Pago.objects.none()
+
+        return Response(PagoResponseSerializer(pagos, many=True).data)
+

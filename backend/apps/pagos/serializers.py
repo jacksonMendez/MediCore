@@ -9,6 +9,8 @@ class PagoSimularSerializer(serializers.Serializer):
 class PagoResponseSerializer(serializers.ModelSerializer):
     cita_id = serializers.UUIDField(source='cita.id')
     monto = serializers.FloatField()
+    concepto = serializers.SerializerMethodField()
+    fecha = serializers.DateTimeField(source='actualizado_en', read_only=True)
 
     class Meta:
         model = Pago
@@ -20,8 +22,16 @@ class PagoResponseSerializer(serializers.ModelSerializer):
             'referencia',
             'metodo_pago',
             'estado',
+            'concepto',
+            'fecha',
             'actualizado_en',
         ]
+
+    def get_concepto(self, obj):
+        try:
+            return f"{obj.cita.medico.especialidad.nombre} - {obj.cita.medico.usuario.nombre_completo}"
+        except Exception:
+            return "Consulta médica MediCore"
 
 
 class WebhookPagoSerializer(serializers.Serializer):

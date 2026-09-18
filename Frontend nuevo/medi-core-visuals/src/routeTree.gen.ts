@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CitasRouteImport } from './routes/citas'
 import { Route as MedicoRouteImport } from './routes/medico'
 import { Route as PacienteRouteImport } from './routes/paciente'
+import { Route as PagosRouteImport } from './routes/pagos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CitasRoute = CitasRouteImport.update({
+  id: '/citas',
+  path: '/citas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MedicoRoute = MedicoRouteImport.update({
@@ -34,39 +41,53 @@ const PacienteRoute = PacienteRouteImport.update({
   path: '/paciente',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PagosRoute = PagosRouteImport.update({
+  id: '/pagos',
+  path: '/pagos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/citas': typeof CitasRoute
   '/medico': typeof MedicoRoute
   '/paciente': typeof PacienteRoute
+  '/pagos': typeof PagosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/citas': typeof CitasRoute
   '/medico': typeof MedicoRoute
   '/paciente': typeof PacienteRoute
+  '/pagos': typeof PagosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/citas': typeof CitasRoute
   '/medico': typeof MedicoRoute
   '/paciente': typeof PacienteRoute
+  '/pagos': typeof PagosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/medico' | '/paciente'
+  fullPaths: '/' | '/admin' | '/citas' | '/medico' | '/paciente' | '/pagos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/medico' | '/paciente'
-  id: '__root__' | '/' | '/admin' | '/medico' | '/paciente'
+  to: '/' | '/admin' | '/citas' | '/medico' | '/paciente' | '/pagos'
+  id:
+    '__root__' | '/' | '/admin' | '/citas' | '/medico' | '/paciente' | '/pagos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CitasRoute: typeof CitasRoute
   MedicoRoute: typeof MedicoRoute
   PacienteRoute: typeof PacienteRoute
+  PagosRoute: typeof PagosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -85,6 +106,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/citas': {
+      id: '/citas'
+      path: '/citas'
+      fullPath: '/citas'
+      preLoaderRoute: typeof CitasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/medico': {
       id: '/medico'
       path: '/medico'
@@ -99,14 +127,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PacienteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pagos': {
+      id: '/pagos'
+      path: '/pagos'
+      fullPath: '/pagos'
+      preLoaderRoute: typeof PagosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CitasRoute: CitasRoute,
   MedicoRoute: MedicoRoute,
   PacienteRoute: PacienteRoute,
+  PagosRoute: PagosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

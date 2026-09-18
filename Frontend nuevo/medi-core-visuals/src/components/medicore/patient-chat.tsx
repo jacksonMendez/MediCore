@@ -264,7 +264,14 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
       <div className="flex-1 min-h-0 space-y-5 overflow-y-auto p-5">
         {messages.map((message) => {
           const slots = message.from === "assistant" ? extractAvailableTimeSlots(message.text) : [];
-          const cleanText = message.text.replace(/<!--SLOTS:.*?-->/gs, "").trim();
+          let cleanText = message.text.replace(/<!--SLOTS:.*?-->/gs, "").trim();
+          if (slots.length > 0) {
+            cleanText = cleanText
+              .split("\n")
+              .filter((line) => !/^\s*[-*•]\s*[0-2]?[0-9]:[0-5][0-9]/i.test(line.trim()))
+              .join("\n")
+              .trim();
+          }
           return (
             <div key={message.id} className={cn("flex flex-col", message.from === "user" ? "items-end" : "items-start")}>
               <div
@@ -333,6 +340,14 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
           <Textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (draft.trim() && !loading) {
+                  send(draft);
+                }
+              }
+            }}
             placeholder="Escribe tu consulta…"
             className="min-h-20 resize-none pb-11 pr-12"
             disabled={loading}

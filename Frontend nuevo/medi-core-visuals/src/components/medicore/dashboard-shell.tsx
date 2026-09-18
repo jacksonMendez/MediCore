@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   CreditCard,
@@ -8,7 +8,6 @@ import {
   Plus,
   Settings,
   Trash2,
-  Users,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,13 +23,13 @@ interface ChatSessionItem {
 }
 
 const nav = [
-  { label: "Resumen", icon: LayoutDashboard },
-  { label: "Citas", icon: CalendarDays },
-  { label: "Directorio", icon: Users },
-  { label: "Pagos", icon: CreditCard },
+  { label: "Resumen", icon: LayoutDashboard, to: "/paciente" },
+  { label: "Citas", icon: CalendarDays, to: "/citas" },
+  { label: "Pagos", icon: CreditCard, to: "/pagos" },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
   const path = useRouterState({ select: (state) => state.location.pathname });
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -48,15 +47,25 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const deleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const previousSessions = sessions;
+    const wasActive = activeSessionId === id;
+
+    // Optimistic UI: remove from list immediately with zero delay
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (wasActive) {
+      setActiveSessionId(null);
+      window.dispatchEvent(new CustomEvent("medicore:new-chat"));
+    }
+
     try {
       await apiFetch(`/chat/sesiones/${id}`, { method: "DELETE" });
-      setSessions((prev) => prev.filter((s) => s.id !== id));
-      if (activeSessionId === id) {
-        setActiveSessionId(null);
-        window.dispatchEvent(new CustomEvent("medicore:new-chat"));
+    } catch (err) {
+      // Rollback if DELETE fails
+      setSessions(previousSessions);
+      if (wasActive) {
+        setActiveSessionId(id);
       }
-    } catch {
-      // ignore
+      console.error("Error al eliminar la sesión:", err);
     }
   };
 
@@ -90,16 +99,27 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
         {/* Navigation items */}
         <nav className="shrink-0 space-y-1 px-3 pb-2">
-          {nav.map(({ label, icon: Icon }, index) => (
-            <Button
-              key={label}
-              variant={index === 0 ? "secondary" : "ghost"}
-              className="w-full justify-start cursor-pointer"
-            >
-              <Icon />
-              {label}
-            </Button>
-          ))}
+          {nav.map(({ label, icon: Icon, to }) => {
+            const isActive = path === to || (to === "/paciente" && path === "/");
+            return (
+              <Button
+                key={label}
+                asChild
+                variant={isActive ? "secondary" : "ghost"}
+                className={cn(
+                  "w-full justify-start cursor-pointer transition-colors",
+                  isActive
+                    ? "bg-secondary text-primary font-medium"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                )}
+              >
+                <Link to={to}>
+                  <Icon className="size-4 mr-2" />
+                  {label}
+                </Link>
+              </Button>
+            );
+          })}
         </nav>
 
         {/* Punto 6: Chat History Section */}
@@ -112,6 +132,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               onClick={() => {
                 setActiveSessionId(null);
                 window.dispatchEvent(new CustomEvent("medicore:new-chat"));
+                if (path !== "/paciente") {
+                  navigate({ to: "/paciente" });
+                }
               }}
             >
               <Plus className="size-3.5 text-primary" />
@@ -141,6 +164,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 onClick={() => {
                   setActiveSessionId(s.id);
                   window.dispatchEvent(new CustomEvent("medicore:select-session", { detail: s.id }));
+                  if (path !== "/paciente") {
+                    navigate({ to: "/paciente" });
+                  }
                 }}
               >
                 <span className="flex items-center gap-2 truncate flex-1 mr-1">
