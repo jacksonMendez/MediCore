@@ -127,9 +127,11 @@ function PatientPage() {
         name={rawName}
         initials={initials}
       />
-      <div className="grid gap-6 p-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,.7fr)] lg:p-8">
-        <PatientChat />
-        <div className="space-y-6">
+      <div className="flex-1 min-h-0 grid gap-6 p-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,.75fr)] lg:p-6 lg:overflow-hidden">
+        <div className="h-full min-h-0 flex flex-col">
+          <PatientChat className="h-full min-h-0" />
+        </div>
+        <div className="h-full min-h-0 lg:overflow-y-auto space-y-6 pr-1">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <Button
               className="group h-auto min-h-36 flex-col items-stretch justify-between whitespace-normal p-5 text-left"

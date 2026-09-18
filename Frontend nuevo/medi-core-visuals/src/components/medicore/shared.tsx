@@ -32,7 +32,7 @@ export function AppHeader({
   initials: string;
 }) {
   return (
-    <header className="flex min-h-20 items-center justify-between gap-4 border-b border-border px-5 lg:px-8">
+    <header className="shrink-0 flex min-h-20 items-center justify-between gap-4 border-b border-border px-5 lg:px-8">
       <div>
         <h1 className="font-display text-xl font-semibold text-foreground lg:text-2xl">{title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>

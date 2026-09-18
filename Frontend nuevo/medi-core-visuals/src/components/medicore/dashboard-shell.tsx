@@ -23,7 +23,7 @@ const nav = [
 export function DashboardShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-background text-foreground flex flex-col">
       <MobileTopbar />
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-sidebar lg:flex">
         <div className="px-6 py-6">
@@ -62,7 +62,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </p>
         </div>
       </aside>
-      <main className="lg:pl-64">{children}</main>
+      <main className="lg:pl-64 flex-1 flex flex-col min-h-0 lg:overflow-hidden">{children}</main>
     </div>
   );
 }

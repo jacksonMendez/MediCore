@@ -84,12 +84,12 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
   return (
     <section
       className={cn(
-        "flex min-h-[480px] flex-col overflow-hidden rounded-md border border-border bg-card",
-        compact ? "min-h-[390px]" : "min-h-[620px]",
+        "flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-border bg-card",
+        compact ? "min-h-[380px]" : "min-h-[480px]",
         className,
       )}
     >
-      <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+      <div className="shrink-0 flex items-center gap-3 border-b border-border px-5 py-4">
         <span className="grid size-9 place-items-center rounded-md bg-primary text-primary-foreground">
           <Bot className="size-5" />
         </span>
@@ -101,7 +101,7 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
           </p>
         </div>
       </div>
-      <div className="flex-1 space-y-5 overflow-y-auto p-5">
+      <div className="flex-1 min-h-0 space-y-5 overflow-y-auto p-5">
         {messages.map((message) => (
           <div key={message.id} className={cn("flex", message.from === "user" && "justify-end")}>
             <div
@@ -125,7 +125,7 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
         )}
         <div ref={scrollRef} />
       </div>
-      <div className="space-y-3 border-t border-border p-4">
+      <div className="shrink-0 space-y-3 border-t border-border p-4">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {suggestions.map((suggestion) => (
             <Button
