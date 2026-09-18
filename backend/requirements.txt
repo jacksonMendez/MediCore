@@ -1,10 +1,8 @@
-fastapi[standard]
-uvicorn[standard]
-sqlalchemy[asyncio]
-asyncpg
-pydantic-settings
-pydantic[email]
-python-jose[cryptography]
-passlib[bcrypt]
+django>=5.1
+djangorestframework
+django-cors-headers
+pyjwt
 groq
 python-dotenv
+bcrypt
+psycopg[binary]
