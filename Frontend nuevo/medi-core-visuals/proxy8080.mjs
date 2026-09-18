@@ -3,12 +3,14 @@ import http from 'node:http';
 const server = http.createServer((req, res) => {
   req.on('error', () => {});
   res.on('error', () => {});
+  const isApi = req.url.startsWith('/api/');
+  const targetPort = isApi ? 8000 : 5173;
   const options = {
     hostname: '127.0.0.1',
-    port: 5173,
+    port: targetPort,
     path: req.url,
     method: req.method,
-    headers: { ...req.headers, host: '127.0.0.1:5173' },
+    headers: { ...req.headers, host: `127.0.0.1:${targetPort}` },
   };
   const proxyReq = http.request(options, (proxyRes) => {
     res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);

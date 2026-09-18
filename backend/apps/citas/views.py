@@ -1,16 +1,63 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from apps.authentication.authentication import require_role
 from apps.clinica.models import Medico, Paciente
 from .models import Cita
-from .services import get_disponibilidad
+from .services import get_disponibilidad, get_dias_disponibles
 from .serializers import (
     CitaCreateSerializer,
     CitaResponseSerializer,
     DisponibilidadResponseSerializer,
 )
+
+
+class DiasDisponiblesView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from django.utils import timezone
+        hoy = timezone.localdate()
+
+        fecha_inicio_str = request.query_params.get('fecha_inicio')
+        if fecha_inicio_str:
+            try:
+                fecha_inicio = date.fromisoformat(fecha_inicio_str)
+            except ValueError:
+                return Response({"detail": "Formato de fecha_inicio inválido (YYYY-MM-DD)"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            fecha_inicio = hoy
+
+        fecha_fin_str = request.query_params.get('fecha_fin')
+        if fecha_fin_str:
+            try:
+                fecha_fin = date.fromisoformat(fecha_fin_str)
+            except ValueError:
+                return Response({"detail": "Formato de fecha_fin inválido (YYYY-MM-DD)"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            fecha_fin = fecha_inicio + timedelta(days=30)
+
+        especialidad_id = request.query_params.get('especialidad_id')
+        especialidad_nombre = request.query_params.get('especialidad_nombre')
+        genero = request.query_params.get('genero')
+
+        if not especialidad_id and not especialidad_nombre:
+            return Response({"detail": "Debe proporcionar especialidad_nombre o especialidad_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        data, err = get_dias_disponibles(
+            fecha_inicio=fecha_inicio,
+            fecha_fin=fecha_fin,
+            especialidad_id=especialidad_id,
+            especialidad_nombre=especialidad_nombre,
+            genero=genero,
+        )
+        if err:
+            status_code = status.HTTP_404_NOT_FOUND if "no encontrada" in err else status.HTTP_400_BAD_REQUEST
+            return Response({"detail": err}, status=status_code)
+
+        return Response(data)
+
 
 
 class DisponibilidadView(APIView):

@@ -13,7 +13,7 @@ from apps.authentication.models import Usuario
 from apps.clinica.models import Especialidad, Medico, Paciente
 from apps.citas.models import Cita, ConsultaNota, PQRSolicitud
 from apps.pagos.models import Pago
-from apps.citas.services import get_disponibilidad
+from apps.citas.services import get_disponibilidad, get_dias_disponibles
 from apps.chatbot.models import MensajeChat
 
 logger = logging.getLogger(__name__)
@@ -34,10 +34,14 @@ REGLAS ESTRICTAS DE RESPUESTA:
    - Si la cita está en estado 'pendiente_pago' (sin pagar), procede a cancelarla usando la herramienta `cancelar_cita`.
    - Si la cita YA FUE PAGADA o está en estado 'confirmada': NO puedes cancelarla de inmediato. Explica de forma empática que, debido a que el pago ya fue procesado, se debe radicar una solicitud formal de PQR (Petición, Queja o Reclamo) para el reembolso del dinero. Solicita confirmación y el motivo si no fue provisto antes de invocar la herramienta `solicitar_pqr_reembolso`. Confírmale al paciente el ID de radicado de la PQR generada y que el equipo administrativo la evaluará.
 10. FORMATO DE HORARIOS Y PRESENTACIÓN DE DISPONIBILIDAD:
-   - Para responder sobre disponibilidad de una especialidad o fecha, DEBES LLAMAR OBLIGATORIAMENTE a la herramienta `consultar_disponibilidad`. NUNCA afirmes que hay horarios disponibles sin haber ejecutado `consultar_disponibilidad`.
-   - Si el usuario menciona un día, número o fecha (ej: '21', '21/09/2026', 'el 23', 'mañana', 'el lunes'), identifica la especialidad médica que se viene consultando y LLAMA INMEDIATAMENTE a `consultar_disponibilidad`.
+   - Para responder sobre disponibilidad de una especialidad en una fecha específica, DEBES LLAMAR OBLIGATORIAMENTE a `consultar_disponibilidad`.
+   - Si el usuario pregunta de forma amplia o relativa por fechas o días disponibles ("la próxima semana", "esta semana", "qué días atienden", "los próximos días", "cuándo hay citas", "qué días hay disponibles", "busca si hay día libre"):
+     DEBES LLAMAR OBLIGATORIAMENTE a `consultar_dias_disponibles`.
+     NUNCA pidas una fecha puntual en formato YYYY-MM-DD ni te quedes en loop si el usuario ya indicó un período relativo o preguntó en general.
+     Al responder tras ejecutar `consultar_dias_disponibles`, resume de forma clara y amable los días con disponibilidad (ejemplo: 'Para Medicina General la próxima semana tenemos disponibilidad los siguientes días: Lunes 21, Martes 22, Jueves 24 y Viernes 25 de septiembre. Puedes seleccionar el día en el calendario que aparece abajo o decirme cuál prefieres.').
+   - Si el usuario menciona un día, número o fecha específica (ej: '21', '21/09/2026', 'el 23', 'mañana', 'el lunes'), identifica la especialidad médica que se viene consultando y LLAMA INMEDIATAMENTE a `consultar_disponibilidad`.
    - Al responder tras ejecutar `consultar_disponibilidad`, NUNCA hagas una lista con viñetas ni escribas las horas en el texto de tu respuesta. El sistema mostrará automáticamente los botones interactivos para cada hora debajo de tu mensaje.
-   - Tu respuesta de texto debe ser MUY BREVE (ejemplo: 'Tenemos horarios disponibles para Medicina General el 21/09/2026. Por favor, selecciona el que prefieras a continuación:').
+   - Tu respuesta de texto tras consultar una fecha debe ser MUY BREVE (ejemplo: 'Tenemos horarios disponibles para Medicina General el 21/09/2026 con la Dra. Ana Martínez Ruiz. Por favor, selecciona el horario que prefieras a continuación:').
    - PROHIBIDO repetir las horas en texto plano.
    - Si el paciente selecciona o solicita un horario (ej: 'Quiero agendar a las 8:00 a. m.' o 'a las 2:00 p. m.'), conviértelo al formato 'YYYY-MM-DD HH:MM' de 24 horas requerido al invocar la herramienta `agendar_cita`.
 11. AGENDAMIENTO DE CITAS:
@@ -70,6 +74,39 @@ TOOLS = [
                     },
                 },
                 "required": ["especialidad_nombre", "fecha"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "consultar_dias_disponibles",
+            "description": "Consulta qué días tienen disponibilidad de citas médicas para una especialidad en un rango o período relativo (ej: 'la próxima semana', 'esta semana', 'los próximos días', 'este mes' o fechas específicas). Retorna la lista de fechas con cupos libres.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "especialidad_nombre": {
+                        "type": "string",
+                        "description": "Nombre de la especialidad médica (ej: 'Medicina General', 'Cardiología', 'Pediatría')",
+                    },
+                    "periodo": {
+                        "type": "string",
+                        "description": "Expresión o período relativo indicado por el usuario (ej: 'la próxima semana', 'esta semana', 'los próximos días', 'este mes')",
+                    },
+                    "fecha_inicio": {
+                        "type": "string",
+                        "description": "Fecha inicial opcional en formato YYYY-MM-DD",
+                    },
+                    "fecha_fin": {
+                        "type": "string",
+                        "description": "Fecha final opcional en formato YYYY-MM-DD",
+                    },
+                    "genero": {
+                        "type": "string",
+                        "description": "Filtro opcional por género del médico: 'M' (hombre) o 'F' (mujer)",
+                    },
+                },
+                "required": ["especialidad_nombre"],
             },
         },
     },
@@ -330,6 +367,62 @@ def _tool_consultar_disponibilidad(especialidad_nombre: str, fecha: str, genero:
         "slots_disponibles": slots_formatted,
         "total": len(slots_formatted),
     }, ensure_ascii=False)
+
+
+def _tool_consultar_dias_disponibles(especialidad_nombre: str, periodo: str = None, fecha_inicio: str = None, fecha_fin: str = None, genero: str = None) -> str:
+    hoy = timezone.localdate() if settings.USE_TZ else date.today()
+    periodo_lower = (periodo or "").lower().strip()
+    dt_inicio = hoy
+    dt_fin = hoy + timedelta(days=14)
+
+    if "proxim" in periodo_lower and "semana" in periodo_lower:
+        # Next week: from next Monday to next Sunday
+        days_ahead = 7 - hoy.weekday()
+        dt_inicio = hoy + timedelta(days=days_ahead)
+        dt_fin = dt_inicio + timedelta(days=6)
+    elif "esta" in periodo_lower and "semana" in periodo_lower:
+        days_until_sunday = 6 - hoy.weekday()
+        dt_inicio = hoy
+        dt_fin = hoy + timedelta(days=max(0, days_until_sunday))
+    elif "mes" in periodo_lower:
+        dt_inicio = hoy
+        if hoy.month == 12:
+            dt_fin = date(hoy.year, 12, 31)
+        else:
+            dt_fin = date(hoy.year, hoy.month + 1, 1) - timedelta(days=1)
+    elif fecha_inicio:
+        parsed_ini = _parse_flexible_date(fecha_inicio)
+        if parsed_ini:
+            dt_inicio = parsed_ini
+        if fecha_fin:
+            parsed_fin = _parse_flexible_date(fecha_fin)
+            if parsed_fin:
+                dt_fin = parsed_fin
+            else:
+                dt_fin = dt_inicio + timedelta(days=14)
+        else:
+            dt_fin = dt_inicio + timedelta(days=14)
+
+    data, err = get_dias_disponibles(
+        fecha_inicio=dt_inicio,
+        fecha_fin=dt_fin,
+        especialidad_nombre=especialidad_nombre,
+        genero=genero,
+    )
+    if err and especialidad_nombre:
+        esp = Especialidad.objects.filter(nombre__icontains=especialidad_nombre.strip()).first()
+        if esp:
+            data, err = get_dias_disponibles(
+                fecha_inicio=dt_inicio,
+                fecha_fin=dt_fin,
+                especialidad_id=esp.id,
+                genero=genero,
+            )
+    if err:
+        return json.dumps({"error": err})
+
+    return json.dumps(data, ensure_ascii=False)
+
 
 
 def _tool_consultar_mis_citas(paciente_id: str) -> str:
@@ -671,6 +764,7 @@ def _tool_solicitar_pqr_reembolso(cita_id: str, motivo: str) -> str:
 
 TOOL_FUNCTIONS = {
     "consultar_disponibilidad": _tool_consultar_disponibilidad,
+    "consultar_dias_disponibles": _tool_consultar_dias_disponibles,
     "consultar_mis_citas": _tool_consultar_mis_citas,
     "registrar_paciente": _tool_registrar_paciente,
     "agendar_cita": _tool_agendar_cita,
@@ -753,6 +847,7 @@ class LLMOrchestrator:
 
         tools_executed = []
         available_slots_12h = []
+        calendar_data = None
 
         try:
             response = self.client.chat.completions.create(
@@ -803,6 +898,18 @@ class LLMOrchestrator:
                         except Exception as parse_err:
                             logger.error(f"Error parsing slots: {parse_err}")
 
+                    if func_name == "consultar_dias_disponibles":
+                        try:
+                            parsed_dias = json.loads(tool_result)
+                            if "dias_disponibles" in parsed_dias and parsed_dias["dias_disponibles"]:
+                                calendar_data = {
+                                    "especialidad": parsed_dias.get("especialidad", ""),
+                                    "dias_disponibles": parsed_dias.get("fechas_activas", []),
+                                    "mes_inicial": parsed_dias["dias_disponibles"][0]["fecha"][:7] if parsed_dias["dias_disponibles"] else "",
+                                }
+                        except Exception as parse_err:
+                            logger.error(f"Error parsing dias disponibles: {parse_err}")
+
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tool_call.id,
@@ -821,6 +928,36 @@ class LLMOrchestrator:
 
             final_content = response_message.content or "No pude generar una respuesta. ¿Podrías reformular tu pregunta?"
 
+            # Safety fallback for broad date queries (prevent loop or demanding YYYY-MM-DD)
+            combined_msg = f"{mensaje} {final_content}".lower()
+            is_broad_date_query = any(k in combined_msg for k in [
+                "próxima semana", "proxima semana", "esta semana", "qué días", "que dias",
+                "días disponibles", "dias disponibles", "día libre", "dia libre",
+                "días libres", "dias libres", "hay citas", "cuándo atienden", "cuando atienden"
+            ])
+
+            if not calendar_data and not available_slots_12h and is_broad_date_query:
+                found_esp_name = "Medicina General"
+                for esp in Especialidad.objects.all():
+                    if esp.nombre.lower() in combined_msg:
+                        found_esp_name = esp.nombre
+                        break
+                periodo_str = "proxima_semana" if ("próxima" in combined_msg or "proxima" in combined_msg) else ("esta_semana" if "esta semana" in combined_msg else "proximos_dias")
+                res_raw = _tool_consultar_dias_disponibles(especialidad_nombre=found_esp_name, periodo=periodo_str)
+                try:
+                    p_res = json.loads(res_raw)
+                    if "dias_disponibles" in p_res and p_res["dias_disponibles"]:
+                        calendar_data = {
+                            "especialidad": p_res.get("especialidad", found_esp_name),
+                            "dias_disponibles": p_res.get("fechas_activas", []),
+                            "mes_inicial": p_res["dias_disponibles"][0]["fecha"][:7],
+                        }
+                        if any(loop_k in final_content.lower() for loop_k in ["yyyy-mm-dd", "fecha específica", "fecha especifica", "proporciona una fecha", "indícame una fecha"]):
+                            dias_str = ", ".join([d["dia_nombre"] for d in p_res["dias_disponibles"][:4]])
+                            final_content = f"Para {found_esp_name}, tenemos disponibilidad los siguientes días: {dias_str}. Puedes seleccionar el día que prefieras en el calendario a continuación o escribirlo directamente."
+                except Exception as e_fb:
+                    logger.error(f"Fallback calendar error: {e_fb}")
+
             # Safety fallback: if LLM mentions availability or asks to pick a slot, but available_slots_12h is empty
             if not available_slots_12h and any(k in final_content.lower() for k in ["horarios disponibles", "seleccione el que prefiera", "selecciona el que prefiera", "horario disponible", "a continuación"]):
                 combined_text = f"{mensaje} {final_content}"
@@ -832,12 +969,12 @@ class LLMOrchestrator:
                         parsed_dt = _parse_flexible_date(day_m.group(1))
 
                 found_esp = None
-                for esp in Especialidad.objects.filter(activo=True):
+                for esp in Especialidad.objects.all():
                     if esp.nombre.lower() in combined_text.lower():
                         found_esp = esp
                         break
                 if not found_esp:
-                    found_esp = Especialidad.objects.filter(activo=True).first()
+                    found_esp = Especialidad.objects.first()
 
                 if parsed_dt and found_esp:
                     data, err = get_disponibilidad(fecha=parsed_dt, especialidad_id=found_esp.id)
@@ -853,6 +990,9 @@ class LLMOrchestrator:
 
             if available_slots_12h:
                 final_content += f"\n<!--SLOTS:{json.dumps(available_slots_12h)}-->"
+
+            if calendar_data:
+                final_content += f"\n<!--CALENDAR:{json.dumps(calendar_data)}-->"
 
             actualizo_citas = any(t in tools_executed for t in ["agendar_cita", "cancelar_cita", "solicitar_pqr_reembolso"])
 

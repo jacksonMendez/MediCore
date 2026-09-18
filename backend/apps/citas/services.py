@@ -103,3 +103,78 @@ def get_disponibilidad(fecha: date, especialidad_id=None, especialidad_nombre=No
         "slots": available_slots,
         "total_slots": len(available_slots),
     }, None
+
+
+def get_dias_disponibles(fecha_inicio: date, fecha_fin: date, especialidad_id=None, especialidad_nombre=None, genero=None):
+    """
+    Get days with available appointment slots in a date range for a given specialty.
+    """
+    if especialidad_id:
+        esp = Especialidad.objects.filter(id=especialidad_id).first()
+    elif especialidad_nombre:
+        esp = Especialidad.objects.filter(nombre__iexact=especialidad_nombre.strip()).first()
+        if not esp:
+            esp = Especialidad.objects.filter(nombre__icontains=especialidad_nombre.strip()).first()
+    else:
+        return None, "Debe proporcionar especialidad_nombre o especialidad_id"
+
+    if not esp:
+        return None, "Especialidad no encontrada"
+
+    # Find which days of week doctors work for this specialty
+    medicos_query = Medico.objects.filter(especialidad=esp, activo=True)
+    if genero:
+        medicos_query = medicos_query.filter(genero__iexact=genero)
+
+    medicos = list(medicos_query)
+    if not medicos:
+        return {
+            "especialidad": esp.nombre,
+            "fecha_inicio": fecha_inicio.isoformat(),
+            "fecha_fin": fecha_fin.isoformat(),
+            "total_dias_disponibles": 0,
+            "dias_disponibles": [],
+            "fechas_activas": [],
+        }, None
+
+    active_weekdays = set(
+        HorarioMedico.objects.filter(medico__in=medicos).values_list('dia', flat=True).distinct()
+    )
+
+    dias_nombres_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    meses_es = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+    dias_disponibles = []
+    fechas_activas = []
+
+    cur = fecha_inicio
+    while cur <= fecha_fin:
+        dia_semana_str = DIAS_SEMANA[cur.weekday()]
+        if dia_semana_str in active_weekdays:
+            data_disp, _ = get_disponibilidad(
+                fecha=cur,
+                especialidad_id=esp.id,
+                genero=genero,
+            )
+            if data_disp and data_disp.get("total_slots", 0) > 0:
+                medicos_set = sorted(list({s["medico_nombre"] for s in data_disp["slots"]}))
+                dia_nombre = f"{dias_nombres_es[cur.weekday()]} {cur.day} de {meses_es[cur.month]}"
+                dias_disponibles.append({
+                    "fecha": cur.isoformat(),
+                    "dia_semana": dia_semana_str,
+                    "dia_nombre": dia_nombre,
+                    "slots_libres": data_disp["total_slots"],
+                    "medicos": medicos_set,
+                })
+                fechas_activas.append(cur.isoformat())
+        cur += timedelta(days=1)
+
+    return {
+        "especialidad": esp.nombre,
+        "fecha_inicio": fecha_inicio.isoformat(),
+        "fecha_fin": fecha_fin.isoformat(),
+        "total_dias_disponibles": len(dias_disponibles),
+        "dias_disponibles": dias_disponibles,
+        "fechas_activas": fechas_activas,
+    }, None
+

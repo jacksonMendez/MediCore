@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     DisponibilidadView,
+    DiasDisponiblesView,
     CitaCreateView,
     MisCitasView,
     AgendaHoyView,
@@ -10,6 +11,8 @@ from .views import (
 urlpatterns = [
     path('disponibilidad', DisponibilidadView.as_view(), name='citas-disponibilidad'),
     path('disponibilidad/', DisponibilidadView.as_view(), name='citas-disponibilidad-slash'),
+    path('dias-disponibles', DiasDisponiblesView.as_view(), name='citas-dias-disponibles'),
+    path('dias-disponibles/', DiasDisponiblesView.as_view(), name='citas-dias-disponibles-slash'),
     path('', CitaCreateView.as_view(), name='citas-create'),
     path('mis-citas', MisCitasView.as_view(), name='citas-mis-citas'),
     path('mis-citas/', MisCitasView.as_view(), name='citas-mis-citas-slash'),

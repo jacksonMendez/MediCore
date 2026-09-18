@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch, getUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { ChatCalendarPicker } from "./chat-calendar-picker";
 
 type Message = { id: number; from: "assistant" | "user"; text: string };
 
@@ -84,6 +85,28 @@ export function extractAvailableTimeSlots(text: string): string[] {
   }
 
   return slots;
+}
+
+export interface CalendarMetadata {
+  especialidad: string;
+  dias_disponibles: string[];
+  mes_inicial?: string;
+}
+
+export function extractCalendarData(text: string): CalendarMetadata | null {
+  if (!text) return null;
+  const match = text.match(/<!--CALENDAR:(.*?)-->/s);
+  if (match && match[1]) {
+    try {
+      const parsed = JSON.parse(match[1]);
+      if (parsed && Array.isArray(parsed.dias_disponibles) && parsed.dias_disponibles.length > 0) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 const suggestions = ["Agendar una cita", "Ver mi próxima cita", "¿Cómo prepararme?", "Consultar un pago"];
@@ -251,7 +274,11 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
       <div className="flex-1 min-h-0 space-y-5 overflow-y-auto p-5">
         {messages.map((message) => {
           const slots = message.from === "assistant" ? extractAvailableTimeSlots(message.text) : [];
-          let cleanText = message.text.replace(/<!--SLOTS:.*?-->/gs, "").trim();
+          const calendarData = message.from === "assistant" ? extractCalendarData(message.text) : null;
+          let cleanText = message.text
+            .replace(/<!--SLOTS:.*?-->/gs, "")
+            .replace(/<!--CALENDAR:.*?-->/gs, "")
+            .trim();
           if (slots.length > 0) {
             cleanText = cleanText
               .split("\n")
@@ -271,6 +298,20 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
               >
                 {cleanText}
               </div>
+              {calendarData && (
+                <div className="max-w-[84%]">
+                  <ChatCalendarPicker
+                    initialAvailableDates={calendarData.dias_disponibles}
+                    specialtyName={calendarData.especialidad}
+                    initialMonth={calendarData.mes_inicial}
+                    disabled={loading}
+                    onSelectDate={(_dateStr, formattedLabel) => {
+                      const espText = calendarData.especialidad ? ` para ${calendarData.especialidad}` : "";
+                      send(`Quiero consultar horarios para el ${formattedLabel}${espText}`);
+                    }}
+                  />
+                </div>
+              )}
               {slots.length > 0 && (
                 <div className="mt-2.5 flex flex-wrap gap-2 max-w-[84%]">
                   {slots.map((slot) => (
