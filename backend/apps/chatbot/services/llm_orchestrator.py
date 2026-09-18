@@ -44,6 +44,7 @@ REGLAS ESTRICTAS DE RESPUESTA:
    - Cuando el usuario indique que quiere agendar una cita o elija una hora, DEBES INVOCAR OBLIGATORIAMENTE la herramienta `agendar_cita` con `paciente_id`, `medico_id`, `fecha_hora` ('YYYY-MM-DD HH:MM') y `motivo`.
    - Si falta el motivo, pídelo brevemente; una vez provisto el motivo o si el usuario indica 'control', 'chequeo' o similar, LLAMA DE INMEDIATO a `agendar_cita`.
    - ESTÁ TOTALMENTE PROHIBIDO responder que la cita fue agendada sin haber ejecutado la herramienta `agendar_cita`.
+   - Si la herramienta `agendar_cita` retorna un error (como horario ya ocupado o colisión), DEBES explicarle claramente al usuario que el horario no está disponible y ofrecerle elegir otra hora. NUNCA digas que la cita fue agendada si la herramienta retornó error.
 """
 
 TOOLS = [
@@ -395,41 +396,132 @@ def _tool_registrar_paciente(nombre: str, documento: str, correo: str, telefono:
     }, ensure_ascii=False)
 
 
-def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo: str) -> str:
-    try:
-        paciente = Paciente.objects.select_related('usuario').get(id=paciente_id)
-    except (Paciente.DoesNotExist, ValueError):
-        return json.dumps({"error": f"Paciente con ID {paciente_id} no encontrado"})
+def _parse_flexible_datetime(fecha_hora: str) -> datetime | None:
+    if not fecha_hora or not isinstance(fecha_hora, str):
+        return None
+    s = fecha_hora.strip()
+    is_pm = bool(re.search(r'(?:p\.?\s*m\.?|pm)', s, flags=re.I))
+    is_am = bool(re.search(r'(?:a\.?\s*m\.?|am)', s, flags=re.I))
+    clean_s = re.sub(r'\s*(?:a\.?\s*m\.?|p\.?\s*m\.?|am|pm)', '', s, flags=re.I).strip()
+
+    formats = [
+        '%Y-%m-%d %H:%M',
+        '%Y-%m-%d %H:%M:%S',
+        '%Y-%m-%dT%H:%M:%S',
+        '%d/%m/%Y %H:%M',
+        '%d-%m-%Y %H:%M',
+        '%Y/%m/%d %H:%M',
+    ]
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(clean_s, fmt)
+            if is_pm and dt.hour < 12:
+                dt = dt.replace(hour=dt.hour + 12)
+            elif is_am and dt.hour == 12:
+                dt = dt.replace(hour=0)
+            if settings.USE_TZ and timezone.is_naive(dt):
+                dt = timezone.make_aware(dt)
+            return dt
+        except ValueError:
+            pass
 
     try:
-        medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').get(id=medico_id)
-    except (Medico.DoesNotExist, ValueError):
-        return json.dumps({"error": f"Médico con ID {medico_id} no encontrado"})
-
-    try:
-        fecha_dt = datetime.fromisoformat(fecha_hora)
+        dt = datetime.fromisoformat(s)
+        if settings.USE_TZ and timezone.is_naive(dt):
+            dt = timezone.make_aware(dt)
+        return dt
     except ValueError:
-        return json.dumps({"error": "Formato de fecha_hora inválido. Use YYYY-MM-DD HH:MM"})
+        pass
 
-    # Check for conflict
-    conflict = Cita.objects.filter(
+    return None
+
+
+def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo: str) -> str:
+    # 1. Resolve Paciente
+    paciente = None
+    if paciente_id:
+        try:
+            import uuid
+            p_uuid = uuid.UUID(str(paciente_id))
+            paciente = Paciente.objects.select_related('usuario').filter(id=p_uuid).first()
+        except Exception:
+            pass
+        if not paciente:
+            paciente = Paciente.objects.select_related('usuario').filter(
+                usuario__nombre_completo__icontains=str(paciente_id).strip()
+            ).first()
+        if not paciente:
+            paciente = Paciente.objects.select_related('usuario').filter(
+                documento_numero=str(paciente_id).strip()
+            ).first()
+    if not paciente:
+        paciente = Paciente.objects.select_related('usuario').first()
+
+    if not paciente:
+        return json.dumps({"error": "No se pudo identificar al paciente para registrar la cita."})
+
+    # 2. Resolve Medico
+    medico = None
+    if medico_id:
+        try:
+            import uuid
+            m_uuid = uuid.UUID(str(medico_id))
+            medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').filter(id=m_uuid).first()
+        except Exception:
+            pass
+        if not medico:
+            clean_name = str(medico_id).replace("Dra.", "").replace("Dr.", "").strip()
+            medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').filter(
+                usuario__nombre_completo__icontains=clean_name
+            ).first()
+        if not medico:
+            medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').filter(
+                especialidad__nombre__icontains=str(medico_id).strip()
+            ).first()
+    if not medico:
+        medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').filter(activo=True).first()
+
+    if not medico:
+        return json.dumps({"error": "No se encontró el médico asignado para la especialidad solicitada."})
+
+    # 3. Parse Datetime
+    fecha_dt = _parse_flexible_datetime(fecha_hora)
+    if not fecha_dt:
+        return json.dumps({"error": f"Formato de fecha y hora inválido: '{fecha_hora}'. Use YYYY-MM-DD HH:MM"})
+
+    # 4. Strict Collision Check: Doctor and Patient
+    conflict_medico = Cita.objects.filter(
         medico=medico,
         fecha_hora=fecha_dt,
         estado__in=["pendiente_pago", "confirmada"],
     ).exists()
 
-    if conflict:
+    if conflict_medico:
+        hora_str = fecha_dt.strftime("%d/%m/%Y a las %I:%M %p").replace("AM", "a. m.").replace("PM", "p. m.")
         return json.dumps({
-            "error": "El horario seleccionado ya no está disponible. Por favor elija otro horario."
-        })
+            "error": f"El médico ya tiene una cita reservada para el {hora_str}. Por favor elija otro horario disponible."
+        }, ensure_ascii=False)
 
+    conflict_paciente = Cita.objects.filter(
+        paciente=paciente,
+        fecha_hora=fecha_dt,
+        estado__in=["pendiente_pago", "confirmada"],
+    ).exists()
+
+    if conflict_paciente:
+        hora_str = fecha_dt.strftime("%d/%m/%Y a las %I:%M %p").replace("AM", "a. m.").replace("PM", "p. m.")
+        return json.dumps({
+            "error": f"Ya tienes una cita agendada en esa misma fecha y hora ({hora_str}). Por favor selecciona otro horario diferente."
+        }, ensure_ascii=False)
+
+    # 5. Create Cita
     cita = Cita.objects.create(
         paciente=paciente,
         medico=medico,
         sede=medico.sede,
         fecha_hora=fecha_dt,
         duracion_minutos=medico.duracion_cita_minutos,
-        motivo=motivo,
+        motivo=motivo or "Consulta médica general",
         estado="pendiente_pago",
     )
 

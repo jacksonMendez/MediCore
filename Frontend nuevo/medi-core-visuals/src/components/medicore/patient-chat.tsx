@@ -10,7 +10,29 @@ type Message = { id: number; from: "assistant" | "user"; text: string };
 export function extractAvailableTimeSlots(text: string): string[] {
   if (!text) return [];
 
-  // Check for explicit structured tag first
+  const lower = text.toLowerCase();
+
+  // 1. Strict Exclusion: ANY confirmation, booking completion, cancellation, or status message
+  // MUST NEVER display time slot buttons!
+  const isConfirmationOrStatus =
+    lower.includes("agendad") || // agendada, agendado, agendada con éxito, quedó agendada, etc.
+    lower.includes("confirmad") || // confirmada, confirmación, confirmamos, etc.
+    lower.includes("cancelad") || // cancelada, cancelación, etc.
+    lower.includes("radicad") || // radicada, radicado, etc.
+    lower.includes("registrad") || // registrada, registrado, etc.
+    lower.includes("reembolso") || // reembolso, PQR, etc.
+    lower.includes("próxima cita") || // próxima cita, proxima cita
+    lower.includes("proxima cita") ||
+    lower.includes("motivo de la consulta") || // asking for motive
+    lower.includes("indíqueme el motivo") ||
+    lower.includes("indiqueme el motivo") ||
+    lower.includes("horario de atención");
+
+  if (isConfirmationOrStatus) {
+    return [];
+  }
+
+  // 2. Check for explicit structured tag from backend
   const slotsTagMatch = text.match(/<!--SLOTS:(.*?)-->/s);
   if (slotsTagMatch) {
     try {
@@ -23,40 +45,24 @@ export function extractAvailableTimeSlots(text: string): string[] {
     }
   }
 
-  const lower = text.toLowerCase();
+  // 3. Fallback regex: ONLY extract if message is actively inviting the user to pick a time slot
+  const isOfferingSlotsContext =
+    lower.includes("selecciona") ||
+    lower.includes("seleccione") ||
+    lower.includes("cuál prefieres") ||
+    lower.includes("cual prefieres") ||
+    lower.includes("horarios disponibles") ||
+    lower.includes("horario disponible") ||
+    lower.includes("estos son los horarios");
 
-  // Exclude messages that are confirmations, cancellations, or info messages
-  if (
-    lower.includes("cita agendada") ||
-    lower.includes("cita confirmada") ||
-    lower.includes("cita cancelada") ||
-    lower.includes("ha sido cancelada") ||
-    lower.includes("pqr registrada") ||
-    lower.includes("pqr radicada") ||
-    lower.includes("solicitud de pqr") ||
-    lower.includes("horario de atención")
-  ) {
+  if (!isOfferingSlotsContext) {
     return [];
   }
-
-  // Must be in a context suggesting availability or booking
-  const isAvailabilityContext =
-    lower.includes("disponib") ||
-    lower.includes("horario") ||
-    lower.includes("turno") ||
-    lower.includes("agenda") ||
-    lower.includes("agendar") ||
-    lower.includes("elegir") ||
-    lower.includes("prefieres") ||
-    lower.includes("opciones") ||
-    lower.includes("cupo");
-
-  if (!isAvailabilityContext) return [];
 
   const slots: string[] = [];
   const seen = new Set<string>();
 
-  // 1. Match 12-hour times: e.g. 8:00 a. m., 9:30 a.m., 2:00 p. m., 11:00 am, 4:30 PM
+  // Match 12-hour times: e.g. 8:00 a. m., 9:30 a.m., 2:00 p. m., 11:00 am, 4:30 PM
   const regex12 = /(?:^|[^\d])([0-1]?[0-9]):([0-5][0-9])\s*(a\.?\s*m\.?|p\.?\s*m\.?|am|pm|AM|PM)/gi;
   let match: RegExpExecArray | null;
 
@@ -72,26 +78,6 @@ export function extractAvailableTimeSlots(text: string): string[] {
       if (!seen.has(formatted)) {
         seen.add(formatted);
         slots.push(formatted);
-      }
-    }
-  }
-
-  // 2. If no 12-hour matches, look for 24-hour times: e.g. 08:00, 09:30, 14:00
-  if (slots.length === 0) {
-    const regex24 = /(?:^|[^\d])([0-2]?[0-9]):([0-5][0-9])(?!\s*(?:a|p|A|P))/g;
-    while ((match = regex24.exec(text)) !== null) {
-      const rawHour = parseInt(match[1], 10);
-      const minute = match[2];
-      if (rawHour >= 6 && rawHour <= 21) {
-        const isPm = rawHour >= 12;
-        let hour12 = rawHour % 12;
-        if (hour12 === 0) hour12 = 12;
-        const formattedPeriod = isPm ? "p. m." : "a. m.";
-        const formatted = `${hour12}:${minute} ${formattedPeriod}`;
-        if (!seen.has(formatted)) {
-          seen.add(formatted);
-          slots.push(formatted);
-        }
       }
     }
   }

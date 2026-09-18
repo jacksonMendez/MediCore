@@ -100,7 +100,7 @@ class MisCitasView(APIView):
             try:
                 paciente = Paciente.objects.get(usuario=user)
                 citas = Cita.objects.filter(paciente=paciente).select_related(
-                    'medico__usuario', 'medico__especialidad', 'sede', 'paciente__usuario'
+                    'medico__usuario', 'medico__especialidad', 'sede', 'paciente__usuario', 'pago'
                 ).order_by('-fecha_hora')
             except Paciente.DoesNotExist:
                 return Response([])
@@ -108,7 +108,7 @@ class MisCitasView(APIView):
             try:
                 medico = Medico.objects.get(usuario=user)
                 citas = Cita.objects.filter(medico=medico).select_related(
-                    'paciente__usuario', 'medico__especialidad', 'sede', 'medico__usuario'
+                    'paciente__usuario', 'medico__especialidad', 'sede', 'medico__usuario', 'pago'
                 ).order_by('-fecha_hora')
             except Medico.DoesNotExist:
                 return Response([])

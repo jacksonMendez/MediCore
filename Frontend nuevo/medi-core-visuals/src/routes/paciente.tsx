@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Clock3, MapPin, Stethoscope, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -72,9 +72,11 @@ function PatientPage() {
       }
       if (espRes.status === "fulfilled" && Array.isArray(espRes.value) && espRes.value.length > 0) {
         setSpecialties(espRes.value.map((e) => e.nombre));
+      } else {
+        setSpecialties(["Medicina General", "Cardiología", "Pediatría"]);
       }
     } catch {
-      // Keep defaults if network fails
+      setSpecialties(["Medicina General", "Cardiología", "Pediatría"]);
     }
   };
 
@@ -166,16 +168,16 @@ function PatientPage() {
               </div>
             )}
           </section>
-          <details className="group rounded-md border border-border bg-card/40 p-4">
-            <summary className="cursor-pointer list-none font-display text-base font-semibold">
-              Especialidades disponibles
-            </summary>
-            <div className="mt-3 divide-y divide-border">
+
+          {/* Especialidades disponibles (siempre visible) */}
+          <section className="rounded-md border border-border bg-card/40 p-4">
+            <SectionHeading title="Especialidades disponibles" />
+            <div className="divide-y divide-border">
               {specialties.map((item) => (
                 <Button
                   key={item}
                   variant="ghost"
-                  className="h-auto w-full justify-between rounded-none py-4 cursor-pointer hover:bg-muted/50"
+                  className="h-auto w-full justify-between rounded-none py-3.5 px-2 cursor-pointer hover:bg-muted/50"
                   onClick={() => {
                     window.dispatchEvent(
                       new CustomEvent("medicore:chat-send", {
@@ -184,18 +186,29 @@ function PatientPage() {
                     );
                   }}
                 >
-                  <span className="flex items-center gap-3">
+                  <span className="flex items-center gap-3 text-sm font-medium text-foreground">
                     <Stethoscope className="size-4 text-primary" />
                     {item}
                   </span>
-                  <ArrowRight className="size-4" />
+                  <ArrowRight className="size-4 text-muted-foreground" />
                 </Button>
               ))}
             </div>
-          </details>
+          </section>
+
+          {/* Mis citas y pagos (mismo endpoint y estados limpios) */}
           <section>
-            <SectionHeading title="Mis citas y pagos" />
-            <div className="space-y-2 rounded-md bg-card/50 px-5">
+            <SectionHeading
+              title="Mis citas y pagos"
+              action={
+                <Button variant="ghost" size="sm" asChild className="cursor-pointer text-xs">
+                  <Link to="/citas">
+                    Ver todas <ArrowRight className="size-3.5 ml-1" />
+                  </Link>
+                </Button>
+              }
+            />
+            <div className="space-y-2 rounded-md bg-card/50 px-5 py-2">
               {citas.length > 0 ? (
                 citas.map((cita) => {
                   const f = formatDateInfo(cita.fecha_hora);
@@ -205,44 +218,54 @@ function PatientPage() {
                     programada: "Confirmada",
                     completada: "Confirmada",
                     pendiente: "Pendiente",
+                    pendiente_pago: "Pendiente",
                     cancelada: "Cancelada",
                   };
                   const displayStatus = statusMap[cita.estado.toLowerCase()] || "Pendiente";
-                  const monto = cita.pago_monto ? `$${cita.pago_monto.toLocaleString("es-CO")}` : "$120.000";
-                  const detailText = isPaid ? `${monto} · Pagado` : `${monto} · Pendiente`;
+                  
+                  let paymentDetail = "";
+                  if (displayStatus === "Cancelada") {
+                    paymentDetail = "Cita cancelada";
+                  } else if (isPaid) {
+                    const monto = cita.pago_monto ? `$${cita.pago_monto.toLocaleString("es-CO")} COP` : "$50.000 COP";
+                    paymentDetail = `Pago aprobado · ${monto}`;
+                  } else {
+                    const monto = cita.pago_monto ? ` · $${cita.pago_monto.toLocaleString("es-CO")} COP` : "";
+                    paymentDetail = `Pendiente de pago${monto}`;
+                  }
 
                   return (
                     <StatusLine key={cita.id} status={displayStatus}>
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <p className="text-sm font-medium">
+                          <p className="text-sm font-medium text-foreground">
                             {cita.especialidad_nombre || "Consulta"} · {f.day} {f.month}
                           </p>
-                          <p className="mt-1 text-xs text-muted-foreground">{detailText}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {cita.medico_nombre ? `${cita.medico_nombre} · ` : ""}
+                            {paymentDetail}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{displayStatus}</span>
+                          <span
+                            className={cn(
+                              "text-[11px] font-medium px-2 py-0.5 rounded-md",
+                              displayStatus === "Confirmada" && "bg-success/15 text-success",
+                              displayStatus === "Pendiente" && "bg-warning/15 text-warning",
+                              displayStatus === "Cancelada" && "bg-destructive/15 text-destructive"
+                            )}
+                          >
+                            {displayStatus}
+                          </span>
                         </div>
                       </div>
                     </StatusLine>
                   );
                 })
               ) : (
-                [
-                  ["Confirmada", "Cardiología · 22 Sep", "$145.000 · Pagado"],
-                  ["Pendiente", "Dermatología · 2 Oct", "$110.000 · Pendiente"],
-                  ["Cancelada", "Medicina general · 9 Sep", "Sin cobro"],
-                ].map(([status, title, detail]) => (
-                  <StatusLine key={title} status={status as "Confirmada" | "Pendiente" | "Cancelada"}>
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-sm font-medium">{title}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground">{status}</span>
-                    </div>
-                  </StatusLine>
-                ))
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  No tienes citas registradas actualmente.
+                </p>
               )}
             </div>
           </section>

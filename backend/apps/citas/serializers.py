@@ -15,6 +15,8 @@ class CitaResponseSerializer(serializers.ModelSerializer):
     medico_nombre = serializers.CharField(source='medico.usuario.nombre_completo', read_only=True)
     sede_nombre = serializers.CharField(source='sede.nombre', read_only=True)
     especialidad_nombre = serializers.CharField(source='medico.especialidad.nombre', read_only=True)
+    pago_estado = serializers.SerializerMethodField()
+    pago_monto = serializers.SerializerMethodField()
 
     class Meta:
         model = Cita
@@ -32,7 +34,21 @@ class CitaResponseSerializer(serializers.ModelSerializer):
             'medico_nombre',
             'sede_nombre',
             'especialidad_nombre',
+            'pago_estado',
+            'pago_monto',
         ]
+
+    def get_pago_estado(self, obj):
+        try:
+            return obj.pago.estado if hasattr(obj, 'pago') and obj.pago else None
+        except Exception:
+            return None
+
+    def get_pago_monto(self, obj):
+        try:
+            return float(obj.pago.monto) if hasattr(obj, 'pago') and obj.pago else None
+        except Exception:
+            return None
 
 
 class SlotDisponibleSerializer(serializers.Serializer):
