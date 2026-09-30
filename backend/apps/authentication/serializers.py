@@ -16,8 +16,17 @@ class TokenResponseSerializer(serializers.Serializer):
 
 
 class UserLoginSerializer(serializers.Serializer):
-    correo = serializers.EmailField()
+    correo = serializers.EmailField(required=False)
+    email = serializers.EmailField(required=False)
     password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        correo = data.get('correo') or data.get('email')
+        if not correo:
+            raise serializers.ValidationError({"correo": "Debe proporcionar correo o email."})
+        data['correo'] = correo
+        return data
+
 
 
 class UserCreateSerializer(serializers.Serializer):

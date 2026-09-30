@@ -1,267 +1,194 @@
-# 🏥 MediCore OS — Sistema Médico Integral Asistido por IA
+# 🏥 MediCore OS — Gestor Médico Inteligente
 
 <p align="center">
-  <strong>Plataforma full-stack de gestión médica con inteligencia artificial</strong><br>
-  <em>FastAPI · PostgreSQL · Groq LLM · React · Tailwind CSS · Liquid Glass UI</em>
+  <strong>Plataforma full-stack de gestión hospitalaria, agendamiento asistido por IA, pasarela de pagos y auditoría inmutable</strong><br>
+  <em>Django 6 · Django REST Framework · Angular 19 Standalone · Groq LLM con Failover · OpenAPI 3.0 / Swagger</em>
 </p>
 
 ---
 
-## 📋 Tabla de Contenidos
+## 📋 Índice General
 
-- [Arquitectura](#-arquitectura)
-- [Tecnologías](#-tecnologías)
-- [Requisitos Previos](#-requisitos-previos)
-- [Instalación y Ejecución](#-instalación-y-ejecución)
-- [Variables de Entorno](#-variables-de-entorno)
-- [Usuarios de Prueba](#-usuarios-de-prueba)
-- [Endpoints API](#-endpoints-api)
-- [Diseño Visual](#-diseño-visual)
-- [Conventional Commits](#-conventional-commits)
+- [1. Descripción del Proyecto](#1-descripción-del-proyecto)
+- [2. Arquitectura del Sistema](#2-arquitectura-del-sistema)
+- [3. Enlaces a la Documentación Técnica](#3-enlaces-a-la-documentación-técnica)
+- [4. Requisitos y Dependencias](#4-requisitos-y-dependencias)
+- [5. Puesta en Marcha (Instalación y Ejecución)](#5-puesta-en-marcha-instalación-y-ejecución)
+  - [Backend (Django REST Framework)](#backend-django-rest-framework)
+  - [Frontend (Angular 19 Standalone)](#frontend-angular-19-standalone)
+- [6. Variables de Entorno](#6-variables-de-entorno)
+- [7. Credenciales y Usuarios de Prueba](#7-credenciales-y-usuarios-de-prueba)
+- [8. Documentación OpenAPI y Swagger](#8-documentación-openapi-y-swagger)
+- [9. Verificación y Pruebas Automatizadas](#9-verificación-y-pruebas-automatizadas)
 
 ---
 
-## 🏗 Arquitectura
+## 1. Descripción del Proyecto
 
-```
+**MediCore OS** es un ecosistema médico inteligente diseñado para resolver de manera automatizada y segura las necesidades operativas de clínicas e instituciones de salud. Integra:
+- **Portal de Paciente en Angular 19**: Experiencia fluida con copiloto conversacional para agendamiento médico, selección de horarios, consulta de citas y pasarela de pagos.
+- **Backend Modular en Django REST Framework**: API robusta con control de acceso basado en roles (RBAC) a nivel de base de datos.
+- **Orquestador LLM con Failover**: Conectado a la API de Groq Cloud (`llama-3.3-70b-versatile` / `llama-3.1-8b-instant`) con arquitectura *Zero-Hallucination* mediante llamadas a funciones (*Tool Calling*) y guardrail determinista anti-desvíos.
+- **Auditoría Inmutable**: Registro centralizado y a prueba de alteraciones que traza tanto operaciones humanas como autónomas del asistente (`bot_llm`).
+- **Normalización Relacional**: Base de datos normalizada hasta Tercera Forma Normal (3NF) con tablas de catálogo y restricciones estrictas.
+
+---
+
+## 2. Arquitectura del Sistema
+
+```text
 MediCore OS
-├── Backend (FastAPI)
-│   ├── API REST con autenticación JWT + RBAC
-│   ├── Orquestador LLM (Groq Cloud) con Tool Calling
-│   ├── SQLAlchemy 2.0 Async + asyncpg
-│   └── 5 módulos de routers: auth, citas, médicos, pagos, chatbot
+├── backend/ (Django + Django REST Framework)
+│   ├── apps/
+│   │   ├── authentication/  → Modelos Usuario, Rol, Permiso, RolPermiso, JWT Bearer
+│   │   ├── clinica/         → Especialidades, Sedes, Médicos y Horarios de Atención
+│   │   ├── citas/           → Motor de Disponibilidad, Citas Médicas y PQR / Reembolsos
+│   │   ├── pagos/           → Transacciones, Pasarela simulada y Webhooks Wompi
+│   │   ├── chatbot/         → Orquestador Groq con Failover, Guardrails y UI Estructurada
+│   │   └── auditoria/       → Modelo inmutable RegistroAuditoria y servicio registrar_auditoria
+│   └── medicore/            → Configuración global, Swagger UI (drf-spectacular) y URLs
 │
-├── Base de Datos (PostgreSQL)
-│   ├── 4 ENUMs, 11 tablas, 3 índices
-│   └── Datos seed: 2 sedes, 3 especialidades, 5 usuarios
+├── frontend-angular/ (Angular 19 Standalone)
+│   ├── src/app/
+│   │   ├── pages/           → Login, Portal Paciente, Portal Médico, Portal Admin
+│   │   ├── components/      → Chatbot interactivo, Calendario visual, Selector de Horas
+│   │   ├── services/        → AuthService, ChatService, CitasService, PagosService
+│   │   └── guards/          → AuthGuard y RoleGuard (RBAC)
+│   └── tailwind.config.js   → Paleta clínica (azul institucional y tema oscuro)
 │
-└── Frontend (Vite + React + Tailwind v4)
-    ├── Portal Paciente: Chatbot IA para agendar citas
-    ├── Portal Doctor: Dashboard clínico + Copiloto IA
-    └── Panel Admin: Gestión de médicos, sedes y especialidades
+└── docs/                    → Documentación técnica detallada
 ```
-
-### Flujo de Datos
-
-```
-[Frontend React] → fetch /api/* → [FastAPI Backend]
-                                       ↓
-                          [PostgreSQL] ← SQLAlchemy Async
-                                       ↓
-                          [Groq Cloud] ← Tool Calling (LLM)
-                                       ↓
-                          [Respuesta IA] → Frontend
-```
-
-### Zero-Hallucination LLM Architecture
-
-El orquestador LLM implementa un patrón de **tool calling** que previene alucinaciones:
-
-1. El modelo **NUNCA** inventa datos — toda información de disponibilidad proviene de `consultar_disponibilidad` que consulta la BD real
-2. Temperature fijada en **0.0** para máxima determinismo
-3. System prompt estricto que prohíbe diagnósticos, recetas y datos inventados
-4. Ventana de contexto limitada a **6 mensajes** para latencia óptima
-5. Loop de tool calling con **máximo 3 iteraciones** anti-recursión
 
 ---
 
-## 🛠 Tecnologías
+## 3. Enlaces a la Documentación Técnica
 
-| Componente | Stack |
-|:-----------|:------|
-| **Backend** | Python 3.11+, FastAPI, SQLAlchemy 2.0 Async, Pydantic v2 |
-| **Base de Datos** | PostgreSQL 15+, asyncpg driver |
-| **Autenticación** | JWT (python-jose), bcrypt (passlib) |
-| **LLM** | Groq Cloud API, Llama 3.1 8B Instant |
-| **Frontend** | Vite 6, React 19, Tailwind CSS v4 |
-| **Iconos** | Lucide React |
-| **Routing** | React Router v7 |
-| **Diseño** | Apple Liquid Glass + Paleta Clínica |
+Todos los informes de arquitectura, diseño y decisiones se encuentran versionados en la carpeta [`docs/`](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs):
 
----
-
-## 📦 Requisitos Previos
-
-- **Python 3.11+** con pip
-- **Node.js 18+** con npm
-- **PostgreSQL 15+** corriendo en `localhost:5432`
-- **Groq API Key** (gratuita en [console.groq.com](https://console.groq.com))
+1. 🏛️ **[docs/ARQUITECTURA.md](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs/ARQUITECTURA.md)** — Mapa de componentes, diagrama entidad-relación (Mermaid ER), flujo completo del orquestador Groq, tabla de validaciones y riesgos técnicos.
+2. 📐 **[docs/NORMALIZACION.md](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs/NORMALIZACION.md)** — Análisis de 1FN, 2FN y 3FN, esquema antes vs. después, creación de tablas de catálogo y migraciones seguras.
+3. 🛡️ **[docs/ROLES_Y_PERMISOS.md](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs/ROLES_Y_PERMISOS.md)** — Modelo RBAC en base de datos (`roles`, `permisos`, `roles_permisos`), matriz de permisos y aplicación de `permission_classes`.
+4. 📜 **[docs/AUDITORIA.md](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs/AUDITORIA.md)** — Módulo de auditoría inmutable, trazabilidad humana y de `bot_llm`, campos `JSONField` estructurados y endpoint protegido.
+5. 🔍 **[docs/DIAGNOSTICO_CHAT.md](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs/DIAGNOSTICO_CHAT.md)** — Diagnóstico de raíz del bug de calendario/horarios residuales, eliminación de marcadores regex y nueva máquina de estados en backend.
+6. 📖 **[docs/API.md](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs/API.md)** — Guía rápida de la API REST, autenticación JWT con botón "Authorize" en Swagger UI y especificación de endpoints.
+7. 📄 **[docs/openapi.yaml](file:///c:/Users/Jeison%20-%20PC/Documents/Gestor%20Medico%20Inteligente/docs/openapi.yaml)** — Especificación completa de la API en formato OpenAPI 3.0.
 
 ---
 
-## 🚀 Instalación y Ejecución
+## 4. Requisitos y Dependencias
 
-### 1. Clonar y Configurar
+- **Python**: 3.11 o superior.
+- **Node.js**: v18.0 o superior (Node v20+ recomendado) con `npm`.
+- **Angular CLI**: v19.x (incluido en dependencias locales).
+- **SQLite / PostgreSQL**: Motor de base de datos relacional.
 
-```bash
-git clone <url-del-repo>
-cd Gestor-Medico-Inteligente
-```
+---
 
-### 2. Base de Datos
+## 5. Puesta en Marcha (Instalación y Ejecución)
 
-```bash
-# Crear la base de datos
-psql -U postgres -c "CREATE DATABASE medicore;"
+### Backend (Django REST Framework)
 
-# Ejecutar esquema
-psql -U postgres -d medicore -f backend/migrations/schema.sql
+1. Ingrese a la carpeta del backend y active el entorno virtual:
+   ```powershell
+   cd backend
+   .\venv\Scripts\Activate.ps1
+   ```
+2. Instale dependencias (si no están instaladas):
+   ```powershell
+   pip install -r requirements.txt
+   ```
+3. Aplique las migraciones de base de datos:
+   ```powershell
+   python manage.py migrate
+   ```
+4. Inicie el servidor de desarrollo:
+   ```powershell
+   python manage.py runserver 8000
+   ```
+   El backend estará disponible en `http://localhost:8000`.
 
-# Cargar datos de prueba
-psql -U postgres -d medicore -f backend/migrations/seed.sql
-```
+### Frontend (Angular 19 Standalone)
 
-### 3. Backend
+1. En una nueva terminal, ingrese a la carpeta del frontend:
+   ```powershell
+   cd frontend-angular
+   ```
+2. Instale las dependencias de Node:
+   ```powershell
+   npm install
+   ```
+3. Inicie el servidor local de Angular:
+   ```powershell
+   npm start
+   ```
+   El aplicativo se abrirá en `http://localhost:4200` y se conectará automáticamente con el backend en el puerto 8000.
 
-```bash
+---
+
+## 6. Variables de Entorno
+
+El archivo `backend/.env` permite configurar las claves de servicios externos:
+
+| Variable | Descripción | Valor por Defecto / Ejemplo |
+| :--- | :--- | :--- |
+| `GROQ_API_KEY` | Clave principal de Groq Cloud para inferencia LLM | `gsk_...` |
+| `GROQ_API_KEYS` | Pool de claves separadas por coma para failover automático | `gsk_key1,gsk_key2` |
+| `JWT_SECRET` | Clave secreta para firma HMAC de tokens de acceso | `medicore-super-secret-key-prod-2026` |
+| `JWT_ALGORITHM` | Algoritmo criptográfico para JWT | `HS256` |
+| `JWT_EXPIRE_MINUTES` | Duración de validez del token de acceso | `1440` (24 horas) |
+
+---
+
+## 7. Credenciales y Usuarios de Prueba
+
+Para probar el inicio de sesión y los portales según cada rol:
+
+| Rol | Correo Electrónico | Contraseña | Portal Principal |
+| :--- | :--- | :--- | :--- |
+| **Paciente** | `paciente@medicore.com` | `Password123!` | `/paciente` (Chatbot IA, Citas, Pagos) |
+| **Médico** | `medico@medicore.com` | `Password123!` | `/medico` (Agenda del día, Pacientes) |
+| **Administrador** | `admin@medicore.com` | `Password123!` | `/admin` (Sedes, Especialidades, Médicos, Auditoría) |
+
+---
+
+## 8. Documentación OpenAPI y Swagger
+
+El backend expone interfaces interactivas para explorar y probar todos los endpoints:
+
+- **Swagger UI**: [`http://localhost:8000/api/docs/`](http://localhost:8000/api/docs/)
+  - Permite autenticarse mediante el botón verde **Authorize** ingresando: `Bearer <tu_token_jwt>`.
+- **ReDoc**: [`http://localhost:8000/api/redoc/`](http://localhost:8000/api/redoc/)
+- **Esquema Crudo OpenAPI**: [`http://localhost:8000/api/schema/`](http://localhost:8000/api/schema/)
+
+---
+
+## 9. Verificación y Pruebas Automatizadas
+
+El proyecto cuenta con suites de pruebas unitarias y de extremo a extremo que validan la integridad de todo el sistema:
+
+### Pruebas Unitarias del Backend (Django)
+```powershell
 cd backend
-
-# Crear entorno virtual
-python -m venv venv
-venv\Scripts\activate  # Windows
-# source venv/bin/activate  # Linux/Mac
-
-# Instalar dependencias
-pip install -r requirements.txt
-
-# Configurar variables de entorno
-copy .env.example .env
-# Editar .env con tus valores (DATABASE_URL, GROQ_API_KEY, JWT_SECRET)
-
-# Iniciar servidor
-uvicorn app.main:app --reload --port 8000
+python manage.py test
 ```
+*Resultado:* **23 de 23 pruebas pasando (100% OK)** en los módulos de autenticación, clínica, citas, pagos, chatbot y auditoría.
 
-### 4. Frontend
-
-```bash
-cd frontend
-
-# Instalar dependencias
-npm install
-
-# Iniciar servidor de desarrollo
-npm run dev
+### Prueba Guiada de Extremo a Extremo (E2E)
+```powershell
+cd backend
+python test_e2e_verification.py
 ```
+*Valida automáticamente:*
+1. Login por rol (`paciente`, `medico`, `admin`).
+2. Intercepción y redirección determinista del chat ante temas fuera de contexto (*Anti-OffTopic Guardrail*).
+3. Flujo conversacional completo de agendamiento sin marcadores de texto ni calendarios residuales.
+4. Atención de solicitudes de PQR y reembolso.
+5. Verificación de restricciones RBAC y registro inmutable de auditoría con origen `bot_llm`.
+6. Disponibilidad y formato de los endpoints OpenAPI 3.0 / Swagger UI.
 
-### 5. Abrir en el navegador
-
-- **Frontend**: http://localhost:5173
-- **API Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/
-
----
-
-## 🔐 Variables de Entorno
-
-Crear archivo `backend/.env`:
-
-```env
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/medicore
-GROQ_API_KEY=gsk_tu_clave_aqui
-JWT_SECRET=tu-secreto-aleatorio-cambiar-en-produccion
-FRONTEND_URL=http://localhost:5173
+### Compilación de Producción del Frontend (Angular 19)
+```powershell
+cd frontend-angular
+npm run build
 ```
-
----
-
-## 👥 Usuarios de Prueba
-
-| Rol | Correo | Contraseña |
-|:----|:-------|:-----------|
-| **Admin** | admin@medicore.com | MediCore2024! |
-| **Doctor** (Cardiología) | dr.garcia@medicore.com | MediCore2024! |
-| **Doctora** (Med. General) | dra.martinez@medicore.com | MediCore2024! |
-| **Paciente** | juan.perez@email.com | MediCore2024! |
-| **Paciente** | maria.lopez@email.com | MediCore2024! |
-
----
-
-## 📡 Endpoints API
-
-### Autenticación
-| Método | Ruta | Descripción |
-|:-------|:-----|:------------|
-| POST | `/api/auth/login` | Login con JWT |
-| POST | `/api/auth/register` | Registro de usuario |
-| GET | `/api/auth/me` | Perfil del usuario |
-
-### Citas
-| Método | Ruta | Descripción |
-|:-------|:-----|:------------|
-| GET | `/api/citas/disponibilidad` | Consultar slots libres |
-| POST | `/api/citas` | Agendar cita |
-| GET | `/api/citas/mis-citas` | Mis citas |
-| GET | `/api/citas/agenda-hoy/{id}` | Agenda del día |
-| PATCH | `/api/citas/{id}/estado` | Cambiar estado |
-
-### Catálogos
-| Método | Ruta | Descripción |
-|:-------|:-----|:------------|
-| GET/POST | `/api/sedes` | CRUD Sedes |
-| GET/POST | `/api/especialidades` | CRUD Especialidades |
-| GET/POST | `/api/medicos` | CRUD Médicos |
-
-### Pagos (Sandbox)
-| Método | Ruta | Descripción |
-|:-------|:-----|:------------|
-| POST | `/api/pagos/simular` | Simular pago |
-| POST | `/api/pagos/webhook` | Webhook confirmación |
-
-### Chat IA
-| Método | Ruta | Descripción |
-|:-------|:-----|:------------|
-| POST | `/api/chat/mensaje` | Enviar mensaje al IA |
-| GET | `/api/chat/sesiones` | Listar sesiones |
-| GET | `/api/chat/sesiones/{id}/mensajes` | Mensajes de sesión |
-
----
-
-## 🎨 Diseño Visual
-
-### Apple Liquid Glass
-
-Inspirado en la estética de iOS Liquid Glass:
-
-- **Paneles translúcidos** con `backdrop-blur-xl` y `bg-white/55`
-- **Bordes cristalinos** simulando bisel de vidrio (`border-white/80`)
-- **Sombras suaves** de profundidad (`0 8px 32px rgba(31,38,135,0.06)`)
-- **Esferas de gradiente** difuminadas como decoración de fondo
-- **Micro-animaciones** en hover, entrada de elementos y typing indicator
-
-### Paleta Clínica
-
-| Color | Uso | Hex |
-|:------|:----|:----|
-| 🔵 Cyan Quirúrgico | Acciones principales, branding | `#0891b2` |
-| 🔷 Azul Médico | Enlaces, información | `#0284c7` |
-| 🟢 Verde Antiséptico | Confirmaciones, éxito | `#0d9488` |
-| 🟡 Ámbar | Observación, pendientes | `#d97706` |
-| 🔴 Rose Clínico | Alertas, cancelaciones | `#e11d48` |
-| ⬜ Fondo Clínico | Fondo general | `#f1f5f9` |
-
----
-
-## 📝 Conventional Commits
-
-| Prefijo | Descripción |
-|:--------|:------------|
-| `chore(setup)` | Configuración inicial, scaffolding |
-| `feat(db)` | Esquema de base de datos, migraciones |
-| `feat(api)` | Endpoints, routers, modelos |
-| `feat(llm)` | Orquestador LLM, tool calling |
-| `feat(frontend)` | Componentes React, vistas |
-| `style(ui)` | Sistema de diseño, CSS, animaciones |
-| `docs(readme)` | Documentación |
-
----
-
-## 📄 Licencia
-
-Este proyecto es de uso educativo y demostrativo.
-
----
-
-<p align="center">
-  <strong>MediCore OS v1.0</strong> — Construido con 💚 y IA
-</p>
+*Resultado:* Compilación limpia sin errores ni advertencias (tiempo de bundle ~3.1s).
