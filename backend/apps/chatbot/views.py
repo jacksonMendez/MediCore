@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .models import SesionChat, MensajeChat
 from .serializers import (
     ChatMessageSerializer,
@@ -14,6 +15,27 @@ from .services.llm_orchestrator import LLMOrchestrator
 class EnviarMensajeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Chatbot LLM'],
+        summary='Enviar mensaje al Copiloto Clínico IA',
+        description=(
+            'Envía un mensaje a la sesión de chat con el orquestador Groq. '
+            'Gestiona el flujo de agendamiento clínico determinista, consultas de disponibilidad, cancelaciones y PQR. '
+            'La respuesta incluye campos de interfaz estructurados:\n'
+            '- `requiere_seleccion`: "ninguna" (texto informativo o confirmación), "dia" (renderizar calendario de días), "hora" (renderizar botones de horarios).\n'
+            '- `dias_disponibles`: lista de fechas activas YYYY-MM-DD cuando requiere_seleccion="dia".\n'
+            '- `horarios`: lista de slots disponibles en formato 12h cuando requiere_seleccion="hora".\n'
+            '- `actualizo_citas`: booleano que notifica al frontend si debe refrescar sus widgets de citas.\n'
+            'Roles permitidos: paciente, medico, admin, agente_atencion.'
+        ),
+        request=ChatMessageSerializer,
+        responses={
+            200: ChatResponseSerializer,
+            400: OpenApiResponse(description='Mensaje vacío o formato de petición inválido.'),
+            401: OpenApiResponse(description='Usuario no autenticado (requiere JWT).'),
+            404: OpenApiResponse(description='Sesión de chat no encontrada.'),
+        }
+    )
     def post(self, request):
         serializer = ChatMessageSerializer(data=request.data)
         if not serializer.is_valid():
@@ -104,6 +126,15 @@ class EnviarMensajeView(APIView):
 class ListarSesionesView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Chatbot LLM'],
+        summary='Listar sesiones de chat del usuario',
+        description='Retorna la lista de sesiones de conversación del usuario autenticado, con el extracto del último mensaje y título automático.',
+        responses={
+            200: SesionChatResponseSerializer(many=True),
+            401: OpenApiResponse(description='Usuario no autenticado.'),
+        }
+    )
     def get(self, request):
         sesiones = SesionChat.objects.filter(usuario=request.user).prefetch_related('mensajes').order_by('-creado_en')
         return Response(SesionChatResponseSerializer(sesiones, many=True).data)
@@ -112,6 +143,16 @@ class ListarSesionesView(APIView):
 class MensajesSesionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Chatbot LLM'],
+        summary='Obtener mensajes de una sesión de chat',
+        description='Recupera todos los mensajes (usuario y asistente) de una sesión determinada, conservando los metadatos de UI estructurados.',
+        responses={
+            200: MensajeChatResponseSerializer(many=True),
+            401: OpenApiResponse(description='No autenticado.'),
+            404: OpenApiResponse(description='Sesión no encontrada o no pertenece al usuario autenticado.'),
+        }
+    )
     def get(self, request, sesion_id):
         try:
             sesion = SesionChat.objects.get(id=sesion_id, usuario=request.user)
@@ -121,6 +162,16 @@ class MensajesSesionView(APIView):
         mensajes = MensajeChat.objects.filter(sesion=sesion).order_by('creado_en')
         return Response(MensajeChatResponseSerializer(mensajes, many=True).data)
 
+    @extend_schema(
+        tags=['Chatbot LLM'],
+        summary='Eliminar una sesión de chat',
+        description='Elimina permanentemente una sesión de conversación y sus mensajes asociados.',
+        responses={
+            204: OpenApiResponse(description='Sesión eliminada correctamente.'),
+            401: OpenApiResponse(description='No autenticado.'),
+            404: OpenApiResponse(description='Sesión no encontrada.'),
+        }
+    )
     def delete(self, request, sesion_id):
         try:
             sesion = SesionChat.objects.get(id=sesion_id, usuario=request.user)

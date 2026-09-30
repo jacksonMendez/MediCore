@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from apps.authentication.models import Usuario
 from apps.authentication.authentication import require_role
 from .models import Sede, Especialidad, Medico, HorarioMedico
@@ -22,10 +23,27 @@ class SedeListCreateView(APIView):
             return [require_role(['admin'])()]
         return [permissions.AllowAny()]
 
+    @extend_schema(
+        tags=['Sedes'],
+        summary='Listar sedes activas',
+        description='Retorna todas las sedes clínicas habilitadas con su dirección y ciudad. Acceso público.',
+        responses={200: SedeResponseSerializer(many=True)}
+    )
     def get(self, request):
         sedes = Sede.objects.filter(activa=True)
         return Response(SedeResponseSerializer(sedes, many=True).data)
 
+    @extend_schema(
+        tags=['Sedes'],
+        summary='Crear nueva sede clínica',
+        description='Registra una nueva sede hospitalaria en la plataforma. Roles permitidos: admin.',
+        request=SedeCreateSerializer,
+        responses={
+            201: SedeResponseSerializer,
+            400: OpenApiResponse(description='Datos de sede inválidos.'),
+            403: OpenApiResponse(description='Requiere rol admin.'),
+        }
+    )
     def post(self, request):
         serializer = SedeCreateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -40,10 +58,28 @@ class EspecialidadListCreateView(APIView):
             return [require_role(['admin'])()]
         return [permissions.AllowAny()]
 
+    @extend_schema(
+        tags=['Especialidades'],
+        summary='Listar catálogo de especialidades',
+        description='Retorna las especialidades médicas ofrecidas por la clínica junto con sus precios base de consulta. Acceso público.',
+        responses={200: EspecialidadResponseSerializer(many=True)}
+    )
     def get(self, request):
         especialidades = Especialidad.objects.all()
         return Response(EspecialidadResponseSerializer(especialidades, many=True).data)
 
+    @extend_schema(
+        tags=['Especialidades'],
+        summary='Crear nueva especialidad médica',
+        description='Agrega una especialidad y su arancel base al catálogo clínico. Roles permitidos: admin.',
+        request=EspecialidadCreateSerializer,
+        responses={
+            201: EspecialidadResponseSerializer,
+            400: OpenApiResponse(description='Datos inválidos.'),
+            403: OpenApiResponse(description='Requiere rol admin.'),
+            409: OpenApiResponse(description='La especialidad ya existe.'),
+        }
+    )
     def post(self, request):
         serializer = EspecialidadCreateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -63,6 +99,16 @@ class MedicoListCreateView(APIView):
             return [require_role(['admin'])()]
         return [permissions.AllowAny()]
 
+    @extend_schema(
+        tags=['Médicos'],
+        summary='Listar cuerpo médico activo',
+        description='Retorna los médicos disponibles en el sistema con su especialidad, sede y tarjeta profesional. Permite filtrar por especialidad_id y sede_id. Acceso público.',
+        parameters=[
+            OpenApiParameter('especialidad_id', str, description='UUID de la especialidad', required=False),
+            OpenApiParameter('sede_id', str, description='UUID de la sede', required=False),
+        ],
+        responses={200: MedicoResponseSerializer(many=True)}
+    )
     def get(self, request):
         queryset = Medico.objects.filter(activo=True).select_related('usuario', 'especialidad', 'sede')
         especialidad_id = request.query_params.get('especialidad_id')
@@ -75,6 +121,19 @@ class MedicoListCreateView(APIView):
 
         return Response(MedicoResponseSerializer(queryset, many=True).data)
 
+    @extend_schema(
+        tags=['Médicos'],
+        summary='Registrar nuevo médico en la clínica',
+        description='Crea un perfil de médico vinculado a un usuario existente o creando uno nuevo simultáneamente. Roles permitidos: admin.',
+        request=MedicoCreateSerializer,
+        responses={
+            201: MedicoResponseSerializer,
+            400: OpenApiResponse(description='Datos de médico o credenciales inválidos.'),
+            403: OpenApiResponse(description='Requiere rol admin.'),
+            404: OpenApiResponse(description='Especialidad, sede o usuario no encontrado.'),
+            409: OpenApiResponse(description='Correo o tarjeta profesional ya registrados.'),
+        }
+    )
     def post(self, request):
         serializer = MedicoCreateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -132,6 +191,12 @@ class HorariosMedicoView(APIView):
     def get_permissions(self):
         return [permissions.AllowAny()]
 
+    @extend_schema(
+        tags=['Médicos'],
+        summary='Consultar turnos y franja horaria de un médico',
+        description='Retorna las franjas horarias configuradas para un médico durante los días de la semana. Acceso público.',
+        responses={200: HorarioResponseSerializer(many=True)}
+    )
     def get(self, request, medico_id):
         horarios = HorarioMedico.objects.filter(medico_id=medico_id)
         return Response(HorarioResponseSerializer(horarios, many=True).data)
@@ -140,6 +205,18 @@ class HorariosMedicoView(APIView):
 class CrearHorarioView(APIView):
     permission_classes = [require_role(['admin'])]
 
+    @extend_schema(
+        tags=['Médicos'],
+        summary='Asignar franja horaria a un médico',
+        description='Define el horario semanal (día, hora_inicio, hora_fin) en el que un médico atiende consultas. Roles permitidos: admin.',
+        request=HorarioCreateSerializer,
+        responses={
+            201: HorarioResponseSerializer,
+            400: OpenApiResponse(description='Datos de horario inválidos.'),
+            403: OpenApiResponse(description='Requiere rol admin.'),
+            404: OpenApiResponse(description='Médico no encontrado.'),
+        }
+    )
     def post(self, request):
         serializer = HorarioCreateSerializer(data=request.data)
         if not serializer.is_valid():

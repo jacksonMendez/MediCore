@@ -21,6 +21,12 @@ def api_health_check(request):
         "llm": "configured" if bool(settings.GROQ_API_KEY) else "not_configured",
     })
 
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
+
 urlpatterns = [
     path('', root_health_check, name='root-health'),
     path('api/health', api_health_check, name='api-health'),
@@ -31,4 +37,9 @@ urlpatterns = [
     path('api/pagos/', include('apps.pagos.urls')),
     path('api/chat/', include('apps.chatbot.urls')),
     path('api/auditoria/', include('apps.auditoria.urls')),
+
+    # Swagger / OpenAPI Documentation
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]

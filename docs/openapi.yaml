@@ -1,0 +1,2733 @@
+openapi: 3.0.3
+info:
+  title: MediCore OS — API Clínica Inteligente
+  version: 2.0.0
+  description: Documentación OpenAPI / Swagger oficial de MediCore OS. Plataforma
+    integral de gestión hospitalaria, agendamiento de citas, copiloto clínico con
+    IA (Groq failover), pasarela de pagos, PQR y auditoría inmutable.
+paths:
+  /api/auditoria/:
+    get:
+      operationId: auditoria_list
+      description: Consulta paginada de eventos históricos inmutables registrados
+        automáticamente en el servidor. Cubre acciones humanas (paciente, médico,
+        admin, agente) y autónomas del asistente IA (`origen="bot_llm"`). Permite
+        filtrar por `usuario_id`, `accion`, `origen`, `entidad_tipo`, `fecha_inicio`
+        y `fecha_fin`. Acceso estrictamente reservado al rol `admin`.
+      summary: Consultar registro inmutable de auditoría clínica y de sistema
+      parameters:
+      - in: query
+        name: accion
+        schema:
+          type: string
+        description: Filtrar por código de acción (cita_creada, cita_cancelada, login_exitoso,
+          etc.)
+      - in: query
+        name: entidad_tipo
+        schema:
+          type: string
+        description: Filtrar por tipo de recurso (Cita, Pago, Usuario, PQRSolicitud)
+      - in: query
+        name: fecha_fin
+        schema:
+          type: string
+        description: 'Timestamp ISO final (ej: 2026-09-30T23:59:59Z)'
+      - in: query
+        name: fecha_inicio
+        schema:
+          type: string
+        description: 'Timestamp ISO inicial (ej: 2026-09-01T00:00:00Z)'
+      - in: query
+        name: origen
+        schema:
+          type: string
+        description: Filtrar por origen (bot_llm, humano_paciente, humano_medico,
+          humano_admin, sistema)
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Número de página
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Tamaño de página (default 20, max 100)
+      - in: query
+        name: usuario_id
+        schema:
+          type: string
+        description: Filtrar por UUID de usuario
+      tags:
+      - Auditoría
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegistroAuditoria'
+          description: ''
+        '401':
+          description: No autenticado.
+        '403':
+          description: 'Acceso denegado: solo administradores pueden auditar.'
+  /api/auditoria/registros:
+    get:
+      operationId: auditoria_registros_list
+      description: Consulta paginada de eventos históricos inmutables registrados
+        automáticamente en el servidor. Cubre acciones humanas (paciente, médico,
+        admin, agente) y autónomas del asistente IA (`origen="bot_llm"`). Permite
+        filtrar por `usuario_id`, `accion`, `origen`, `entidad_tipo`, `fecha_inicio`
+        y `fecha_fin`. Acceso estrictamente reservado al rol `admin`.
+      summary: Consultar registro inmutable de auditoría clínica y de sistema
+      parameters:
+      - in: query
+        name: accion
+        schema:
+          type: string
+        description: Filtrar por código de acción (cita_creada, cita_cancelada, login_exitoso,
+          etc.)
+      - in: query
+        name: entidad_tipo
+        schema:
+          type: string
+        description: Filtrar por tipo de recurso (Cita, Pago, Usuario, PQRSolicitud)
+      - in: query
+        name: fecha_fin
+        schema:
+          type: string
+        description: 'Timestamp ISO final (ej: 2026-09-30T23:59:59Z)'
+      - in: query
+        name: fecha_inicio
+        schema:
+          type: string
+        description: 'Timestamp ISO inicial (ej: 2026-09-01T00:00:00Z)'
+      - in: query
+        name: origen
+        schema:
+          type: string
+        description: Filtrar por origen (bot_llm, humano_paciente, humano_medico,
+          humano_admin, sistema)
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Número de página
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Tamaño de página (default 20, max 100)
+      - in: query
+        name: usuario_id
+        schema:
+          type: string
+        description: Filtrar por UUID de usuario
+      tags:
+      - Auditoría
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegistroAuditoria'
+          description: ''
+        '401':
+          description: No autenticado.
+        '403':
+          description: 'Acceso denegado: solo administradores pueden auditar.'
+  /api/auditoria/registros/:
+    get:
+      operationId: auditoria_registros_list_2
+      description: Consulta paginada de eventos históricos inmutables registrados
+        automáticamente en el servidor. Cubre acciones humanas (paciente, médico,
+        admin, agente) y autónomas del asistente IA (`origen="bot_llm"`). Permite
+        filtrar por `usuario_id`, `accion`, `origen`, `entidad_tipo`, `fecha_inicio`
+        y `fecha_fin`. Acceso estrictamente reservado al rol `admin`.
+      summary: Consultar registro inmutable de auditoría clínica y de sistema
+      parameters:
+      - in: query
+        name: accion
+        schema:
+          type: string
+        description: Filtrar por código de acción (cita_creada, cita_cancelada, login_exitoso,
+          etc.)
+      - in: query
+        name: entidad_tipo
+        schema:
+          type: string
+        description: Filtrar por tipo de recurso (Cita, Pago, Usuario, PQRSolicitud)
+      - in: query
+        name: fecha_fin
+        schema:
+          type: string
+        description: 'Timestamp ISO final (ej: 2026-09-30T23:59:59Z)'
+      - in: query
+        name: fecha_inicio
+        schema:
+          type: string
+        description: 'Timestamp ISO inicial (ej: 2026-09-01T00:00:00Z)'
+      - in: query
+        name: origen
+        schema:
+          type: string
+        description: Filtrar por origen (bot_llm, humano_paciente, humano_medico,
+          humano_admin, sistema)
+      - in: query
+        name: page
+        schema:
+          type: integer
+        description: Número de página
+      - in: query
+        name: page_size
+        schema:
+          type: integer
+        description: Tamaño de página (default 20, max 100)
+      - in: query
+        name: usuario_id
+        schema:
+          type: string
+        description: Filtrar por UUID de usuario
+      tags:
+      - Auditoría
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegistroAuditoria'
+          description: ''
+        '401':
+          description: No autenticado.
+        '403':
+          description: 'Acceso denegado: solo administradores pueden auditar.'
+  /api/auth/login:
+    post:
+      operationId: auth_login_create
+      description: Autentica al usuario (paciente, médico, admin o agente) mediante
+        correo y contraseña. Retorna un JWT Bearer Token y los datos del perfil.
+      summary: Iniciar sesión con credenciales
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Autenticación exitosa. Retorna access_token y datos del usuario.
+        '400':
+          description: Datos de solicitud inválidos.
+        '401':
+          description: Credenciales incorrectas.
+        '403':
+          description: Cuenta desactivada.
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create_2
+      description: Autentica al usuario (paciente, médico, admin o agente) mediante
+        correo y contraseña. Retorna un JWT Bearer Token y los datos del perfil.
+      summary: Iniciar sesión con credenciales
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Autenticación exitosa. Retorna access_token y datos del usuario.
+        '400':
+          description: Datos de solicitud inválidos.
+        '401':
+          description: Credenciales incorrectas.
+        '403':
+          description: Cuenta desactivada.
+  /api/auth/me:
+    get:
+      operationId: auth_me_retrieve
+      description: 'Retorna la información del usuario en sesión activa a partir de
+        su Bearer Token. Roles permitidos: todos los roles autenticados (paciente,
+        medico, admin, agente_atencion).'
+      summary: Perfil del usuario autenticado (Me)
+      tags:
+      - Auth
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioResponse'
+          description: ''
+        '401':
+          description: Token de autorización ausente o expirado.
+  /api/auth/me/:
+    get:
+      operationId: auth_me_retrieve_2
+      description: 'Retorna la información del usuario en sesión activa a partir de
+        su Bearer Token. Roles permitidos: todos los roles autenticados (paciente,
+        medico, admin, agente_atencion).'
+      summary: Perfil del usuario autenticado (Me)
+      tags:
+      - Auth
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioResponse'
+          description: ''
+        '401':
+          description: Token de autorización ausente o expirado.
+  /api/auth/register:
+    post:
+      operationId: auth_register_create
+      description: Crea una nueva cuenta de usuario en el sistema. Si el rol es paciente,
+        crea automáticamente el perfil clínico asociado.
+      summary: Registro de nuevo usuario/paciente
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '201':
+          description: Usuario registrado exitosamente con token JWT y perfil.
+        '400':
+          description: Validación fallida en los datos enviados.
+        '409':
+          description: El correo electrónico ya se encuentra registrado.
+  /api/auth/register/:
+    post:
+      operationId: auth_register_create_2
+      description: Crea una nueva cuenta de usuario en el sistema. Si el rol es paciente,
+        crea automáticamente el perfil clínico asociado.
+      summary: Registro de nuevo usuario/paciente
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '201':
+          description: Usuario registrado exitosamente con token JWT y perfil.
+        '400':
+          description: Validación fallida en los datos enviados.
+        '409':
+          description: El correo electrónico ya se encuentra registrado.
+  /api/chat/mensaje:
+    post:
+      operationId: chat_mensaje_create
+      description: |-
+        Envía un mensaje a la sesión de chat con el orquestador Groq. Gestiona el flujo de agendamiento clínico determinista, consultas de disponibilidad, cancelaciones y PQR. La respuesta incluye campos de interfaz estructurados:
+        - `requiere_seleccion`: "ninguna" (texto informativo o confirmación), "dia" (renderizar calendario de días), "hora" (renderizar botones de horarios).
+        - `dias_disponibles`: lista de fechas activas YYYY-MM-DD cuando requiere_seleccion="dia".
+        - `horarios`: lista de slots disponibles en formato 12h cuando requiere_seleccion="hora".
+        - `actualizo_citas`: booleano que notifica al frontend si debe refrescar sus widgets de citas.
+        Roles permitidos: paciente, medico, admin, agente_atencion.
+      summary: Enviar mensaje al Copiloto Clínico IA
+      tags:
+      - Chatbot LLM
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+          description: ''
+        '400':
+          description: Mensaje vacío o formato de petición inválido.
+        '401':
+          description: Usuario no autenticado (requiere JWT).
+        '404':
+          description: Sesión de chat no encontrada.
+  /api/chat/mensaje/:
+    post:
+      operationId: chat_mensaje_create_2
+      description: |-
+        Envía un mensaje a la sesión de chat con el orquestador Groq. Gestiona el flujo de agendamiento clínico determinista, consultas de disponibilidad, cancelaciones y PQR. La respuesta incluye campos de interfaz estructurados:
+        - `requiere_seleccion`: "ninguna" (texto informativo o confirmación), "dia" (renderizar calendario de días), "hora" (renderizar botones de horarios).
+        - `dias_disponibles`: lista de fechas activas YYYY-MM-DD cuando requiere_seleccion="dia".
+        - `horarios`: lista de slots disponibles en formato 12h cuando requiere_seleccion="hora".
+        - `actualizo_citas`: booleano que notifica al frontend si debe refrescar sus widgets de citas.
+        Roles permitidos: paciente, medico, admin, agente_atencion.
+      summary: Enviar mensaje al Copiloto Clínico IA
+      tags:
+      - Chatbot LLM
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChatMessageRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+          description: ''
+        '400':
+          description: Mensaje vacío o formato de petición inválido.
+        '401':
+          description: Usuario no autenticado (requiere JWT).
+        '404':
+          description: Sesión de chat no encontrada.
+  /api/chat/sesiones:
+    get:
+      operationId: chat_sesiones_list
+      description: Retorna la lista de sesiones de conversación del usuario autenticado,
+        con el extracto del último mensaje y título automático.
+      summary: Listar sesiones de chat del usuario
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SesionChatResponse'
+          description: ''
+        '401':
+          description: Usuario no autenticado.
+  /api/chat/sesiones/:
+    get:
+      operationId: chat_sesiones_list_2
+      description: Retorna la lista de sesiones de conversación del usuario autenticado,
+        con el extracto del último mensaje y título automático.
+      summary: Listar sesiones de chat del usuario
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SesionChatResponse'
+          description: ''
+        '401':
+          description: Usuario no autenticado.
+  /api/chat/sesiones/{sesion_id}:
+    get:
+      operationId: chat_sesiones_list_3
+      description: Recupera todos los mensajes (usuario y asistente) de una sesión
+        determinada, conservando los metadatos de UI estructurados.
+      summary: Obtener mensajes de una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MensajeChatResponse'
+          description: ''
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada o no pertenece al usuario autenticado.
+    delete:
+      operationId: chat_sesiones_destroy
+      description: Elimina permanentemente una sesión de conversación y sus mensajes
+        asociados.
+      summary: Eliminar una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Sesión eliminada correctamente.
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada.
+  /api/chat/sesiones/{sesion_id}/:
+    get:
+      operationId: chat_sesiones_list_4
+      description: Recupera todos los mensajes (usuario y asistente) de una sesión
+        determinada, conservando los metadatos de UI estructurados.
+      summary: Obtener mensajes de una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MensajeChatResponse'
+          description: ''
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada o no pertenece al usuario autenticado.
+    delete:
+      operationId: chat_sesiones_destroy_2
+      description: Elimina permanentemente una sesión de conversación y sus mensajes
+        asociados.
+      summary: Eliminar una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Sesión eliminada correctamente.
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada.
+  /api/chat/sesiones/{sesion_id}/mensajes:
+    get:
+      operationId: chat_sesiones_mensajes_list
+      description: Recupera todos los mensajes (usuario y asistente) de una sesión
+        determinada, conservando los metadatos de UI estructurados.
+      summary: Obtener mensajes de una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MensajeChatResponse'
+          description: ''
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada o no pertenece al usuario autenticado.
+    delete:
+      operationId: chat_sesiones_mensajes_destroy
+      description: Elimina permanentemente una sesión de conversación y sus mensajes
+        asociados.
+      summary: Eliminar una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Sesión eliminada correctamente.
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada.
+  /api/chat/sesiones/{sesion_id}/mensajes/:
+    get:
+      operationId: chat_sesiones_mensajes_list_2
+      description: Recupera todos los mensajes (usuario y asistente) de una sesión
+        determinada, conservando los metadatos de UI estructurados.
+      summary: Obtener mensajes de una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MensajeChatResponse'
+          description: ''
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada o no pertenece al usuario autenticado.
+    delete:
+      operationId: chat_sesiones_mensajes_destroy_2
+      description: Elimina permanentemente una sesión de conversación y sus mensajes
+        asociados.
+      summary: Eliminar una sesión de chat
+      parameters:
+      - in: path
+        name: sesion_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Chatbot LLM
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Sesión eliminada correctamente.
+        '401':
+          description: No autenticado.
+        '404':
+          description: Sesión no encontrada.
+  /api/citas/:
+    post:
+      operationId: citas_create
+      description: 'Crea una cita médica en estado pendiente_pago. Valida colisiones
+        de horario y genera automáticamente la orden de cobro. Roles: paciente, admin,
+        agente_atencion.'
+      summary: Agendar nueva cita médica
+      tags:
+      - Citas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CitaCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CitaCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CitaCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitaResponse'
+          description: ''
+        '400':
+          description: Datos inválidos o perfil de paciente inexistente.
+        '409':
+          description: 'Conflicto de horario: el médico o paciente ya tiene cita reservada.'
+  /api/citas/{cita_id}/estado:
+    patch:
+      operationId: citas_estado_partial_update
+      description: Modifica el estado de una cita existente (pendiente_pago, confirmada,
+        cancelada, atendida, no_asistio). El paciente solo puede cancelar citas propias.
+        El médico puede marcar atendida o no asistió. Administradores pueden realizar
+        cualquier cambio. Registra auditoría inmutable automáticamente.
+      summary: Actualizar estado de una cita médica
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCambiarEstadoCitaRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCambiarEstadoCitaRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCambiarEstadoCitaRequestRequest'
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitaResponse'
+          description: ''
+        '400':
+          description: Estado inválido.
+        '403':
+          description: Permisos insuficientes para modificar esta cita.
+        '404':
+          description: Cita no encontrada.
+  /api/citas/{cita_id}/estado/:
+    patch:
+      operationId: citas_estado_partial_update_2
+      description: Modifica el estado de una cita existente (pendiente_pago, confirmada,
+        cancelada, atendida, no_asistio). El paciente solo puede cancelar citas propias.
+        El médico puede marcar atendida o no asistió. Administradores pueden realizar
+        cualquier cambio. Registra auditoría inmutable automáticamente.
+      summary: Actualizar estado de una cita médica
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCambiarEstadoCitaRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCambiarEstadoCitaRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCambiarEstadoCitaRequestRequest'
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CitaResponse'
+          description: ''
+        '400':
+          description: Estado inválido.
+        '403':
+          description: Permisos insuficientes para modificar esta cita.
+        '404':
+          description: Cita no encontrada.
+  /api/citas/agenda-hoy/{medico_id}:
+    get:
+      operationId: citas_agenda_hoy_list
+      description: 'Retorna las citas programadas para la fecha de hoy de un médico
+        por su UUID. Roles: medico, admin.'
+      summary: Agenda clínica del día de un médico
+      parameters:
+      - in: path
+        name: medico_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CitaResponse'
+          description: ''
+  /api/citas/agenda-hoy/{medico_id}/:
+    get:
+      operationId: citas_agenda_hoy_list_2
+      description: 'Retorna las citas programadas para la fecha de hoy de un médico
+        por su UUID. Roles: medico, admin.'
+      summary: Agenda clínica del día de un médico
+      parameters:
+      - in: path
+        name: medico_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CitaResponse'
+          description: ''
+  /api/citas/dias-disponibles:
+    get:
+      operationId: citas_dias_disponibles_retrieve
+      description: Retorna las fechas dentro de un rango que cuentan con turnos disponibles
+        para una especialidad médica. Acceso público.
+      summary: Consultar días con disponibilidad médica
+      parameters:
+      - in: query
+        name: especialidad_id
+        schema:
+          type: string
+        description: UUID de la especialidad
+      - in: query
+        name: especialidad_nombre
+        schema:
+          type: string
+        description: 'Nombre de la especialidad (ej: Medicina General)'
+      - in: query
+        name: fecha_fin
+        schema:
+          type: string
+        description: Fecha final YYYY-MM-DD (por defecto +30 días)
+      - in: query
+        name: fecha_inicio
+        schema:
+          type: string
+        description: Fecha inicial YYYY-MM-DD (por defecto hoy)
+      - in: query
+        name: genero
+        schema:
+          type: string
+        description: 'Filtro opcional de género del médico: ''M'' (hombre) o ''F''
+          (mujer)'
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Fechas y días disponibles encontrados.
+  /api/citas/dias-disponibles/:
+    get:
+      operationId: citas_dias_disponibles_retrieve_2
+      description: Retorna las fechas dentro de un rango que cuentan con turnos disponibles
+        para una especialidad médica. Acceso público.
+      summary: Consultar días con disponibilidad médica
+      parameters:
+      - in: query
+        name: especialidad_id
+        schema:
+          type: string
+        description: UUID de la especialidad
+      - in: query
+        name: especialidad_nombre
+        schema:
+          type: string
+        description: 'Nombre de la especialidad (ej: Medicina General)'
+      - in: query
+        name: fecha_fin
+        schema:
+          type: string
+        description: Fecha final YYYY-MM-DD (por defecto +30 días)
+      - in: query
+        name: fecha_inicio
+        schema:
+          type: string
+        description: Fecha inicial YYYY-MM-DD (por defecto hoy)
+      - in: query
+        name: genero
+        schema:
+          type: string
+        description: 'Filtro opcional de género del médico: ''M'' (hombre) o ''F''
+          (mujer)'
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Fechas y días disponibles encontrados.
+  /api/citas/disponibilidad:
+    get:
+      operationId: citas_disponibilidad_retrieve
+      description: Retorna los turnos de atención y médicos disponibles para una especialidad
+        en una fecha específica (YYYY-MM-DD). Acceso público.
+      summary: Consultar horarios y cupos libres para una fecha
+      parameters:
+      - in: query
+        name: especialidad_id
+        schema:
+          type: string
+        description: UUID de la especialidad
+      - in: query
+        name: especialidad_nombre
+        schema:
+          type: string
+        description: Nombre de la especialidad
+      - in: query
+        name: fecha
+        schema:
+          type: string
+        description: Fecha de consulta YYYY-MM-DD
+        required: true
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisponibilidadResponse'
+          description: ''
+  /api/citas/disponibilidad/:
+    get:
+      operationId: citas_disponibilidad_retrieve_2
+      description: Retorna los turnos de atención y médicos disponibles para una especialidad
+        en una fecha específica (YYYY-MM-DD). Acceso público.
+      summary: Consultar horarios y cupos libres para una fecha
+      parameters:
+      - in: query
+        name: especialidad_id
+        schema:
+          type: string
+        description: UUID de la especialidad
+      - in: query
+        name: especialidad_nombre
+        schema:
+          type: string
+        description: Nombre de la especialidad
+      - in: query
+        name: fecha
+        schema:
+          type: string
+        description: Fecha de consulta YYYY-MM-DD
+        required: true
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisponibilidadResponse'
+          description: ''
+  /api/citas/mis-citas:
+    get:
+      operationId: citas_mis_citas_list
+      description: 'Retorna el listado de citas del usuario. Si es paciente retorna
+        sus citas clínicas; si es médico retorna las citas agendadas con él. Roles:
+        paciente, medico.'
+      summary: Consultar citas del usuario autenticado
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CitaResponse'
+          description: ''
+  /api/citas/mis-citas/:
+    get:
+      operationId: citas_mis_citas_list_2
+      description: 'Retorna el listado de citas del usuario. Si es paciente retorna
+        sus citas clínicas; si es médico retorna las citas agendadas con él. Roles:
+        paciente, medico.'
+      summary: Consultar citas del usuario autenticado
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CitaResponse'
+          description: ''
+  /api/especialidades:
+    get:
+      operationId: especialidades_list
+      description: Retorna las especialidades médicas ofrecidas por la clínica junto
+        con sus precios base de consulta. Acceso público.
+      summary: Listar catálogo de especialidades
+      tags:
+      - Especialidades
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EspecialidadResponse'
+          description: ''
+    post:
+      operationId: especialidades_create
+      description: 'Agrega una especialidad y su arancel base al catálogo clínico.
+        Roles permitidos: admin.'
+      summary: Crear nueva especialidad médica
+      tags:
+      - Especialidades
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EspecialidadCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EspecialidadCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EspecialidadCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EspecialidadResponse'
+          description: ''
+        '400':
+          description: Datos inválidos.
+        '403':
+          description: Requiere rol admin.
+        '409':
+          description: La especialidad ya existe.
+  /api/especialidades/:
+    get:
+      operationId: especialidades_list_2
+      description: Retorna las especialidades médicas ofrecidas por la clínica junto
+        con sus precios base de consulta. Acceso público.
+      summary: Listar catálogo de especialidades
+      tags:
+      - Especialidades
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EspecialidadResponse'
+          description: ''
+    post:
+      operationId: especialidades_create_2
+      description: 'Agrega una especialidad y su arancel base al catálogo clínico.
+        Roles permitidos: admin.'
+      summary: Crear nueva especialidad médica
+      tags:
+      - Especialidades
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EspecialidadCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EspecialidadCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EspecialidadCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EspecialidadResponse'
+          description: ''
+        '400':
+          description: Datos inválidos.
+        '403':
+          description: Requiere rol admin.
+        '409':
+          description: La especialidad ya existe.
+  /api/medicos:
+    get:
+      operationId: medicos_list
+      description: Retorna los médicos disponibles en el sistema con su especialidad,
+        sede y tarjeta profesional. Permite filtrar por especialidad_id y sede_id.
+        Acceso público.
+      summary: Listar cuerpo médico activo
+      parameters:
+      - in: query
+        name: especialidad_id
+        schema:
+          type: string
+        description: UUID de la especialidad
+      - in: query
+        name: sede_id
+        schema:
+          type: string
+        description: UUID de la sede
+      tags:
+      - Médicos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicoResponse'
+          description: ''
+    post:
+      operationId: medicos_create
+      description: 'Crea un perfil de médico vinculado a un usuario existente o creando
+        uno nuevo simultáneamente. Roles permitidos: admin.'
+      summary: Registrar nuevo médico en la clínica
+      tags:
+      - Médicos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicoCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MedicoCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MedicoCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicoResponse'
+          description: ''
+        '400':
+          description: Datos de médico o credenciales inválidos.
+        '403':
+          description: Requiere rol admin.
+        '404':
+          description: Especialidad, sede o usuario no encontrado.
+        '409':
+          description: Correo o tarjeta profesional ya registrados.
+  /api/medicos/:
+    get:
+      operationId: medicos_list_2
+      description: Retorna los médicos disponibles en el sistema con su especialidad,
+        sede y tarjeta profesional. Permite filtrar por especialidad_id y sede_id.
+        Acceso público.
+      summary: Listar cuerpo médico activo
+      parameters:
+      - in: query
+        name: especialidad_id
+        schema:
+          type: string
+        description: UUID de la especialidad
+      - in: query
+        name: sede_id
+        schema:
+          type: string
+        description: UUID de la sede
+      tags:
+      - Médicos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicoResponse'
+          description: ''
+    post:
+      operationId: medicos_create_2
+      description: 'Crea un perfil de médico vinculado a un usuario existente o creando
+        uno nuevo simultáneamente. Roles permitidos: admin.'
+      summary: Registrar nuevo médico en la clínica
+      tags:
+      - Médicos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicoCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MedicoCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MedicoCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicoResponse'
+          description: ''
+        '400':
+          description: Datos de médico o credenciales inválidos.
+        '403':
+          description: Requiere rol admin.
+        '404':
+          description: Especialidad, sede o usuario no encontrado.
+        '409':
+          description: Correo o tarjeta profesional ya registrados.
+  /api/medicos/{medico_id}/horarios:
+    get:
+      operationId: medicos_horarios_list
+      description: Retorna las franjas horarias configuradas para un médico durante
+        los días de la semana. Acceso público.
+      summary: Consultar turnos y franja horaria de un médico
+      parameters:
+      - in: path
+        name: medico_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Médicos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HorarioResponse'
+          description: ''
+  /api/medicos/{medico_id}/horarios/:
+    get:
+      operationId: medicos_horarios_list_2
+      description: Retorna las franjas horarias configuradas para un médico durante
+        los días de la semana. Acceso público.
+      summary: Consultar turnos y franja horaria de un médico
+      parameters:
+      - in: path
+        name: medico_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Médicos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HorarioResponse'
+          description: ''
+  /api/medicos/horarios:
+    post:
+      operationId: medicos_horarios_create
+      description: 'Define el horario semanal (día, hora_inicio, hora_fin) en el que
+        un médico atiende consultas. Roles permitidos: admin.'
+      summary: Asignar franja horaria a un médico
+      tags:
+      - Médicos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HorarioCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HorarioCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HorarioCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorarioResponse'
+          description: ''
+        '400':
+          description: Datos de horario inválidos.
+        '403':
+          description: Requiere rol admin.
+        '404':
+          description: Médico no encontrado.
+  /api/medicos/horarios/:
+    post:
+      operationId: medicos_horarios_create_2
+      description: 'Define el horario semanal (día, hora_inicio, hora_fin) en el que
+        un médico atiende consultas. Roles permitidos: admin.'
+      summary: Asignar franja horaria a un médico
+      tags:
+      - Médicos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HorarioCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HorarioCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HorarioCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HorarioResponse'
+          description: ''
+        '400':
+          description: Datos de horario inválidos.
+        '403':
+          description: Requiere rol admin.
+        '404':
+          description: Médico no encontrado.
+  /api/pagos/:
+    get:
+      operationId: pagos_list
+      description: 'Si el usuario es paciente, lista sus pagos y estados. Si es administrador
+        o agente, retorna el consolidado de pagos del sistema. Roles: paciente, admin,
+        agente_atencion.'
+      summary: Listar transacciones y pagos
+      tags:
+      - Pagos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PagoResponse'
+          description: ''
+  /api/pagos/{cita_id}:
+    get:
+      operationId: pagos_retrieve
+      description: 'Retorna los datos de la transacción de pago asociada a una cita
+        médica. Roles: paciente (propietario), admin.'
+      summary: Consultar comprobante de pago por ID de cita
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Pagos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagoResponse'
+          description: ''
+        '403':
+          description: No autorizado para ver pagos de otros pacientes.
+        '404':
+          description: Pago no encontrado para la cita especificada.
+  /api/pagos/{cita_id}/:
+    get:
+      operationId: pagos_retrieve_2
+      description: 'Retorna los datos de la transacción de pago asociada a una cita
+        médica. Roles: paciente (propietario), admin.'
+      summary: Consultar comprobante de pago por ID de cita
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Pagos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagoResponse'
+          description: ''
+        '403':
+          description: No autorizado para ver pagos de otros pacientes.
+        '404':
+          description: Pago no encontrado para la cita especificada.
+  /api/pagos/mis-pagos:
+    get:
+      operationId: pagos_mis_pagos_list
+      description: 'Si el usuario es paciente, lista sus pagos y estados. Si es administrador
+        o agente, retorna el consolidado de pagos del sistema. Roles: paciente, admin,
+        agente_atencion.'
+      summary: Listar transacciones y pagos
+      tags:
+      - Pagos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PagoResponse'
+          description: ''
+  /api/pagos/mis-pagos/:
+    get:
+      operationId: pagos_mis_pagos_list_2
+      description: 'Si el usuario es paciente, lista sus pagos y estados. Si es administrador
+        o agente, retorna el consolidado de pagos del sistema. Roles: paciente, admin,
+        agente_atencion.'
+      summary: Listar transacciones y pagos
+      tags:
+      - Pagos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PagoResponse'
+          description: ''
+  /api/pagos/simular:
+    post:
+      operationId: pagos_simular_create
+      description: 'Genera una referencia sandbox y registra el pago en estado pendiente
+        para una cita médica. Roles: paciente (dueño de la cita), admin.'
+      summary: Simular intento de pago de una cita
+      tags:
+      - Pagos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PagoSimularRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PagoSimularRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PagoSimularRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagoResponse'
+          description: ''
+        '400':
+          description: Datos inválidos o la cita no está pendiente de pago.
+        '403':
+          description: No autorizado para pagar citas de otro paciente.
+        '404':
+          description: Cita no encontrada.
+        '409':
+          description: Ya existe un pago registrado para esta cita.
+  /api/pagos/simular/:
+    post:
+      operationId: pagos_simular_create_2
+      description: 'Genera una referencia sandbox y registra el pago en estado pendiente
+        para una cita médica. Roles: paciente (dueño de la cita), admin.'
+      summary: Simular intento de pago de una cita
+      tags:
+      - Pagos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PagoSimularRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PagoSimularRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PagoSimularRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagoResponse'
+          description: ''
+        '400':
+          description: Datos inválidos o la cita no está pendiente de pago.
+        '403':
+          description: No autorizado para pagar citas de otro paciente.
+        '404':
+          description: Cita no encontrada.
+        '409':
+          description: Ya existe un pago registrado para esta cita.
+  /api/pagos/webhook:
+    post:
+      operationId: pagos_webhook_create
+      description: Recibe notificaciones automáticas de cambio de estado de pago (aprobado
+        / rechazado). Actualiza la cita asociada (confirmada o cancelada) y genera
+        auditoría inmutable con origen sistema. Acceso público.
+      summary: Webhook de notificación de pasarela de pagos
+      tags:
+      - Pagos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPagoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WebhookPagoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WebhookPagoRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagoResponse'
+          description: ''
+        '400':
+          description: Payload de webhook inválido.
+        '404':
+          description: Referencia de pago no encontrada.
+  /api/pagos/webhook/:
+    post:
+      operationId: pagos_webhook_create_2
+      description: Recibe notificaciones automáticas de cambio de estado de pago (aprobado
+        / rechazado). Actualiza la cita asociada (confirmada o cancelada) y genera
+        auditoría inmutable con origen sistema. Acceso público.
+      summary: Webhook de notificación de pasarela de pagos
+      tags:
+      - Pagos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPagoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WebhookPagoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WebhookPagoRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagoResponse'
+          description: ''
+        '400':
+          description: Payload de webhook inválido.
+        '404':
+          description: Referencia de pago no encontrada.
+  /api/sedes:
+    get:
+      operationId: sedes_list
+      description: Retorna todas las sedes clínicas habilitadas con su dirección y
+        ciudad. Acceso público.
+      summary: Listar sedes activas
+      tags:
+      - Sedes
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SedeResponse'
+          description: ''
+    post:
+      operationId: sedes_create
+      description: 'Registra una nueva sede hospitalaria en la plataforma. Roles permitidos:
+        admin.'
+      summary: Crear nueva sede clínica
+      tags:
+      - Sedes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SedeCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SedeCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SedeCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SedeResponse'
+          description: ''
+        '400':
+          description: Datos de sede inválidos.
+        '403':
+          description: Requiere rol admin.
+  /api/sedes/:
+    get:
+      operationId: sedes_list_2
+      description: Retorna todas las sedes clínicas habilitadas con su dirección y
+        ciudad. Acceso público.
+      summary: Listar sedes activas
+      tags:
+      - Sedes
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SedeResponse'
+          description: ''
+    post:
+      operationId: sedes_create_2
+      description: 'Registra una nueva sede hospitalaria en la plataforma. Roles permitidos:
+        admin.'
+      summary: Crear nueva sede clínica
+      tags:
+      - Sedes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SedeCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SedeCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SedeCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SedeResponse'
+          description: ''
+        '400':
+          description: Datos de sede inválidos.
+        '403':
+          description: Requiere rol admin.
+components:
+  schemas:
+    AccionEnum:
+      enum:
+      - cita_creada
+      - cita_cancelada
+      - cita_reagendada
+      - cita_estado_cambiado
+      - pqr_radicada
+      - pqr_aprobada
+      - pqr_rechazada
+      - pago_simulado
+      - pago_confirmado
+      - medico_creado
+      - medico_editado
+      - sede_creada
+      - sede_editada
+      - especialidad_creada
+      - especialidad_editada
+      - login_exitoso
+      - login_fallido
+      type: string
+      description: |-
+        * `cita_creada` - Cita Creada
+        * `cita_cancelada` - Cita Cancelada
+        * `cita_reagendada` - Cita Reagendada
+        * `cita_estado_cambiado` - Estado de Cita Actualizado
+        * `pqr_radicada` - PQR / Reembolso Radicado
+        * `pqr_aprobada` - PQR Aprobada
+        * `pqr_rechazada` - PQR Rechazada
+        * `pago_simulado` - Pago Simulado
+        * `pago_confirmado` - Pago Confirmado
+        * `medico_creado` - Médico Creado
+        * `medico_editado` - Médico Editado
+        * `sede_creada` - Sede Creada
+        * `sede_editada` - Sede Editada
+        * `especialidad_creada` - Especialidad Creada
+        * `especialidad_editada` - Especialidad Editada
+        * `login_exitoso` - Inicio de Sesión Exitoso
+        * `login_fallido` - Intento de Inicio de Sesión Fallido
+    ChatMessageRequest:
+      type: object
+      properties:
+        mensaje:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        sesion_id:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - mensaje
+    ChatResponse:
+      type: object
+      properties:
+        respuesta:
+          type: string
+        sesion_id:
+          type: string
+          format: uuid
+        emisor:
+          type: string
+          default: asistente
+        actualizo_citas:
+          type: boolean
+          default: false
+        herramientas_usadas:
+          type: array
+          items:
+            type: string
+        requiere_seleccion:
+          allOf:
+          - $ref: '#/components/schemas/ChatResponseRequiereSeleccionEnum'
+          default: ninguna
+        dias_disponibles:
+          type: array
+          items:
+            type: string
+        horarios:
+          type: array
+          items:
+            type: string
+        especialidad:
+          type: string
+          nullable: true
+      required:
+      - respuesta
+      - sesion_id
+    ChatResponseRequiereSeleccionEnum:
+      enum:
+      - ninguna
+      - dia
+      - hora
+      type: string
+      description: |-
+        * `ninguna` - ninguna
+        * `dia` - dia
+        * `hora` - hora
+    CitaCreateRequest:
+      type: object
+      properties:
+        medico_id:
+          type: string
+          format: uuid
+        fecha_hora:
+          type: string
+          format: date-time
+        motivo:
+          type: string
+          nullable: true
+      required:
+      - fecha_hora
+      - medico_id
+    CitaResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        paciente_id:
+          type: string
+          format: uuid
+        medico_id:
+          type: string
+          format: uuid
+        sede_id:
+          type: string
+          format: uuid
+        fecha_hora:
+          type: string
+          format: date-time
+        duracion_minutos:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        estado:
+          type: string
+          readOnly: true
+        motivo:
+          type: string
+          nullable: true
+        creado_en:
+          type: string
+          format: date-time
+        paciente_nombre:
+          type: string
+          readOnly: true
+        medico_nombre:
+          type: string
+          readOnly: true
+        sede_nombre:
+          type: string
+          readOnly: true
+        especialidad_nombre:
+          type: string
+          readOnly: true
+        pago_estado:
+          type: string
+          nullable: true
+          readOnly: true
+        pago_monto:
+          type: number
+          format: double
+          nullable: true
+          readOnly: true
+      required:
+      - especialidad_nombre
+      - estado
+      - fecha_hora
+      - id
+      - medico_id
+      - medico_nombre
+      - paciente_id
+      - paciente_nombre
+      - pago_estado
+      - pago_monto
+      - sede_id
+      - sede_nombre
+    DiaEnum:
+      enum:
+      - lunes
+      - martes
+      - miercoles
+      - jueves
+      - viernes
+      - sabado
+      - domingo
+      type: string
+      description: |-
+        * `lunes` - Lunes
+        * `martes` - Martes
+        * `miercoles` - Miércoles
+        * `jueves` - Jueves
+        * `viernes` - Viernes
+        * `sabado` - Sábado
+        * `domingo` - Domingo
+    DisponibilidadResponse:
+      type: object
+      properties:
+        fecha:
+          type: string
+          format: date
+        especialidad:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotDisponible'
+        total_slots:
+          type: integer
+      required:
+      - especialidad
+      - fecha
+      - slots
+      - total_slots
+    EspecialidadCreateRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 100
+        descripcion:
+          type: string
+          nullable: true
+        precio_base:
+          type: number
+          format: double
+          default: 0.0
+      required:
+      - nombre
+    EspecialidadResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        nombre:
+          type: string
+          maxLength: 100
+        descripcion:
+          type: string
+          nullable: true
+        precio_base:
+          type: number
+          format: double
+      required:
+      - id
+      - nombre
+      - precio_base
+    EstadoEnum:
+      enum:
+      - aprobado
+      - rechazado
+      type: string
+      description: |-
+        * `aprobado` - aprobado
+        * `rechazado` - rechazado
+    HorarioCreateRequest:
+      type: object
+      properties:
+        medico_id:
+          type: string
+          format: uuid
+        dia:
+          $ref: '#/components/schemas/DiaEnum'
+        hora_inicio:
+          type: string
+          format: time
+        hora_fin:
+          type: string
+          format: time
+      required:
+      - dia
+      - hora_fin
+      - hora_inicio
+      - medico_id
+    HorarioResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        medico_id:
+          type: string
+          format: uuid
+        dia:
+          $ref: '#/components/schemas/DiaEnum'
+        hora_inicio:
+          type: string
+          format: time
+        hora_fin:
+          type: string
+          format: time
+      required:
+      - dia
+      - hora_fin
+      - hora_inicio
+      - id
+      - medico_id
+    MedicoCreateRequest:
+      type: object
+      properties:
+        usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+        nombre_completo:
+          type: string
+          nullable: true
+        correo:
+          type: string
+          format: email
+          nullable: true
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          nullable: true
+          minLength: 1
+        telefono:
+          type: string
+          nullable: true
+        especialidad_id:
+          type: string
+          format: uuid
+        sede_id:
+          type: string
+          format: uuid
+        tarjeta_profesional:
+          type: string
+          minLength: 1
+        duracion_cita_minutos:
+          type: integer
+          default: 30
+        genero:
+          type: string
+          minLength: 1
+          default: M
+      required:
+      - especialidad_id
+      - sede_id
+      - tarjeta_profesional
+    MedicoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        usuario_id:
+          type: string
+          format: uuid
+        especialidad_id:
+          type: string
+          format: uuid
+        sede_id:
+          type: string
+          format: uuid
+        tarjeta_profesional:
+          type: string
+          maxLength: 50
+        duracion_cita_minutos:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: -9223372036854775808
+          format: int64
+        genero:
+          type: string
+          nullable: true
+          maxLength: 10
+        activo:
+          type: boolean
+        nombre_completo:
+          type: string
+          readOnly: true
+        correo:
+          type: string
+          readOnly: true
+        especialidad_nombre:
+          type: string
+          readOnly: true
+        sede_nombre:
+          type: string
+          readOnly: true
+      required:
+      - correo
+      - especialidad_id
+      - especialidad_nombre
+      - id
+      - nombre_completo
+      - sede_id
+      - sede_nombre
+      - tarjeta_profesional
+      - usuario_id
+    MensajeChatResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sesion_id:
+          type: string
+          format: uuid
+        emisor:
+          type: string
+          maxLength: 20
+        contenido:
+          type: string
+        requiere_seleccion:
+          $ref: '#/components/schemas/MensajeChatResponseRequiereSeleccionEnum'
+        dias_disponibles:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        horarios:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        especialidad:
+          type: string
+          nullable: true
+          readOnly: true
+        creado_en:
+          type: string
+          format: date-time
+      required:
+      - contenido
+      - dias_disponibles
+      - emisor
+      - especialidad
+      - horarios
+      - id
+      - sesion_id
+    MensajeChatResponseRequiereSeleccionEnum:
+      enum:
+      - ninguna
+      - dia
+      - hora
+      type: string
+      description: |-
+        * `ninguna` - Ninguna
+        * `dia` - Seleccionar Día
+        * `hora` - Seleccionar Hora
+    NuevoEstadoEnum:
+      enum:
+      - pendiente_pago
+      - confirmada
+      - cancelada
+      - atendida
+      - no_asistio
+      type: string
+      description: |-
+        * `pendiente_pago` - pendiente_pago
+        * `confirmada` - confirmada
+        * `cancelada` - cancelada
+        * `atendida` - atendida
+        * `no_asistio` - no_asistio
+    OrigenEnum:
+      enum:
+      - bot_llm
+      - humano_paciente
+      - humano_medico
+      - humano_admin
+      - humano_agente
+      - sistema
+      type: string
+      description: |-
+        * `bot_llm` - Asistente IA (Groq / Failover)
+        * `humano_paciente` - Paciente Humano (Web/App)
+        * `humano_medico` - Médico Humano (Portal Doctor)
+        * `humano_admin` - Administrador Humano (Backoffice)
+        * `humano_agente` - Agente de Atención al Cliente
+        * `sistema` - Proceso Automatizado del Sistema
+    PagoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        cita_id:
+          type: string
+          format: uuid
+        monto:
+          type: number
+          format: double
+        moneda:
+          type: string
+          maxLength: 5
+        referencia:
+          type: string
+          maxLength: 100
+        metodo_pago:
+          type: string
+          readOnly: true
+        estado:
+          type: string
+          readOnly: true
+        concepto:
+          type: string
+          readOnly: true
+        fecha:
+          type: string
+          format: date-time
+          readOnly: true
+        actualizado_en:
+          type: string
+          format: date-time
+      required:
+      - cita_id
+      - concepto
+      - estado
+      - fecha
+      - id
+      - metodo_pago
+      - monto
+      - referencia
+    PagoSimularRequest:
+      type: object
+      properties:
+        cita_id:
+          type: string
+          format: uuid
+        metodo_pago:
+          type: string
+          minLength: 1
+          default: sandbox
+      required:
+      - cita_id
+    PatchedCambiarEstadoCitaRequestRequest:
+      type: object
+      properties:
+        nuevo_estado:
+          allOf:
+          - $ref: '#/components/schemas/NuevoEstadoEnum'
+          description: |-
+            Nuevo estado asignado a la cita
+
+            * `pendiente_pago` - pendiente_pago
+            * `confirmada` - confirmada
+            * `cancelada` - cancelada
+            * `atendida` - atendida
+            * `no_asistio` - no_asistio
+    RegistroAuditoria:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        usuario_id:
+          type: string
+          format: uuid
+          nullable: true
+          readOnly: true
+        usuario_nombre:
+          type: string
+          readOnly: true
+        usuario_correo:
+          type: string
+          readOnly: true
+        rol_en_el_momento:
+          type: string
+          readOnly: true
+          nullable: true
+        accion:
+          allOf:
+          - $ref: '#/components/schemas/AccionEnum'
+          readOnly: true
+        entidad_tipo:
+          type: string
+          readOnly: true
+        entidad_id:
+          type: string
+          readOnly: true
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+        datos_cambio:
+          readOnly: true
+        origen:
+          allOf:
+          - $ref: '#/components/schemas/OrigenEnum'
+          readOnly: true
+        ip:
+          type: string
+          readOnly: true
+          nullable: true
+        session_id:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - accion
+      - datos_cambio
+      - entidad_id
+      - entidad_tipo
+      - id
+      - ip
+      - origen
+      - rol_en_el_momento
+      - session_id
+      - timestamp
+      - usuario_correo
+      - usuario_id
+      - usuario_nombre
+    ResolucionTipoEnum:
+      enum:
+      - en_curso
+      - resuelta_ia
+      - escalada_humano
+      type: string
+      description: |-
+        * `en_curso` - En curso
+        * `resuelta_ia` - Resuelta por IA
+        * `escalada_humano` - Escalada a Humano
+    RolEnum:
+      enum:
+      - paciente
+      - medico
+      - admin
+      - agente_atencion
+      type: string
+      description: |-
+        * `paciente` - paciente
+        * `medico` - medico
+        * `admin` - admin
+        * `agente_atencion` - agente_atencion
+    SedeCreateRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+          maxLength: 150
+        direccion:
+          type: string
+          minLength: 1
+          maxLength: 300
+        telefono:
+          type: string
+          nullable: true
+          maxLength: 20
+        activa:
+          type: boolean
+      required:
+      - direccion
+      - nombre
+    SedeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        nombre:
+          type: string
+          maxLength: 150
+        direccion:
+          type: string
+          maxLength: 300
+        telefono:
+          type: string
+          nullable: true
+          maxLength: 20
+        activa:
+          type: boolean
+      required:
+      - direccion
+      - id
+      - nombre
+    SesionChatResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        usuario_id:
+          type: string
+          format: uuid
+        rol_origen:
+          type: string
+          maxLength: 20
+        resolucion_tipo:
+          $ref: '#/components/schemas/ResolucionTipoEnum'
+        creado_en:
+          type: string
+          format: date-time
+        ultimo_mensaje:
+          type: string
+          nullable: true
+          readOnly: true
+        titulo:
+          type: string
+          readOnly: true
+      required:
+      - id
+      - titulo
+      - ultimo_mensaje
+      - usuario_id
+    SlotDisponible:
+      type: object
+      properties:
+        medico_id:
+          type: string
+          format: uuid
+        medico_nombre:
+          type: string
+        especialidad:
+          type: string
+        sede:
+          type: string
+        fecha:
+          type: string
+          format: date
+        hora_inicio:
+          type: string
+          format: time
+        hora_fin:
+          type: string
+          format: time
+        duracion_minutos:
+          type: integer
+        precio:
+          type: number
+          format: double
+      required:
+      - duracion_minutos
+      - especialidad
+      - fecha
+      - hora_fin
+      - hora_inicio
+      - medico_id
+      - medico_nombre
+      - precio
+      - sede
+    UserCreateRequest:
+      type: object
+      properties:
+        nombre_completo:
+          type: string
+          minLength: 3
+          maxLength: 200
+        correo:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 6
+        rol:
+          allOf:
+          - $ref: '#/components/schemas/RolEnum'
+          default: paciente
+        telefono:
+          type: string
+          nullable: true
+        documento_tipo:
+          type: string
+          minLength: 1
+          default: CC
+        documento_numero:
+          type: string
+          nullable: true
+        fecha_nacimiento:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - correo
+      - nombre_completo
+      - password
+    UserLoginRequest:
+      type: object
+      properties:
+        correo:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - correo
+      - password
+    UsuarioResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        nombre_completo:
+          type: string
+          maxLength: 200
+        correo:
+          type: string
+          format: email
+          maxLength: 200
+        rol:
+          type: string
+          readOnly: true
+        telefono:
+          type: string
+          nullable: true
+          maxLength: 20
+        activo:
+          type: boolean
+        creado_en:
+          type: string
+          format: date-time
+      required:
+      - correo
+      - id
+      - nombre_completo
+      - rol
+    WebhookPagoRequest:
+      type: object
+      properties:
+        referencia:
+          type: string
+          minLength: 1
+        estado:
+          $ref: '#/components/schemas/EstadoEnum'
+      required:
+      - estado
+      - referencia
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Ingresa tu token JWT obtenido en /api/auth/login/. Ejemplo: "Bearer
+        <token>" o solo "<token>"'
+tags:
+- name: Auth
+  description: Autenticación JWT, verificación de sesión y roles.
+- name: Chatbot LLM
+  description: Asistente conversacional clínico con orquestación Groq y failover.
+- name: Citas
+  description: Disponibilidad médica, creación, consulta y cancelación de citas.
+- name: Pagos
+  description: Simulación de pagos, webhooks y transacciones.
+- name: PQR & Reembolsos
+  description: Gestión de Peticiones, Quejas, Reclamos y solicitudes de reembolso.
+- name: Médicos
+  description: Gestión del cuerpo médico, agenda clínica y turnos.
+- name: Sedes
+  description: Sedes físicas e infraestructura de atención.
+- name: Especialidades
+  description: Catálogo de especialidades médicas y tarifas base.
+- name: Auditoría
+  description: Trazabilidad inmutable de eventos clínicos, REST y bot_llm (Admin).

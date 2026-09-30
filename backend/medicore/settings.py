@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     # Third party
     'rest_framework',
     'corsheaders',
+    'drf_spectacular',
 
     # Local apps
     'apps.authentication',
@@ -147,9 +148,49 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%S%z',
     'DATE_FORMAT': '%Y-%m-%d',
     'TIME_FORMAT': '%H:%M:%S',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MediCore OS — API Clínica Inteligente',
+    'DESCRIPTION': (
+        'Documentación OpenAPI / Swagger oficial de MediCore OS. '
+        'Plataforma integral de gestión hospitalaria, agendamiento de citas, '
+        'copiloto clínico con IA (Groq failover), pasarela de pagos, PQR y auditoría inmutable.'
+    ),
+    'VERSION': '2.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+    },
+    'SECURITY': [{'BearerAuth': []}],
+    'APPEND_COMPONENTS': {
+        'securitySchemes': {
+            'BearerAuth': {
+                'type': 'http',
+                'scheme': 'bearer',
+                'bearerFormat': 'JWT',
+                'description': 'Ingresa tu token JWT obtenido en /api/auth/login/. Ejemplo: "Bearer <token>" o solo "<token>"',
+            }
+        }
+    },
+    'TAGS': [
+        {'name': 'Auth', 'description': 'Autenticación JWT, verificación de sesión y roles.'},
+        {'name': 'Chatbot LLM', 'description': 'Asistente conversacional clínico con orquestación Groq y failover.'},
+        {'name': 'Citas', 'description': 'Disponibilidad médica, creación, consulta y cancelación de citas.'},
+        {'name': 'Pagos', 'description': 'Simulación de pagos, webhooks y transacciones.'},
+        {'name': 'PQR & Reembolsos', 'description': 'Gestión de Peticiones, Quejas, Reclamos y solicitudes de reembolso.'},
+        {'name': 'Médicos', 'description': 'Gestión del cuerpo médico, agenda clínica y turnos.'},
+        {'name': 'Sedes', 'description': 'Sedes físicas e infraestructura de atención.'},
+        {'name': 'Especialidades', 'description': 'Catálogo de especialidades médicas y tarifas base.'},
+        {'name': 'Auditoría', 'description': 'Trazabilidad inmutable de eventos clínicos, REST y bot_llm (Admin).'},
+    ],
 }
 
 # JWT Settings

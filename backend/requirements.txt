@@ -6,3 +6,4 @@ groq
 python-dotenv
 bcrypt
 psycopg[binary]
+drf-spectacular

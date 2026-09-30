@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from .models import Usuario
 from .serializers import (
     UserLoginSerializer,
@@ -13,6 +14,18 @@ from .authentication import create_access_token
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        tags=['Auth'],
+        summary='Iniciar sesión con credenciales',
+        description='Autentica al usuario (paciente, médico, admin o agente) mediante correo y contraseña. Retorna un JWT Bearer Token y los datos del perfil.',
+        request=UserLoginSerializer,
+        responses={
+            200: OpenApiResponse(description='Autenticación exitosa. Retorna access_token y datos del usuario.'),
+            400: OpenApiResponse(description='Datos de solicitud inválidos.'),
+            401: OpenApiResponse(description='Credenciales incorrectas.'),
+            403: OpenApiResponse(description='Cuenta desactivada.'),
+        }
+    )
     def post(self, request):
         serializer = UserLoginSerializer(data=request.data)
         if not serializer.is_valid():
@@ -54,6 +67,17 @@ class LoginView(APIView):
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        tags=['Auth'],
+        summary='Registro de nuevo usuario/paciente',
+        description='Crea una nueva cuenta de usuario en el sistema. Si el rol es paciente, crea automáticamente el perfil clínico asociado.',
+        request=UserCreateSerializer,
+        responses={
+            201: OpenApiResponse(description='Usuario registrado exitosamente con token JWT y perfil.'),
+            400: OpenApiResponse(description='Validación fallida en los datos enviados.'),
+            409: OpenApiResponse(description='El correo electrónico ya se encuentra registrado.'),
+        }
+    )
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -95,5 +119,14 @@ class RegisterView(APIView):
 class ProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Auth'],
+        summary='Perfil del usuario autenticado (Me)',
+        description='Retorna la información del usuario en sesión activa a partir de su Bearer Token. Roles permitidos: todos los roles autenticados (paciente, medico, admin, agente_atencion).',
+        responses={
+            200: UsuarioResponseSerializer,
+            401: OpenApiResponse(description='Token de autorización ausente o expirado.'),
+        }
+    )
     def get(self, request):
         return Response(UsuarioResponseSerializer(request.user).data)

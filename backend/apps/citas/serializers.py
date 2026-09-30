@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import Cita, ConsultaNota
 
 class CitaCreateSerializer(serializers.Serializer):
@@ -39,17 +40,20 @@ class CitaResponseSerializer(serializers.ModelSerializer):
             'pago_monto',
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_pago_estado(self, obj):
         try:
             return obj.pago.estado_id if hasattr(obj, 'pago') and obj.pago else None
         except Exception:
             return None
 
+    @extend_schema_field(serializers.FloatField(allow_null=True))
     def get_pago_monto(self, obj):
         try:
             return float(obj.pago.monto) if hasattr(obj, 'pago') and obj.pago else None
         except Exception:
             return None
+
 
 
 class SlotDisponibleSerializer(serializers.Serializer):

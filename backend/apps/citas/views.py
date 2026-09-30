@@ -1,7 +1,8 @@
 from datetime import date, datetime, time, timedelta
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions, serializers
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, inline_serializer
 from apps.authentication.authentication import require_role
 from apps.auditoria.services import registrar_auditoria
 from apps.clinica.models import Medico, Paciente
@@ -14,9 +15,23 @@ from .serializers import (
 )
 
 
+
 class DiasDisponiblesView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        tags=['Citas'],
+        summary='Consultar días con disponibilidad médica',
+        description='Retorna las fechas dentro de un rango que cuentan con turnos disponibles para una especialidad médica. Acceso público.',
+        parameters=[
+            OpenApiParameter('fecha_inicio', str, description='Fecha inicial YYYY-MM-DD (por defecto hoy)', required=False),
+            OpenApiParameter('fecha_fin', str, description='Fecha final YYYY-MM-DD (por defecto +30 días)', required=False),
+            OpenApiParameter('especialidad_id', str, description='UUID de la especialidad', required=False),
+            OpenApiParameter('especialidad_nombre', str, description='Nombre de la especialidad (ej: Medicina General)', required=False),
+            OpenApiParameter('genero', str, description="Filtro opcional de género del médico: 'M' (hombre) o 'F' (mujer)", required=False),
+        ],
+        responses={200: OpenApiResponse(description='Fechas y días disponibles encontrados.')}
+    )
     def get(self, request):
         from django.utils import timezone
         hoy = timezone.localdate()
@@ -64,6 +79,17 @@ class DiasDisponiblesView(APIView):
 class DisponibilidadView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        tags=['Citas'],
+        summary='Consultar horarios y cupos libres para una fecha',
+        description='Retorna los turnos de atención y médicos disponibles para una especialidad en una fecha específica (YYYY-MM-DD). Acceso público.',
+        parameters=[
+            OpenApiParameter('fecha', str, description='Fecha de consulta YYYY-MM-DD', required=True),
+            OpenApiParameter('especialidad_id', str, description='UUID de la especialidad', required=False),
+            OpenApiParameter('especialidad_nombre', str, description='Nombre de la especialidad', required=False),
+        ],
+        responses={200: DisponibilidadResponseSerializer}
+    )
     def get(self, request):
         fecha_str = request.query_params.get('fecha')
         if not fecha_str:
@@ -96,6 +122,17 @@ class DisponibilidadView(APIView):
 class CitaCreateView(APIView):
     permission_classes = [require_role(['paciente', 'admin', 'agente_atencion'])]
 
+    @extend_schema(
+        tags=['Citas'],
+        summary='Agendar nueva cita médica',
+        description='Crea una cita médica en estado pendiente_pago. Valida colisiones de horario y genera automáticamente la orden de cobro. Roles: paciente, admin, agente_atencion.',
+        request=CitaCreateSerializer,
+        responses={
+            201: CitaResponseSerializer,
+            400: OpenApiResponse(description='Datos inválidos o perfil de paciente inexistente.'),
+            409: OpenApiResponse(description='Conflicto de horario: el médico o paciente ya tiene cita reservada.'),
+        }
+    )
     def post(self, request):
         serializer = CitaCreateSerializer(data=request.data)
         if not serializer.is_valid():
@@ -169,6 +206,12 @@ class CitaCreateView(APIView):
 class MisCitasView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Citas'],
+        summary='Consultar citas del usuario autenticado',
+        description='Retorna el listado de citas del usuario. Si es paciente retorna sus citas clínicas; si es médico retorna las citas agendadas con él. Roles: paciente, medico.',
+        responses={200: CitaResponseSerializer(many=True)}
+    )
     def get(self, request):
         user = request.user
         if user.rol == 'paciente':
@@ -194,6 +237,12 @@ class MisCitasView(APIView):
 class AgendaHoyView(APIView):
     permission_classes = [require_role(['medico', 'admin'])]
 
+    @extend_schema(
+        tags=['Citas'],
+        summary='Agenda clínica del día de un médico',
+        description='Retorna las citas programadas para la fecha de hoy de un médico por su UUID. Roles: medico, admin.',
+        responses={200: CitaResponseSerializer(many=True)}
+    )
     def get(self, request, medico_id):
         from django.utils import timezone
         tz = timezone.get_current_timezone()
@@ -213,6 +262,32 @@ class AgendaHoyView(APIView):
 
 class CambiarEstadoCitaView(APIView):
     permission_classes = [require_role(['paciente', 'medico', 'admin', 'agente_atencion'])]
+
+    @extend_schema(
+        tags=['Citas'],
+        summary='Actualizar estado de una cita médica',
+        description=(
+            'Modifica el estado de una cita existente (pendiente_pago, confirmada, cancelada, atendida, no_asistio). '
+            'El paciente solo puede cancelar citas propias. El médico puede marcar atendida o no asistió. '
+            'Administradores pueden realizar cualquier cambio. Registra auditoría inmutable automáticamente.'
+        ),
+        request=inline_serializer(
+            name='CambiarEstadoCitaRequest',
+            fields={
+                'nuevo_estado': serializers.ChoiceField(
+                    choices=["pendiente_pago", "confirmada", "cancelada", "atendida", "no_asistio"],
+                    required=True,
+                    help_text='Nuevo estado asignado a la cita'
+                )
+            }
+        ),
+        responses={
+            200: CitaResponseSerializer,
+            400: OpenApiResponse(description='Estado inválido.'),
+            403: OpenApiResponse(description='Permisos insuficientes para modificar esta cita.'),
+            404: OpenApiResponse(description='Cita no encontrada.'),
+        }
+    )
 
     def patch(self, request, cita_id):
         nuevo_estado = request.query_params.get('nuevo_estado') or request.data.get('nuevo_estado') or request.data.get('estado')

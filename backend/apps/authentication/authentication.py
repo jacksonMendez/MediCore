@@ -76,3 +76,25 @@ def require_role(allowed_roles: list[str]):
             return u_rol in allowed_roles or u_rol == 'admin'
 
     return RolePermission
+
+
+try:
+    from drf_spectacular.extensions import OpenApiAuthenticationExtension
+
+    class JWTAuthenticationScheme(OpenApiAuthenticationExtension):
+        target_class = 'apps.authentication.authentication.JWTAuthentication'
+        name = 'BearerAuth'
+
+        def get_security_requirement(self, auto_schema):
+            return {self.name: []}
+
+        def get_security_definition(self, auto_schema):
+            return {
+                'type': 'http',
+                'scheme': 'bearer',
+                'bearerFormat': 'JWT',
+                'description': 'Token JWT en formato: Bearer <token>',
+            }
+except ImportError:
+    pass
+

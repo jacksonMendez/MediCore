@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 from apps.citas.models import Cita
 from apps.auditoria.services import registrar_auditoria
 from .models import Pago
@@ -16,6 +17,19 @@ from .serializers import (
 class SimularPagoView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Pagos'],
+        summary='Simular intento de pago de una cita',
+        description='Genera una referencia sandbox y registra el pago en estado pendiente para una cita médica. Roles: paciente (dueño de la cita), admin.',
+        request=PagoSimularSerializer,
+        responses={
+            201: PagoResponseSerializer,
+            400: OpenApiResponse(description='Datos inválidos o la cita no está pendiente de pago.'),
+            403: OpenApiResponse(description='No autorizado para pagar citas de otro paciente.'),
+            404: OpenApiResponse(description='Cita no encontrada.'),
+            409: OpenApiResponse(description='Ya existe un pago registrado para esta cita.'),
+        }
+    )
     def post(self, request):
         serializer = PagoSimularSerializer(data=request.data)
         if not serializer.is_valid():
@@ -73,6 +87,17 @@ class SimularPagoView(APIView):
 class WebhookPagoView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        tags=['Pagos'],
+        summary='Webhook de notificación de pasarela de pagos',
+        description='Recibe notificaciones automáticas de cambio de estado de pago (aprobado / rechazado). Actualiza la cita asociada (confirmada o cancelada) y genera auditoría inmutable con origen sistema. Acceso público.',
+        request=WebhookPagoSerializer,
+        responses={
+            200: PagoResponseSerializer,
+            400: OpenApiResponse(description='Payload de webhook inválido.'),
+            404: OpenApiResponse(description='Referencia de pago no encontrada.'),
+        }
+    )
     def post(self, request):
         serializer = WebhookPagoSerializer(data=request.data)
         if not serializer.is_valid():
@@ -116,6 +141,16 @@ class WebhookPagoView(APIView):
 class DetallePagoView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Pagos'],
+        summary='Consultar comprobante de pago por ID de cita',
+        description='Retorna los datos de la transacción de pago asociada a una cita médica. Roles: paciente (propietario), admin.',
+        responses={
+            200: PagoResponseSerializer,
+            403: OpenApiResponse(description='No autorizado para ver pagos de otros pacientes.'),
+            404: OpenApiResponse(description='Pago no encontrado para la cita especificada.'),
+        }
+    )
     def get(self, request, cita_id):
         try:
             pago = Pago.objects.select_related('cita__paciente').get(cita_id=cita_id)
@@ -132,6 +167,12 @@ class DetallePagoView(APIView):
 class MisPagosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        tags=['Pagos'],
+        summary='Listar transacciones y pagos',
+        description='Si el usuario es paciente, lista sus pagos y estados. Si es administrador o agente, retorna el consolidado de pagos del sistema. Roles: paciente, admin, agente_atencion.',
+        responses={200: PagoResponseSerializer(many=True)}
+    )
     def get(self, request):
         u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
         if u_rol == "paciente":

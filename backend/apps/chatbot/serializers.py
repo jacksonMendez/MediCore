@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import SesionChat, MensajeChat
 
 class ChatMessageSerializer(serializers.Serializer):
@@ -32,12 +33,15 @@ class MensajeChatResponseSerializer(serializers.ModelSerializer):
             'creado_en'
         ]
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_dias_disponibles(self, obj):
         return obj.metadata_ui.get('dias_disponibles', []) if obj.metadata_ui else []
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_horarios(self, obj):
         return obj.metadata_ui.get('horarios', []) if obj.metadata_ui else []
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_especialidad(self, obj):
         return obj.metadata_ui.get('especialidad', None) if obj.metadata_ui else None
 
@@ -51,15 +55,18 @@ class SesionChatResponseSerializer(serializers.ModelSerializer):
         model = SesionChat
         fields = ['id', 'usuario_id', 'rol_origen', 'resolucion_tipo', 'creado_en', 'ultimo_mensaje', 'titulo']
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_ultimo_mensaje(self, obj):
         ultimo = obj.mensajes.order_by('-creado_en').first()
         if ultimo and ultimo.contenido:
             return ultimo.contenido[:100]
         return None
 
+    @extend_schema_field(serializers.CharField())
     def get_titulo(self, obj):
         primero = obj.mensajes.filter(emisor='usuario').order_by('creado_en').first()
         if primero and primero.contenido:
             clean = primero.contenido.strip()
             return clean[:35] + ("..." if len(clean) > 35 else "")
         return "Nueva consulta"
+

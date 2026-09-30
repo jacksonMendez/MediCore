@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 from .models import Pago
 
 class PagoSimularSerializer(serializers.Serializer):
@@ -29,11 +30,13 @@ class PagoResponseSerializer(serializers.ModelSerializer):
             'actualizado_en',
         ]
 
+    @extend_schema_field(serializers.CharField())
     def get_concepto(self, obj):
         try:
             return f"{obj.cita.medico.especialidad.nombre} - {obj.cita.medico.usuario.nombre_completo}"
         except Exception:
             return "Consulta médica MediCore"
+
 
 
 class WebhookPagoSerializer(serializers.Serializer):
