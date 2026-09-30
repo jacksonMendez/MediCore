@@ -15,6 +15,7 @@ class CitaResponseSerializer(serializers.ModelSerializer):
     medico_nombre = serializers.CharField(source='medico.usuario.nombre_completo', read_only=True)
     sede_nombre = serializers.CharField(source='sede.nombre', read_only=True)
     especialidad_nombre = serializers.CharField(source='medico.especialidad.nombre', read_only=True)
+    estado = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
     pago_estado = serializers.SerializerMethodField()
     pago_monto = serializers.SerializerMethodField()
 
@@ -40,7 +41,7 @@ class CitaResponseSerializer(serializers.ModelSerializer):
 
     def get_pago_estado(self, obj):
         try:
-            return obj.pago.estado if hasattr(obj, 'pago') and obj.pago else None
+            return obj.pago.estado_id if hasattr(obj, 'pago') and obj.pago else None
         except Exception:
             return None
 

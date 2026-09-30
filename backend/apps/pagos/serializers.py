@@ -11,6 +11,8 @@ class PagoResponseSerializer(serializers.ModelSerializer):
     monto = serializers.FloatField()
     concepto = serializers.SerializerMethodField()
     fecha = serializers.DateTimeField(source='actualizado_en', read_only=True)
+    metodo_pago = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
+    estado = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
 
     class Meta:
         model = Pago
