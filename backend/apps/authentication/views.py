@@ -34,6 +34,16 @@ class LoginView(APIView):
 
         token = create_access_token(user)
 
+        from apps.auditoria.services import registrar_auditoria
+        registrar_auditoria(
+            accion='login_exitoso',
+            entidad_tipo='Usuario',
+            entidad_id=str(user.id),
+            usuario=user,
+            datos_cambio={'correo': user.correo, 'rol': str(user.rol_id)},
+            ip=request.META.get('REMOTE_ADDR')
+        )
+
         return Response({
             "access_token": token,
             "token_type": "bearer",

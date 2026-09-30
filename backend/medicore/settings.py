@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'apps.pagos',
     'apps.chatbot',
     'apps.core',
+    'apps.auditoria',
 ]
 
 AUTH_USER_MODEL = 'authentication.Usuario'

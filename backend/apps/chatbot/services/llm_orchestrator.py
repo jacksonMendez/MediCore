@@ -555,7 +555,7 @@ def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo
         fecha_hora=fecha_dt,
         duracion_minutos=medico.duracion_cita_minutos,
         motivo=motivo or "Consulta médica general",
-        estado="pendiente_pago",
+        estado_id="pendiente_pago",
     )
 
     # Opción b: Automatically create pending Pago record
@@ -566,10 +566,30 @@ def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo
             "monto": precio_base,
             "moneda": "COP",
             "referencia": f"MED-{uuid.uuid4().hex[:10].upper()}",
-            "metodo_pago": "sandbox",
-            "estado": "pendiente",
+            "metodo_pago_id": "sandbox",
+            "estado_id": "pendiente",
         }
     )
+
+    try:
+        from apps.auditoria.services import registrar_auditoria
+        registrar_auditoria(
+            accion="cita_creada",
+            entidad_tipo="Cita",
+            entidad_id=str(cita.id),
+            usuario=getattr(paciente, 'usuario', None),
+            rol_en_el_momento="paciente",
+            datos_cambio={
+                "medico": medico.usuario.nombre_completo,
+                "especialidad": medico.especialidad.nombre if medico.especialidad else "",
+                "fecha_hora": cita.fecha_hora.strftime("%Y-%m-%d %H:%M"),
+                "motivo": cita.motivo,
+                "estado": str(cita.estado_id),
+            },
+            origen="bot_llm",
+        )
+    except Exception as audit_err:
+        logger.warning(f"Error registrando auditoría en _tool_agendar_cita: {audit_err}")
 
     return json.dumps({
         "mensaje": "Cita agendada exitosamente.",
@@ -674,8 +694,27 @@ def _tool_cancelar_cita(cita_id: str) -> str:
             "cita_id": str(cita.id),
         }, ensure_ascii=False)
 
-    cita.estado = "cancelada"
+    cita.estado_id = "cancelada"
     cita.save(update_fields=['estado'])
+
+    try:
+        from apps.auditoria.services import registrar_auditoria
+        registrar_auditoria(
+            accion="cita_cancelada",
+            entidad_tipo="Cita",
+            entidad_id=str(cita.id),
+            usuario=getattr(cita.paciente, 'usuario', None),
+            rol_en_el_momento="paciente",
+            datos_cambio={
+                "estado_anterior": "pendiente_pago",
+                "nuevo_estado": "cancelada",
+                "medico": cita.medico.usuario.nombre_completo,
+                "fecha_hora": cita.fecha_hora.strftime("%Y-%m-%d %H:%M"),
+            },
+            origen="bot_llm",
+        )
+    except Exception as audit_err:
+        logger.warning(f"Error registrando auditoría en _tool_cancelar_cita: {audit_err}")
 
     return json.dumps({
         "mensaje": "Cita cancelada exitosamente.",
@@ -697,8 +736,28 @@ def _tool_solicitar_pqr_reembolso(cita_id: str, motivo: str) -> str:
         cita=cita,
         paciente=cita.paciente,
         motivo=motivo,
-        estado="pendiente_revision",
+        tipo_id="reembolso",
+        estado_id="pendiente_revision",
     )
+
+    try:
+        from apps.auditoria.services import registrar_auditoria
+        registrar_auditoria(
+            accion="pqr_radicada",
+            entidad_tipo="PQRSolicitud",
+            entidad_id=str(pqr.id),
+            usuario=getattr(cita.paciente, 'usuario', None),
+            rol_en_el_momento="paciente",
+            datos_cambio={
+                "cita_id": str(cita.id),
+                "motivo": motivo,
+                "tipo": "reembolso",
+                "estado": "pendiente_revision",
+            },
+            origen="bot_llm",
+        )
+    except Exception as audit_err:
+        logger.warning(f"Error registrando auditoría en _tool_solicitar_pqr_reembolso: {audit_err}")
 
     return json.dumps({
         "mensaje": "Solicitud de PQR y reembolso radicada exitosamente.",

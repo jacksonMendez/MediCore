@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from apps.citas.models import Cita
+from apps.auditoria.services import registrar_auditoria
 from .models import Pago
 from .serializers import (
     PagoSimularSerializer,
@@ -49,8 +50,21 @@ class SimularPagoView(APIView):
             monto=monto,
             moneda="COP",
             referencia=referencia,
-            metodo_pago=metodo_pago,
-            estado="pendiente",
+            metodo_pago_id=metodo_pago,
+            estado_id="pendiente",
+        )
+
+        registrar_auditoria(
+            accion='pago_simulado',
+            entidad_tipo='Pago',
+            entidad_id=str(pago.id),
+            usuario=request.user,
+            datos_cambio={
+                'cita_id': str(cita.id),
+                'monto': float(monto),
+                'referencia': referencia,
+                'metodo_pago': metodo_pago,
+            }
         )
 
         return Response(PagoResponseSerializer(pago).data, status=status.HTTP_201_CREATED)
@@ -72,16 +86,29 @@ class WebhookPagoView(APIView):
         except Pago.DoesNotExist:
             return Response({"detail": "Pago no encontrado con esa referencia"}, status=status.HTTP_404_NOT_FOUND)
 
-        pago.estado = nuevo_estado
+        pago.estado_id = nuevo_estado
         pago.actualizado_en = timezone.now()
         pago.save(update_fields=['estado', 'actualizado_en'])
 
         cita = pago.cita
         if nuevo_estado == 'aprobado':
-            cita.estado = 'confirmada'
+            cita.estado_id = 'confirmada'
         elif nuevo_estado == 'rechazado':
-            cita.estado = 'cancelada'
+            cita.estado_id = 'cancelada'
         cita.save(update_fields=['estado'])
+
+        registrar_auditoria(
+            accion='pago_confirmado' if nuevo_estado == 'aprobado' else 'pago_rechazado',
+            entidad_tipo='Pago',
+            entidad_id=str(pago.id),
+            usuario=getattr(cita.paciente, 'usuario', None),
+            origen='sistema',
+            datos_cambio={
+                'referencia': referencia,
+                'nuevo_estado': nuevo_estado,
+                'cita_estado': str(cita.estado_id),
+            }
+        )
 
         return Response(PagoResponseSerializer(pago).data)
 

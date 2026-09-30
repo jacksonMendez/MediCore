@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from apps.authentication.authentication import require_role
+from apps.auditoria.services import registrar_auditoria
 from apps.clinica.models import Medico, Paciente
 from .models import Cita
 from .services import get_disponibilidad, get_dias_disponibles
@@ -149,6 +150,19 @@ class CitaCreateView(APIView):
             }
         )
 
+        registrar_auditoria(
+            accion='cita_creada',
+            entidad_tipo='Cita',
+            entidad_id=str(cita.id),
+            usuario=request.user,
+            datos_cambio={
+                'medico_id': str(medico.id),
+                'fecha_hora': str(fecha_hora),
+                'sede_id': str(medico.sede_id),
+                'motivo': data.get('motivo'),
+            }
+        )
+
         return Response(CitaResponseSerializer(cita).data, status=status.HTTP_201_CREATED)
 
 
@@ -228,7 +242,21 @@ class CambiarEstadoCitaView(APIView):
             if cita.medico.usuario_id != request.user.id and u_rol != 'admin':
                 return Response({"detail": "No tienes permiso para modificar citas de otro médico."}, status=status.HTTP_403_FORBIDDEN)
 
+        estado_anterior = str(cita.estado_id)
         cita.estado_id = nuevo_estado
         cita.save(update_fields=['estado'])
+
+        accion_audit = 'cita_cancelada' if nuevo_estado == 'cancelada' else 'cita_estado_cambiado'
+        registrar_auditoria(
+            accion=accion_audit,
+            entidad_tipo='Cita',
+            entidad_id=str(cita.id),
+            usuario=request.user,
+            datos_cambio={
+                'estado_anterior': estado_anterior,
+                'estado_nuevo': nuevo_estado,
+                'motivo': request.data.get('motivo'),
+            }
+        )
 
         return Response(CitaResponseSerializer(cita).data)
