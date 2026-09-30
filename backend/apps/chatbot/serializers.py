@@ -27,7 +27,7 @@ class SesionChatResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SesionChat
-        fields = ['id', 'usuario_id', 'rol_origen', 'creado_en', 'ultimo_mensaje', 'titulo']
+        fields = ['id', 'usuario_id', 'rol_origen', 'resolucion_tipo', 'creado_en', 'ultimo_mensaje', 'titulo']
 
     def get_ultimo_mensaje(self, obj):
         ultimo = obj.mensajes.order_by('-creado_en').first()

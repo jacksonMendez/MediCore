@@ -12,6 +12,15 @@ class SesionChat(models.Model):
         related_name='sesiones_chat',
     )
     rol_origen = models.CharField(max_length=20, default='paciente')
+    resolucion_tipo = models.CharField(
+        max_length=20,
+        default='en_curso',
+        choices=[
+            ('en_curso', 'En curso'),
+            ('resuelta_ia', 'Resuelta por IA'),
+            ('escalada_humano', 'Escalada a Humano'),
+        ]
+    )
     creado_en = models.DateTimeField(default=timezone.now)
 
     class Meta:

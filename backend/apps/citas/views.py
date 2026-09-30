@@ -135,6 +135,20 @@ class CitaCreateView(APIView):
             estado="pendiente_pago",
         )
 
+        import uuid
+        from apps.pagos.models import Pago
+        precio = medico.especialidad.precio_base if (medico and medico.especialidad) else 50000.00
+        Pago.objects.get_or_create(
+            cita=cita,
+            defaults={
+                'monto': precio,
+                'moneda': 'COP',
+                'referencia': f"MED-{uuid.uuid4().hex[:10].upper()}",
+                'metodo_pago': 'sandbox',
+                'estado': 'pendiente',
+            }
+        )
+
         return Response(CitaResponseSerializer(cita).data, status=status.HTTP_201_CREATED)
 
 

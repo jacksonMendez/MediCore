@@ -29,6 +29,17 @@ def generate_slots(hora_inicio: time, hora_fin: time, duracion_minutos: int, fec
     return slots
 
 
+def normalize_gender(genero: str | None) -> str | None:
+    if not genero or not isinstance(genero, str):
+        return None
+    g = genero.strip().lower()
+    if g in ["m", "hombre", "masculino", "varon", "varón", "doctor", "dr"]:
+        return "M"
+    if g in ["f", "mujer", "femenino", "femenina", "doctora", "dra"]:
+        return "F"
+    return g.upper()
+
+
 def get_disponibilidad(fecha: date, especialidad_id=None, especialidad_nombre=None, genero=None):
     """
     Get available appointment slots for a given date and specialty.
@@ -51,8 +62,9 @@ def get_disponibilidad(fecha: date, especialidad_id=None, especialidad_nombre=No
         activo=True,
     ).select_related('usuario', 'sede')
 
-    if genero:
-        medicos_query = medicos_query.filter(genero__iexact=genero)
+    norm_gen = normalize_gender(genero)
+    if norm_gen:
+        medicos_query = medicos_query.filter(genero__iexact=norm_gen)
 
     medicos = list(medicos_query)
     available_slots = []
@@ -73,7 +85,13 @@ def get_disponibilidad(fecha: date, especialidad_id=None, especialidad_nombre=No
             fecha_hora__range=(start_of_day, end_of_day),
             estado__in=["pendiente_pago", "confirmada"],
         )
-        booked_times = {c.fecha_hora.time() for c in citas_existentes}
+
+        def to_local_time(dt_val):
+            from datetime import timezone as py_tz
+            aware_dt = dt_val.replace(tzinfo=py_tz.utc) if timezone.is_naive(dt_val) else dt_val
+            return timezone.localtime(aware_dt, tz).time()
+
+        booked_times = {to_local_time(c.fecha_hora) for c in citas_existentes}
 
         for horario in horarios:
             raw_slots = generate_slots(
@@ -123,8 +141,9 @@ def get_dias_disponibles(fecha_inicio: date, fecha_fin: date, especialidad_id=No
 
     # Find which days of week doctors work for this specialty
     medicos_query = Medico.objects.filter(especialidad=esp, activo=True)
-    if genero:
-        medicos_query = medicos_query.filter(genero__iexact=genero)
+    norm_gen = normalize_gender(genero)
+    if norm_gen:
+        medicos_query = medicos_query.filter(genero__iexact=norm_gen)
 
     medicos = list(medicos_query)
     if not medicos:

@@ -29,7 +29,28 @@ export function extractAvailableTimeSlots(text: string): string[] {
     lower.includes("indiqueme el motivo") ||
     lower.includes("horario de atención");
 
-  if (isConfirmationOrStatus) {
+  const isNegationOfAvailability =
+    lower.includes("no hay horario") ||
+    lower.includes("no hay disponibilidad") ||
+    lower.includes("no tenemos horario") ||
+    lower.includes("no tenemos disponibilidad") ||
+    lower.includes("no se encontraron") ||
+    lower.includes("no encontramos") ||
+    lower.includes("no contamos con") ||
+    lower.includes("sin disponibilidad") ||
+    lower.includes("no disponemos") ||
+    lower.includes("no fue posible encontrar") ||
+    lower.includes("no cuenta con horario") ||
+    lower.includes("no existen horarios") ||
+    lower.includes("no hay cita") ||
+    lower.includes("no tenemos cita") ||
+    lower.includes("no hay cupo") ||
+    lower.includes("no tenemos cupo") ||
+    lower.includes("lamentablemente no") ||
+    lower.includes("desafortunadamente no") ||
+    /\bno\s+(?:se\s+)?(?:hay|tenemos|cuenta\s+con|dispone\s+de|existen?)\s+(?:horarios?|citas?|cupos?|disponibilidad)\b/i.test(lower);
+
+  if (isConfirmationOrStatus || isNegationOfAvailability) {
     return [];
   }
 
@@ -39,7 +60,7 @@ export function extractAvailableTimeSlots(text: string): string[] {
     try {
       const parsed = JSON.parse(slotsTagMatch[1]);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        return Array.from(new Set(parsed));
       }
     } catch {
       // fallback to regex below
@@ -48,13 +69,13 @@ export function extractAvailableTimeSlots(text: string): string[] {
 
   // 3. Fallback regex: ONLY extract if message is actively inviting the user to pick a time slot
   const isOfferingSlotsContext =
-    lower.includes("selecciona") ||
-    lower.includes("seleccione") ||
-    lower.includes("cuál prefieres") ||
-    lower.includes("cual prefieres") ||
-    lower.includes("horarios disponibles") ||
-    lower.includes("horario disponible") ||
-    lower.includes("estos son los horarios");
+    !isNegationOfAvailability &&
+    (lower.includes("selecciona") ||
+      lower.includes("seleccione") ||
+      lower.includes("cuál prefieres") ||
+      lower.includes("cual prefieres") ||
+      (lower.includes("horarios disponibles") && !lower.includes("no hay") && !lower.includes("no tenemos")) ||
+      lower.includes("estos son los horarios"));
 
   if (!isOfferingSlotsContext) {
     return [];
@@ -273,8 +294,9 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
       </div>
       <div className="flex-1 min-h-0 space-y-5 overflow-y-auto p-5">
         {messages.map((message) => {
-          const slots = message.from === "assistant" ? extractAvailableTimeSlots(message.text) : [];
           const calendarData = message.from === "assistant" ? extractCalendarData(message.text) : null;
+          // CRITICAL BUG 1 FIX: If message has calendarData, NEVER show slots on that same message!
+          const slots = (message.from === "assistant" && !calendarData) ? extractAvailableTimeSlots(message.text) : [];
           let cleanText = message.text
             .replace(/<!--SLOTS:.*?-->/gs, "")
             .replace(/<!--CALENDAR:.*?-->/gs, "")
@@ -286,6 +308,11 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
               .join("\n")
               .trim();
           }
+
+          // Extract date from message text if available to enrich slot button click
+          const dateMatch = message.text.match(/(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}\s+de\s+[a-záéíóú]+(?:\s+(?:de|del)?\s+\d{4})?)/i);
+          const dateSuffix = dateMatch ? ` del ${dateMatch[1]}` : "";
+
           return (
             <div key={message.id} className={cn("flex flex-col", message.from === "user" ? "items-end" : "items-start")}>
               <div
@@ -322,7 +349,7 @@ export function PatientChat({ compact = false, className, mode = "patient" }: { 
                       size="sm"
                       className="h-7 text-xs font-medium border-border/80 bg-background/60 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors cursor-pointer group"
                       disabled={loading}
-                      onClick={() => send(`Quiero agendar a las ${slot}`)}
+                      onClick={() => send(`Quiero agendar a las ${slot}${dateSuffix} para control`)}
                     >
                       <Clock3 className="size-3 mr-1 text-primary group-hover:text-primary-foreground transition-colors" />
                       {slot}

@@ -34,3 +34,5 @@ Thumbs.db
 htmlcov/
 .coverage
 .git_lovable/
+*.backup*
+*.db.backup*

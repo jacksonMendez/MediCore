@@ -102,12 +102,46 @@ class MisPagosView(APIView):
             from apps.clinica.models import Paciente
             paciente = Paciente.objects.filter(usuario=request.user).first()
             if paciente:
+                # Opción b: Auto-backfill for citas without Pago records
+                citas_sin_pago = Cita.objects.filter(
+                    paciente=paciente,
+                    estado="pendiente_pago",
+                    pago__isnull=True
+                ).select_related('medico__especialidad')
+
+                for c in citas_sin_pago:
+                    precio = c.medico.especialidad.precio_base if (c.medico and c.medico.especialidad) else 50000.00
+                    Pago.objects.create(
+                        cita=c,
+                        monto=precio,
+                        moneda="COP",
+                        referencia=f"MED-{uuid.uuid4().hex[:10].upper()}",
+                        metodo_pago="sandbox",
+                        estado="pendiente"
+                    )
+
                 pagos = Pago.objects.filter(cita__paciente=paciente).select_related(
                     'cita__medico__usuario', 'cita__medico__especialidad'
                 ).order_by('-actualizado_en')
             else:
                 pagos = Pago.objects.none()
         elif request.user.rol in ["admin", "recepcionista"]:
+            # Backfill any system-wide citas in pendiente_pago without pago
+            citas_sin_pago = Cita.objects.filter(
+                estado="pendiente_pago",
+                pago__isnull=True
+            ).select_related('medico__especialidad')
+            for c in citas_sin_pago:
+                precio = c.medico.especialidad.precio_base if (c.medico and c.medico.especialidad) else 50000.00
+                Pago.objects.create(
+                    cita=c,
+                    monto=precio,
+                    moneda="COP",
+                    referencia=f"MED-{uuid.uuid4().hex[:10].upper()}",
+                    metodo_pago="sandbox",
+                    estado="pendiente"
+                )
+
             pagos = Pago.objects.all().select_related(
                 'cita__medico__usuario', 'cita__medico__especialidad'
             ).order_by('-actualizado_en')

@@ -6,6 +6,7 @@ Zero-hallucination medical assistant with tool calling.
 import json
 import logging
 import re
+import uuid
 from datetime import date, datetime, time, timedelta
 from django.conf import settings
 from django.utils import timezone
@@ -15,63 +16,41 @@ from apps.citas.models import Cita, ConsultaNota, PQRSolicitud
 from apps.pagos.models import Pago
 from apps.citas.services import get_disponibilidad, get_dias_disponibles
 from apps.chatbot.models import MensajeChat
+from apps.chatbot.services.failover_client import UnifiedLLMClient
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """Eres MediCore, un asistente clínico resolutivo y conciso del sistema médico oficial MediCore OS.
+SYSTEM_PROMPT = """Eres MediCore, el asistente clínico oficial de MediCore OS.
 
-REGLAS ESTRICTAS DE RESPUESTA:
-1. PROHIBIDO dar explicaciones largas sobre lo que puedes o no puedes hacer.
-2. PROHIBIDO listar tus herramientas internas o hablar de tu arquitectura.
-3. PROHIBIDO decir al usuario que vaya a "otro portal web" o a "otra plataforma", porque ESTE ES EL PORTAL OFICIAL de MediCore OS.
-4. Si el usuario consulta por sus citas agendadas ("mis citas", "cuáles son mis citas", "ver mis citas"), DEBES LLAMAR DE INMEDIATO a la herramienta `consultar_mis_citas`.
-5. Si el usuario pide especialista hombre o mujer ("doctora", "médico hombre"), USA el parámetro 'genero' ('F' o 'M') en `consultar_disponibilidad`.
-6. NUNCA inventes horarios. Toda disponibilidad proviene EXCLUSIVAMENTE de `consultar_disponibilidad`.
-7. NUNCA recetes medicamentos ni des diagnósticos médicos definitivos.
-8. Sé directo, formal, empático y resolutivo. Responde en 1 a 3 oraciones claras.
-9. CANCELACIÓN DE CITAS Y REEMBOLSOS:
-   - Si el usuario quiere cancelar una cita o radicar una PQR/reembolso pero no especifica cuál cita, consulta primero `consultar_mis_citas` para identificar las citas del paciente y presentarle las opciones.
-   - Si la cita está en estado 'pendiente_pago' (sin pagar), procede a cancelarla usando la herramienta `cancelar_cita`.
-   - Si la cita YA FUE PAGADA o está en estado 'confirmada': NO puedes cancelarla de inmediato. Explica de forma empática que, debido a que el pago ya fue procesado, se debe radicar una solicitud formal de PQR (Petición, Queja o Reclamo) para el reembolso del dinero. Solicita confirmación y el motivo si no fue provisto antes de invocar la herramienta `solicitar_pqr_reembolso`. Confírmale al paciente el ID de radicado de la PQR generada y que el equipo administrativo la evaluará.
-10. FORMATO DE HORARIOS Y PRESENTACIÓN DE DISPONIBILIDAD:
-   - Para responder sobre disponibilidad de una especialidad en una fecha específica, DEBES LLAMAR OBLIGATORIAMENTE a `consultar_disponibilidad`.
-   - Si el usuario pregunta de forma amplia o relativa por fechas o días disponibles ("la próxima semana", "esta semana", "qué días atienden", "los próximos días", "cuándo hay citas", "qué días hay disponibles", "busca si hay día libre"):
-     DEBES LLAMAR OBLIGATORIAMENTE a `consultar_dias_disponibles`.
-     NUNCA pidas una fecha puntual en formato YYYY-MM-DD ni te quedes en loop si el usuario ya indicó un período relativo o preguntó en general.
-     Al responder tras ejecutar `consultar_dias_disponibles`, resume de forma clara y amable los días con disponibilidad (ejemplo: 'Para Medicina General la próxima semana tenemos disponibilidad los siguientes días: Lunes 21, Martes 22, Jueves 24 y Viernes 25 de septiembre. Puedes seleccionar el día en el calendario que aparece abajo o decirme cuál prefieres.').
-   - Si el usuario menciona un día, número o fecha específica (ej: '21', '21/09/2026', 'el 23', 'mañana', 'el lunes'), identifica la especialidad médica que se viene consultando y LLAMA INMEDIATAMENTE a `consultar_disponibilidad`.
-   - Al responder tras ejecutar `consultar_disponibilidad`, NUNCA hagas una lista con viñetas ni escribas las horas en el texto de tu respuesta. El sistema mostrará automáticamente los botones interactivos para cada hora debajo de tu mensaje.
-   - Tu respuesta de texto tras consultar una fecha debe ser MUY BREVE (ejemplo: 'Tenemos horarios disponibles para Medicina General el 21/09/2026 con la Dra. Ana Martínez Ruiz. Por favor, selecciona el horario que prefieras a continuación:').
-   - PROHIBIDO repetir las horas en texto plano.
-   - Si el paciente selecciona o solicita un horario (ej: 'Quiero agendar a las 8:00 a. m.' o 'a las 2:00 p. m.'), conviértelo al formato 'YYYY-MM-DD HH:MM' de 24 horas requerido al invocar la herramienta `agendar_cita`.
-11. AGENDAMIENTO DE CITAS:
-   - Cuando el usuario indique que quiere agendar una cita o elija una hora, DEBES INVOCAR OBLIGATORIAMENTE la herramienta `agendar_cita` con `paciente_id`, `medico_id`, `fecha_hora` ('YYYY-MM-DD HH:MM') y `motivo`.
-   - Si falta el motivo, pídelo brevemente; una vez provisto el motivo o si el usuario indica 'control', 'chequeo' o similar, LLAMA DE INMEDIATO a `agendar_cita`.
-   - ESTÁ TOTALMENTE PROHIBIDO responder que la cita fue agendada sin haber ejecutado la herramienta `agendar_cita`.
-   - Si la herramienta `agendar_cita` retorna un error (como horario ya ocupado o colisión), DEBES explicarle claramente al usuario que el horario no está disponible y ofrecerle elegir otra hora. NUNCA digas que la cita fue agendada si la herramienta retornó error.
-"""
+REGLAS OBLIGATORIAS:
+1. Responde de forma directa, empática y breve (1 a 3 oraciones). PROHIBIDO explicaciones largas, listar herramientas internas o remitir a portales externos (este es el portal oficial).
+2. CITAS DEL PACIENTE: Para consultar citas del paciente ("mis citas"), invoca OBLIGATORIAMENTE `consultar_mis_citas`.
+3. DISPONIBILIDAD Y HORARIOS:
+   - Para fecha específica: invoca `consultar_disponibilidad` (usa 'genero': 'F' o 'M' si el usuario pide doctora o doctor).
+   - Para períodos amplios o relativos ("próxima semana", "esta semana", "qué días atienden", "día libre"): invoca `consultar_dias_disponibles` (usa 'genero': 'F' o 'M' si aplica). NUNCA pidas formato YYYY-MM-DD ni entres en loop. Resume los días amablemente.
+   - Si la consulta retorna 0 cupos o no hay disponibilidad: DEBES responder con claridad y empatía que NO hay horarios disponibles para esa fecha o filtro de género (ej: 'No hay horarios disponibles para Medicina General con médico hombre el 24 de septiembre de 2026. ¿Deseas consultar otra fecha o con una doctora?'). TOTALMENTE PROHIBIDO decir que hay citas o invitar a seleccionar horario si la herramienta retornó 0 cupos libres.
+   - Si SÍ hay disponibilidad: NUNCA listes horas en viñetas ni texto plano (el sistema genera automáticamente los botones interactivos). Tu texto debe ser muy breve (ej: 'Tenemos horarios disponibles para Medicina General el [fecha]. Selecciona el que prefieras a continuación:').
+4. AGENDAMIENTO:
+   - Al seleccionar o solicitar un horario (ej: 'a las 8:00 a. m.'): invoca OBLIGATORIAMENTE `agendar_cita` con `fecha_hora` ('YYYY-MM-DD HH:MM' 24h), `paciente_id`, `medico_id` y `motivo` (por defecto 'Control médico').
+   - NUNCA digas que la cita fue agendada sin haber ejecutado `agendar_cita`.
+5. CANCELACIÓN Y REEMBOLSOS:
+   - Si no especifica cuál cita, consulta primero `consultar_mis_citas`.
+   - Si la cita está en 'pendiente_pago', cancela con `cancelar_cita`.
+   - Si la cita está pagada o 'confirmada': NO canceles directo. Explica que se requiere radicar PQR formal para reembolso, solicita motivo/confirmación e invoca `solicitar_pqr_reembolso`.
+6. SEGURIDAD: NUNCA recetes medicamentos ni des diagnósticos definitivos. NUNCA inventes horarios."""
 
 TOOLS = [
     {
         "type": "function",
         "function": {
             "name": "consultar_disponibilidad",
-            "description": "Consulta los horarios disponibles para una especialidad médica en una fecha específica. Opcionalmente filtra por género del médico ('M' o 'F'). Cruza los horarios con citas existentes.",
+            "description": "Consulta horarios libres para una especialidad en fecha YYYY-MM-DD. Opcional: filtro género 'M'/'F'.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "especialidad_nombre": {
-                        "type": "string",
-                        "description": "Nombre de la especialidad médica (ej: 'Medicina General', 'Cardiología', 'Pediatría')",
-                    },
-                    "fecha": {
-                        "type": "string",
-                        "description": "Fecha para consultar disponibilidad en formato YYYY-MM-DD",
-                    },
-                    "genero": {
-                        "type": "string",
-                        "description": "Filtro opcional por género del médico: 'M' (hombre) o 'F' (mujer)",
-                    },
+                    "especialidad_nombre": {"type": "string", "description": "Nombre de la especialidad (ej: 'Medicina General')"},
+                    "fecha": {"type": "string", "description": "Fecha YYYY-MM-DD"},
+                    "genero": {"type": "string", "description": "Filtro opcional: 'M' (hombre) o 'F' (mujer)"},
                 },
                 "required": ["especialidad_nombre", "fecha"],
             },
@@ -81,30 +60,15 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "consultar_dias_disponibles",
-            "description": "Consulta qué días tienen disponibilidad de citas médicas para una especialidad en un rango o período relativo (ej: 'la próxima semana', 'esta semana', 'los próximos días', 'este mes' o fechas específicas). Retorna la lista de fechas con cupos libres.",
+            "description": "Consulta qué fechas tienen cupos libres para una especialidad en un rango o período relativo.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "especialidad_nombre": {
-                        "type": "string",
-                        "description": "Nombre de la especialidad médica (ej: 'Medicina General', 'Cardiología', 'Pediatría')",
-                    },
-                    "periodo": {
-                        "type": "string",
-                        "description": "Expresión o período relativo indicado por el usuario (ej: 'la próxima semana', 'esta semana', 'los próximos días', 'este mes')",
-                    },
-                    "fecha_inicio": {
-                        "type": "string",
-                        "description": "Fecha inicial opcional en formato YYYY-MM-DD",
-                    },
-                    "fecha_fin": {
-                        "type": "string",
-                        "description": "Fecha final opcional en formato YYYY-MM-DD",
-                    },
-                    "genero": {
-                        "type": "string",
-                        "description": "Filtro opcional por género del médico: 'M' (hombre) o 'F' (mujer)",
-                    },
+                    "especialidad_nombre": {"type": "string", "description": "Nombre de la especialidad"},
+                    "periodo": {"type": "string", "description": "Período relativo (ej: 'la próxima semana', 'esta semana')"},
+                    "fecha_inicio": {"type": "string", "description": "Fecha inicial YYYY-MM-DD opcional"},
+                    "fecha_fin": {"type": "string", "description": "Fecha final YYYY-MM-DD opcional"},
+                    "genero": {"type": "string", "description": "Filtro opcional 'M' o 'F'"},
                 },
                 "required": ["especialidad_nombre"],
             },
@@ -114,14 +78,11 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "consultar_mis_citas",
-            "description": "Consulta las citas registradas y activas del paciente autenticado actual.",
+            "description": "Consulta citas activas del paciente autenticado.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "paciente_id": {
-                        "type": "string",
-                        "description": "UUID del paciente",
-                    },
+                    "paciente_id": {"type": "string", "description": "UUID del paciente"},
                 },
                 "required": ["paciente_id"],
             },
@@ -131,26 +92,14 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "registrar_paciente",
-            "description": "Registra un nuevo paciente en el sistema. Crea un usuario y perfil de paciente si no existen.",
+            "description": "Registra un nuevo paciente en el sistema.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "nombre": {
-                        "type": "string",
-                        "description": "Nombre completo del paciente",
-                    },
-                    "documento": {
-                        "type": "string",
-                        "description": "Número de documento de identidad",
-                    },
-                    "correo": {
-                        "type": "string",
-                        "description": "Correo electrónico del paciente",
-                    },
-                    "telefono": {
-                        "type": "string",
-                        "description": "Teléfono de contacto",
-                    },
+                    "nombre": {"type": "string", "description": "Nombre completo"},
+                    "documento": {"type": "string", "description": "Documento de identidad"},
+                    "correo": {"type": "string", "description": "Correo electrónico"},
+                    "telefono": {"type": "string", "description": "Teléfono"},
                 },
                 "required": ["nombre", "documento", "correo", "telefono"],
             },
@@ -160,28 +109,16 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "agendar_cita",
-            "description": "Agenda una cita médica para un paciente con un médico específico. La cita se crea en estado 'pendiente_pago'.",
+            "description": "Agenda cita médica en estado 'pendiente_pago'. Requiere fecha_hora en 'YYYY-MM-DD HH:MM'.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "paciente_id": {
-                        "type": "string",
-                        "description": "UUID del paciente",
-                    },
-                    "medico_id": {
-                        "type": "string",
-                        "description": "UUID del médico",
-                    },
-                    "fecha_hora": {
-                        "type": "string",
-                        "description": "Fecha y hora de la cita en formato YYYY-MM-DD HH:MM",
-                    },
-                    "motivo": {
-                        "type": "string",
-                        "description": "Motivo de la consulta",
-                    },
+                    "paciente_id": {"type": "string", "description": "UUID del paciente"},
+                    "medico_id": {"type": "string", "description": "Nombre, especialidad o UUID del médico"},
+                    "fecha_hora": {"type": "string", "description": "Fecha y hora en formato 'YYYY-MM-DD HH:MM'"},
+                    "motivo": {"type": "string", "description": "Motivo de la consulta (ej: 'Control médico')"},
                 },
-                "required": ["paciente_id", "medico_id", "fecha_hora", "motivo"],
+                "required": ["paciente_id", "medico_id", "fecha_hora"],
             },
         },
     },
@@ -189,14 +126,11 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "consultar_agenda_hoy",
-            "description": "Obtiene la lista de citas programadas para hoy de un médico específico.",
+            "description": "Consulta citas programadas para hoy de un médico por su UUID.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "medico_id": {
-                        "type": "string",
-                        "description": "UUID del médico",
-                    },
+                    "medico_id": {"type": "string", "description": "UUID del médico"},
                 },
                 "required": ["medico_id"],
             },
@@ -206,14 +140,11 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "consultar_historial_paciente",
-            "description": "Obtiene el historial de notas clínicas y diagnósticos previos de un paciente por su número de documento.",
+            "description": "Consulta notas clínicas y antecedentes de un paciente por su documento.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "documento_numero": {
-                        "type": "string",
-                        "description": "Número de documento del paciente",
-                    },
+                    "documento_numero": {"type": "string", "description": "Número de documento del paciente"},
                 },
                 "required": ["documento_numero"],
             },
@@ -223,14 +154,11 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "cancelar_cita",
-            "description": "Cancela una cita médica que se encuentra en estado 'pendiente_pago' (sin pagar). Si la cita ya está pagada o confirmada, la herramienta rechaza la cancelación directa e indica que se debe radicar una PQR de reembolso.",
+            "description": "Cancela una cita médica sin pagar en estado 'pendiente_pago'.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cita_id": {
-                        "type": "string",
-                        "description": "UUID de la cita médica a cancelar",
-                    },
+                    "cita_id": {"type": "string", "description": "UUID de la cita a cancelar"},
                 },
                 "required": ["cita_id"],
             },
@@ -240,18 +168,12 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "solicitar_pqr_reembolso",
-            "description": "Registra una solicitud formal de PQR (Petición, Queja, Reclamo) y devolución/reembolso de dinero para una cita médica que ya fue pagada. Registra la solicitud en estado 'pendiente_revision' para administración.",
+            "description": "Radica solicitud formal de PQR y reembolso para una cita que ya fue pagada.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cita_id": {
-                        "type": "string",
-                        "description": "UUID de la cita médica sobre la que se solicita el reembolso",
-                    },
-                    "motivo": {
-                        "type": "string",
-                        "description": "Motivo o explicación del paciente para solicitar la cancelación y reembolso",
-                    },
+                    "cita_id": {"type": "string", "description": "UUID de la cita pagada"},
+                    "motivo": {"type": "string", "description": "Motivo del paciente para solicitar el reembolso"},
                 },
                 "required": ["cita_id", "motivo"],
             },
@@ -320,6 +242,17 @@ def _parse_flexible_date(fecha: str) -> date | None:
     return None
 
 
+def _detect_gender_from_text(text: str) -> str | None:
+    if not text:
+        return None
+    t = text.lower()
+    if any(k in t for k in ["médico hombre", "medico hombre", "doctor hombre", "masculino", "varón", "varon", "un hombre", "un doctor", "doctor varon", "doctor varón"]):
+        return "M"
+    if any(k in t for k in ["doctora", "médico mujer", "medico mujer", "femenino", "femenina", "una mujer", "una doctora"]):
+        return "F"
+    return None
+
+
 def _tool_consultar_disponibilidad(especialidad_nombre: str, fecha: str, genero: str = None) -> str:
     fecha_dt = _parse_flexible_date(fecha)
     if not fecha_dt:
@@ -341,31 +274,28 @@ def _tool_consultar_disponibilidad(especialidad_nombre: str, fecha: str, genero:
     if err:
         return json.dumps({"error": err})
 
-    # Format slots
+    # Format slots concisely to minimize token consumption
+    first_slot = data["slots"][0] if data.get("slots") else {}
     slots_formatted = [
         {
-            "medico_id": str(s["medico_id"]),
-            "medico_nombre": s["medico_nombre"],
-            "genero": s.get("genero", "M"),
-            "sede": s["sede"],
             "hora": s["hora_inicio"].strftime("%H:%M") if isinstance(s["hora_inicio"], time) else str(s["hora_inicio"]),
             "hora_12h": (
                 s["hora_inicio"].strftime("%I:%M %p").replace("AM", "a. m.").replace("PM", "p. m.").lstrip("0")
                 if isinstance(s["hora_inicio"], time)
                 else str(s["hora_inicio"])
             ),
-            "duracion_minutos": s["duracion_minutos"],
-            "precio": s["precio"],
         }
         for s in data["slots"]
     ]
 
     return json.dumps({
         "especialidad": data["especialidad"],
-        "fecha": fecha,
-        "filtro_genero": genero or "todos",
+        "fecha": str(fecha_dt),
+        "medico": first_slot.get("medico_nombre", ""),
+        "sede": first_slot.get("sede", ""),
+        "precio": first_slot.get("precio", 50000.0),
+        "total_disponibles": len(slots_formatted),
         "slots_disponibles": slots_formatted,
-        "total": len(slots_formatted),
     }, ensure_ascii=False)
 
 
@@ -553,7 +483,12 @@ def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo
     if not paciente:
         return json.dumps({"error": "No se pudo identificar al paciente para registrar la cita."})
 
-    # 2. Resolve Medico
+    # 2. Parse Datetime first so weekday can be used to resolve doctor if needed
+    fecha_dt = _parse_flexible_datetime(fecha_hora)
+    if not fecha_dt:
+        return json.dumps({"error": f"Formato de fecha y hora inválido: '{fecha_hora}'. Use YYYY-MM-DD HH:MM"})
+
+    # 3. Resolve Medico
     medico = None
     if medico_id:
         try:
@@ -571,16 +506,21 @@ def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo
             medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').filter(
                 especialidad__nombre__icontains=str(medico_id).strip()
             ).first()
+
+    # If medico is still not found (or medico_id was a dummy UUID or omitted), match doctor who works on this day
+    if not medico and fecha_dt:
+        dias_map = {0: 'lunes', 1: 'martes', 2: 'miercoles', 3: 'jueves', 4: 'viernes', 5: 'sabado', 6: 'domingo'}
+        dia_semana_str = dias_map.get(fecha_dt.weekday())
+        medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').filter(
+            activo=True,
+            horarios__dia=dia_semana_str
+        ).first()
+
     if not medico:
         medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').filter(activo=True).first()
 
     if not medico:
         return json.dumps({"error": "No se encontró el médico asignado para la especialidad solicitada."})
-
-    # 3. Parse Datetime
-    fecha_dt = _parse_flexible_datetime(fecha_hora)
-    if not fecha_dt:
-        return json.dumps({"error": f"Formato de fecha y hora inválido: '{fecha_hora}'. Use YYYY-MM-DD HH:MM"})
 
     # 4. Strict Collision Check: Doctor and Patient
     conflict_medico = Cita.objects.filter(
@@ -616,6 +556,19 @@ def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo
         duracion_minutos=medico.duracion_cita_minutos,
         motivo=motivo or "Consulta médica general",
         estado="pendiente_pago",
+    )
+
+    # Opción b: Automatically create pending Pago record
+    precio_base = medico.especialidad.precio_base if (medico and medico.especialidad) else 50000.00
+    Pago.objects.get_or_create(
+        cita=cita,
+        defaults={
+            "monto": precio_base,
+            "moneda": "COP",
+            "referencia": f"MED-{uuid.uuid4().hex[:10].upper()}",
+            "metodo_pago": "sandbox",
+            "estado": "pendiente",
+        }
     )
 
     return json.dumps({
@@ -777,30 +730,28 @@ TOOL_FUNCTIONS = {
 
 class LLMOrchestrator:
     def __init__(self):
-        self.client = None
-        self._init_client()
+        self.llm_client = UnifiedLLMClient()
 
-    def _init_client(self):
-        if settings.GROQ_API_KEY and not settings.GROQ_API_KEY.startswith("gsk_your_key"):
-            try:
-                from groq import Groq
-                self.client = Groq(api_key=settings.GROQ_API_KEY)
-            except ImportError:
-                logger.warning("groq package not installed. Chat will use fallback mode.")
-            except Exception as e:
-                logger.error(f"Failed to initialize Groq client: {e}")
-
-    def _load_context(self, sesion_id) -> list[dict]:
-        mensajes = list(
-            MensajeChat.objects.filter(sesion_id=sesion_id)
-            .order_by('-creado_en')[:6]
-        )
+    def _load_context(self, sesion_id, current_mensaje: str = None) -> list[dict]:
+        qs = MensajeChat.objects.filter(sesion_id=sesion_id).order_by('-creado_en')
+        mensajes = list(qs[:6])
         mensajes.reverse()
+
+        # If the view already saved the current user message, pop it so it isn't duplicated in context
+        if mensajes and current_mensaje:
+            last_m = mensajes[-1]
+            if last_m.emisor == "usuario" and last_m.contenido.strip() == current_mensaje.strip():
+                mensajes.pop()
 
         context = []
         for m in mensajes:
             role = "user" if m.emisor == "usuario" else "assistant"
-            context.append({"role": role, "content": m.contenido})
+            content = m.contenido
+            if role == "assistant":
+                # Strip internal metadata tags so model never sees raw tags in few-shot history
+                content = re.sub(r'<!--SLOTS:.*?-->', '', content, flags=re.DOTALL)
+                content = re.sub(r'<!--CALENDAR:.*?-->', '', content, flags=re.DOTALL).strip()
+            context.append({"role": role, "content": content})
         return context
 
     def _execute_tool(self, tool_name: str, arguments: dict) -> str:
@@ -815,19 +766,7 @@ class LLMOrchestrator:
             return json.dumps({"error": f"Error al ejecutar {tool_name}: {str(e)}"})
 
     def chat(self, mensaje: str, sesion_id, usuario: Usuario) -> dict:
-        if not self.client:
-            return {
-                "respuesta": (
-                    "🏥 ¡Hola! Soy MediCore, tu asistente médico virtual. "
-                    "Actualmente el servicio de IA no está configurado. "
-                    "Por favor, contacta al administrador para configurar la API Key de Groq. "
-                    "Mientras tanto, puedes usar el sistema de citas directamente desde el panel."
-                ),
-                "actualizo_citas": False,
-                "herramientas_usadas": [],
-            }
-
-        context = self._load_context(sesion_id)
+        context = self._load_context(sesion_id, current_mensaje=mensaje)
 
         user_context = f"\n\nContexto del usuario actual:\n- Nombre: {usuario.nombre_completo}\n- Rol: {usuario.rol}\n- ID: {str(usuario.id)}"
         if usuario.rol == "paciente":
@@ -850,11 +789,9 @@ class LLMOrchestrator:
         calendar_data = None
 
         try:
-            response = self.client.chat.completions.create(
-                model=settings.GROQ_MODEL,
+            response, provider, model, is_fallback = self.llm_client.create_completion(
                 messages=messages,
                 tools=TOOLS,
-                tool_choice="auto",
                 temperature=0.0,
                 max_tokens=350,
             )
@@ -882,7 +819,13 @@ class LLMOrchestrator:
 
                 for tool_call in response_message.tool_calls:
                     func_name = tool_call.function.name
-                    func_args = json.loads(tool_call.function.arguments)
+                    func_args = json.loads(tool_call.function.arguments) if isinstance(tool_call.function.arguments, str) else tool_call.function.arguments
+
+                    # Inherit user gender preference if not explicitly provided by LLM
+                    if func_name in ["consultar_disponibilidad", "consultar_dias_disponibles"] and not func_args.get("genero"):
+                        detected_g = _detect_gender_from_text(mensaje)
+                        if detected_g:
+                            func_args["genero"] = detected_g
 
                     logger.info(f"Executing tool: {func_name} with args: {func_args}")
                     tool_result = self._execute_tool(func_name, func_args)
@@ -891,22 +834,26 @@ class LLMOrchestrator:
                     if func_name == "consultar_disponibilidad":
                         try:
                             parsed_res = json.loads(tool_result)
-                            if "slots_disponibles" in parsed_res:
+                            if "slots_disponibles" in parsed_res and parsed_res.get("total_disponibles", len(parsed_res["slots_disponibles"])) > 0:
                                 for s in parsed_res["slots_disponibles"]:
                                     if "hora_12h" in s and s["hora_12h"] not in available_slots_12h:
                                         available_slots_12h.append(s["hora_12h"])
+                            else:
+                                available_slots_12h = []
                         except Exception as parse_err:
                             logger.error(f"Error parsing slots: {parse_err}")
 
                     if func_name == "consultar_dias_disponibles":
                         try:
                             parsed_dias = json.loads(tool_result)
-                            if "dias_disponibles" in parsed_dias and parsed_dias["dias_disponibles"]:
+                            if "dias_disponibles" in parsed_dias and parsed_dias.get("total_dias_disponibles", len(parsed_dias["dias_disponibles"])) > 0:
                                 calendar_data = {
                                     "especialidad": parsed_dias.get("especialidad", ""),
                                     "dias_disponibles": parsed_dias.get("fechas_activas", []),
                                     "mes_inicial": parsed_dias["dias_disponibles"][0]["fecha"][:7] if parsed_dias["dias_disponibles"] else "",
                                 }
+                            else:
+                                calendar_data = None
                         except Exception as parse_err:
                             logger.error(f"Error parsing dias disponibles: {parse_err}")
 
@@ -916,11 +863,9 @@ class LLMOrchestrator:
                         "content": tool_result,
                     })
 
-                response = self.client.chat.completions.create(
-                    model=settings.GROQ_MODEL,
+                response, provider, model, is_fallback = self.llm_client.create_completion(
                     messages=messages,
                     tools=TOOLS,
-                    tool_choice="auto",
                     temperature=0.0,
                     max_tokens=350,
                 )
@@ -928,15 +873,31 @@ class LLMOrchestrator:
 
             final_content = response_message.content or "No pude generar una respuesta. ¿Podrías reformular tu pregunta?"
 
+            # Check if LLM response explicitly negates availability
+            is_negation_response = any(neg in final_content.lower() for neg in [
+                "no hay horario", "no hay horarios", "no tenemos horario", "no tenemos horarios",
+                "no se encontraron horario", "no se encontraron horarios", "no encontramos horario",
+                "no hay disponibilidad", "no tenemos disponibilidad", "sin disponibilidad",
+                "no contamos con", "no disponemos", "no fue posible encontrar",
+                "no cuenta con horarios", "no cuenta con horario", "no existen horarios",
+                "no hay cita", "no hay citas", "no tenemos citas", "no se encontraron citas",
+                "no hay cupo", "no hay cupos", "no tenemos cupos", "no encontramos cupos",
+                "lamentablemente no", "desafortunadamente no"
+            ]) or bool(re.search(r'\bno\s+(?:se\s+)?(?:hay|tenemos|cuenta\s+con|dispone\s+de|existen?)\s+(?:horarios?|citas?|cupos?|disponibilidad)\b', final_content, re.IGNORECASE))
+
+            if is_negation_response:
+                available_slots_12h = []
+
             # Safety fallback for broad date queries (prevent loop or demanding YYYY-MM-DD)
             combined_msg = f"{mensaje} {final_content}".lower()
             is_broad_date_query = any(k in combined_msg for k in [
                 "próxima semana", "proxima semana", "esta semana", "qué días", "que dias",
                 "días disponibles", "dias disponibles", "día libre", "dia libre",
-                "días libres", "dias libres", "hay citas", "cuándo atienden", "cuando atienden"
+                "días libres", "dias libres", "hay citas", "cuándo atienden", "cuando atienden",
+                "agendar una cita", "agendar cita", "sacar cita", "pedir cita"
             ])
 
-            if not calendar_data and not available_slots_12h and is_broad_date_query:
+            if not calendar_data and not available_slots_12h and not is_negation_response and is_broad_date_query:
                 found_esp_name = "Medicina General"
                 for esp in Especialidad.objects.all():
                     if esp.nombre.lower() in combined_msg:
@@ -958,8 +919,11 @@ class LLMOrchestrator:
                 except Exception as e_fb:
                     logger.error(f"Fallback calendar error: {e_fb}")
 
-            # Safety fallback: if LLM mentions availability or asks to pick a slot, but available_slots_12h is empty
-            if not available_slots_12h and any(k in final_content.lower() for k in ["horarios disponibles", "seleccione el que prefiera", "selecciona el que prefiera", "horario disponible", "a continuación"]):
+            # Safety fallback: if LLM invites user to select a slot, but available_slots_12h is empty
+            # CRITICAL: ONLY run if calendar_data is NOT present AND it's NOT a negation message!
+            if not calendar_data and not available_slots_12h and not is_negation_response and any(k in final_content.lower() for k in [
+                "seleccione el que prefiera", "selecciona el que prefiera", "cuál prefieres", "cual prefieres", "a continuación:"
+            ]):
                 combined_text = f"{mensaje} {final_content}"
                 date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4}|\d{1,2}\s+de\s+[a-záéíóú]+(?:\s+(?:de|del)?\s+\d{4})?)', combined_text, re.IGNORECASE)
                 parsed_dt = _parse_flexible_date(date_match.group(1)) if date_match else None
@@ -976,8 +940,15 @@ class LLMOrchestrator:
                 if not found_esp:
                     found_esp = Especialidad.objects.first()
 
+                detected_genero = None
+                combined_lower = f"{mensaje} {final_content}".lower()
+                if any(k in combined_lower for k in ["médico hombre", "medico hombre", "doctor hombre", "masculino", "varón", "varon"]):
+                    detected_genero = "M"
+                elif any(k in combined_lower for k in ["doctora", "médico mujer", "medico mujer", "femenino", "femenina"]):
+                    detected_genero = "F"
+
                 if parsed_dt and found_esp:
-                    data, err = get_disponibilidad(fecha=parsed_dt, especialidad_id=found_esp.id)
+                    data, err = get_disponibilidad(fecha=parsed_dt, especialidad_id=found_esp.id, genero=detected_genero)
                     if data and data.get("slots"):
                         for s in data["slots"]:
                             h12 = (
@@ -988,13 +959,66 @@ class LLMOrchestrator:
                             if h12 not in available_slots_12h:
                                 available_slots_12h.append(h12)
 
-            if available_slots_12h:
-                final_content += f"\n<!--SLOTS:{json.dumps(available_slots_12h)}-->"
+            # Strip any internal metadata tags that LLM might have generated on its own
+            final_content = re.sub(r'<!--SLOTS:.*?-->', '', final_content, flags=re.DOTALL)
+            final_content = re.sub(r'<!--CALENDAR:.*?-->', '', final_content, flags=re.DOTALL).strip()
+
+            actualizo_citas = any(t in tools_executed for t in ["agendar_cita", "cancelar_cita", "solicitar_pqr_reembolso"])
+
+            # DETERMINISTIC SCHEDULING SAFEGUARD:
+            # If the user intended to schedule, but agendar_cita was not called by Groq (e.g. LLM answered in text or hallucinated error/success):
+            is_scheduling_request = bool(re.search(r'agendar|apartar|reservar', mensaje, re.I)) or (mensaje.strip().lower() in ["control", "chequeo", "consulta", "general"] and any("motivo" in m.get("content", "").lower() for m in context[-2:]))
+
+            if not actualizo_citas and is_scheduling_request and usuario.rol == "paciente":
+                combined_history = " ".join([m.get("content", "") for m in context[-4:]]) + f" {mensaje}"
+                time_match = re.search(r'(?:a\s+las\s+)?([0-1]?[0-9]:[0-5][0-9]\s*(?:a\.?\s*m\.?|p\.?\s*m\.?|am|pm)?)', mensaje, re.I)
+                if not time_match:
+                    time_match = re.search(r'(?:a\s+las\s+)?([0-1]?[0-9]:[0-5][0-9]\s*(?:a\.?\s*m\.?|p\.?\s*m\.?|am|pm)?)', combined_history, re.I)
+                date_match = re.search(r'(\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2}-\d{1,2}-\d{2,4}|\d{1,2}\s+de\s+[a-záéíóú]+(?:\s+(?:de|del)?\s+\d{4})?)', combined_history, re.I)
+
+                if time_match and date_match:
+                    parsed_booking_date = _parse_flexible_date(date_match.group(1))
+                    time_raw = time_match.group(1).strip()
+                    if parsed_booking_date:
+                        target_dt_str = f"{parsed_booking_date.strftime('%Y-%m-%d')} {time_raw}"
+                        paciente_obj = Paciente.objects.filter(usuario=usuario).first()
+                        if paciente_obj:
+                            motivo_final = mensaje if mensaje.strip().lower() in ["control", "chequeo", "consulta general"] else "Consulta médica general"
+                            book_raw = _tool_agendar_cita(
+                                paciente_id=str(paciente_obj.id),
+                                medico_id="Medicina General",
+                                fecha_hora=target_dt_str,
+                                motivo=motivo_final,
+                            )
+                            try:
+                                book_data = json.loads(book_raw)
+                                if "cita_id" in book_data:
+                                    final_content = (
+                                        f"¡Cita agendada exitosamente! Tu cita con {book_data['medico']} ({book_data['especialidad']}) "
+                                        f"quedó programada para el {book_data['fecha_hora']} en la {book_data['sede']}. "
+                                        f"El estado actual es 'pendiente_pago'. Puedes proceder al pago para confirmarla."
+                                    )
+                                    actualizo_citas = True
+                                    tools_executed.append("agendar_cita")
+                                    # Since booking succeeded, clear any slots
+                                    available_slots_12h = []
+                                elif "error" in book_data:
+                                    final_content = book_data["error"]
+                            except Exception as e_book:
+                                logger.error(f"Fallback booking error: {e_book}")
+
+            # Append tags safely: only if not showing calendar AND not a negation response
+            if available_slots_12h and not calendar_data and not is_negation_response:
+                seen_s = set()
+                dedup_slots = []
+                for s in available_slots_12h:
+                    if s not in seen_s:
+                        seen_s.add(s)
+                        dedup_slots.append(s)
+                final_content += f"\n<!--SLOTS:{json.dumps(dedup_slots)}-->"
 
             if calendar_data:
                 final_content += f"\n<!--CALENDAR:{json.dumps(calendar_data)}-->"
-
-            actualizo_citas = any(t in tools_executed for t in ["agendar_cita", "cancelar_cita", "solicitar_pqr_reembolso"])
 
             return {
                 "respuesta": final_content,
@@ -1003,12 +1027,12 @@ class LLMOrchestrator:
             }
 
         except Exception as e:
-            logger.error(f"LLM orchestration error: {e}")
+            logger.error(f"LLM orchestration error: {e}", exc_info=True)
             return {
                 "respuesta": (
-                    "⚠️ Lo siento, ocurrió un error al procesar tu solicitud. "
-                    "Por favor, intenta de nuevo en unos momentos. "
-                    f"Error: {str(e)[:100]}"
+                    "🏥 En este momento nuestros servicios de consulta médica asistida están "
+                    "experimentando una alta demanda. Por favor intenta de nuevo en unos momentos "
+                    "o comunícate directamente con la recepción de la clínica."
                 ),
                 "actualizo_citas": False,
                 "herramientas_usadas": tools_executed,

@@ -65,6 +65,15 @@ class EnviarMensajeView(APIView):
             contenido=respuesta,
         )
 
+        # Update session resolution metric
+        if "solicitar_pqr_reembolso" in herramientas_usadas or any(k in mensaje.lower() for k in ["hablar con humano", "asesor humano", "persona real", "agente humano"]):
+            sesion.resolucion_tipo = "escalada_humano"
+            sesion.save(update_fields=["resolucion_tipo"])
+        elif any(k in herramientas_usadas for k in ["agendar_cita", "cancelar_cita", "consultar_disponibilidad", "consultar_mis_citas"]):
+            if sesion.resolucion_tipo != "escalada_humano":
+                sesion.resolucion_tipo = "resuelta_ia"
+                sesion.save(update_fields=["resolucion_tipo"])
+
         return Response({
             "respuesta": respuesta,
             "sesion_id": sesion.id,
