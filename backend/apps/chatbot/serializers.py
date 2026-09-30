@@ -10,14 +10,36 @@ class ChatResponseSerializer(serializers.Serializer):
     respuesta = serializers.CharField()
     sesion_id = serializers.UUIDField()
     emisor = serializers.CharField(default='asistente')
+    actualizo_citas = serializers.BooleanField(default=False)
+    herramientas_usadas = serializers.ListField(child=serializers.CharField(), default=list)
+    requiere_seleccion = serializers.ChoiceField(choices=['ninguna', 'dia', 'hora'], default='ninguna')
+    dias_disponibles = serializers.ListField(child=serializers.CharField(), default=list)
+    horarios = serializers.ListField(child=serializers.CharField(), default=list)
+    especialidad = serializers.CharField(required=False, allow_null=True)
 
 
 class MensajeChatResponseSerializer(serializers.ModelSerializer):
     sesion_id = serializers.UUIDField(source='sesion.id')
+    dias_disponibles = serializers.SerializerMethodField()
+    horarios = serializers.SerializerMethodField()
+    especialidad = serializers.SerializerMethodField()
 
     class Meta:
         model = MensajeChat
-        fields = ['id', 'sesion_id', 'emisor', 'contenido', 'creado_en']
+        fields = [
+            'id', 'sesion_id', 'emisor', 'contenido',
+            'requiere_seleccion', 'dias_disponibles', 'horarios', 'especialidad',
+            'creado_en'
+        ]
+
+    def get_dias_disponibles(self, obj):
+        return obj.metadata_ui.get('dias_disponibles', []) if obj.metadata_ui else []
+
+    def get_horarios(self, obj):
+        return obj.metadata_ui.get('horarios', []) if obj.metadata_ui else []
+
+    def get_especialidad(self, obj):
+        return obj.metadata_ui.get('especialidad', None) if obj.metadata_ui else None
 
 
 class SesionChatResponseSerializer(serializers.ModelSerializer):

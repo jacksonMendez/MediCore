@@ -187,41 +187,19 @@ export class ChatComponent implements AfterViewChecked {
   }
 
   cleanMessageText(text: string): string {
-    if (!text) return '';
-    return text
-      .replace(/<!--CALENDAR:[\s\S]*?-->/g, '')
-      .replace(/<!--SLOTS:[\s\S]*?-->/g, '')
-      .trim();
+    return text ? text.trim() : '';
   }
 
   getTimeSlots(msg: ChatMessage): string[] {
-    // 1. Structured backend field
-    if (msg.horarios && msg.horarios.length > 0 && msg.requiere_seleccion === 'hora') {
+    if (msg.requiere_seleccion === 'hora' && msg.horarios && msg.horarios.length > 0) {
       return msg.horarios;
-    }
-    // 2. Legacy marker fallback if not yet transitioned
-    const match = msg.contenido.match(/<!--SLOTS:(.*?)-->/s);
-    if (match && match[1]) {
-      try {
-        const parsed = JSON.parse(match[1]);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      } catch {}
     }
     return [];
   }
 
   getCalendarDays(msg: ChatMessage): string[] {
-    // 1. Structured backend field
-    if (msg.dias_disponibles && msg.dias_disponibles.length > 0 && msg.requiere_seleccion === 'dia') {
+    if (msg.requiere_seleccion === 'dia' && msg.dias_disponibles && msg.dias_disponibles.length > 0) {
       return msg.dias_disponibles;
-    }
-    // 2. Legacy marker fallback if not yet transitioned
-    const match = msg.contenido.match(/<!--CALENDAR:(.*?)-->/s);
-    if (match && match[1]) {
-      try {
-        const parsed = JSON.parse(match[1]);
-        if (parsed && Array.isArray(parsed.dias_disponibles)) return parsed.dias_disponibles;
-      } catch {}
     }
     return [];
   }

@@ -21,6 +21,7 @@ class SesionChat(models.Model):
             ('escalada_humano', 'Escalada a Humano'),
         ]
     )
+    estado_flujo = models.JSONField(default=dict, blank=True)
     creado_en = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -39,8 +40,18 @@ class MensajeChat(models.Model):
         on_delete=models.CASCADE,
         related_name='mensajes',
     )
-    emisor = models.CharField(max_length=20)  # 'usuario' | 'asistente'
+    emisor = models.CharField(max_length=20)  # 'usuario' | 'asistente' | 'sistema'
     contenido = models.TextField()
+    requiere_seleccion = models.CharField(
+        max_length=20,
+        default='ninguna',
+        choices=[
+            ('ninguna', 'Ninguna'),
+            ('dia', 'Seleccionar Día'),
+            ('hora', 'Seleccionar Hora'),
+        ]
+    )
+    metadata_ui = models.JSONField(default=dict, blank=True)
     creado_en = models.DateTimeField(default=timezone.now)
 
     class Meta:

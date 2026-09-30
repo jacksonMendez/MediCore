@@ -53,16 +53,30 @@ class EnviarMensajeView(APIView):
             respuesta = result.get("respuesta", "")
             actualizo_citas = result.get("actualizo_citas", False)
             herramientas_usadas = result.get("herramientas_usadas", [])
+            requiere_seleccion = result.get("requiere_seleccion", "ninguna")
+            dias_disponibles = result.get("dias_disponibles", [])
+            horarios = result.get("horarios", [])
+            especialidad = result.get("especialidad", None)
         else:
             respuesta = str(result)
             actualizo_citas = False
             herramientas_usadas = []
+            requiere_seleccion = "ninguna"
+            dias_disponibles = []
+            horarios = []
+            especialidad = None
 
-        # Save assistant message
+        # Save assistant message with structured UI metadata
         MensajeChat.objects.create(
             sesion=sesion,
             emisor="asistente",
             contenido=respuesta,
+            requiere_seleccion=requiere_seleccion,
+            metadata_ui={
+                "dias_disponibles": dias_disponibles,
+                "horarios": horarios,
+                "especialidad": especialidad,
+            }
         )
 
         # Update session resolution metric
@@ -80,6 +94,10 @@ class EnviarMensajeView(APIView):
             "emisor": "asistente",
             "actualizo_citas": actualizo_citas,
             "herramientas_usadas": herramientas_usadas,
+            "requiere_seleccion": requiere_seleccion,
+            "dias_disponibles": dias_disponibles,
+            "horarios": horarios,
+            "especialidad": especialidad,
         })
 
 
