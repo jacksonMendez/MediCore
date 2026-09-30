@@ -10,9 +10,10 @@ def create_access_token(user: Usuario, expires_delta: timedelta = None) -> str:
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
     )
+    rol_str = str(getattr(user, 'rol_id', None) or user.rol)
     payload = {
         'sub': str(user.id),
-        'rol': user.rol,
+        'rol': rol_str,
         'exp': expire,
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
@@ -64,15 +65,14 @@ class JWTAuthentication(authentication.BaseAuthentication):
 
 
 def require_role(allowed_roles: list[str]):
-    """Returns a DRF permission class that checks user.rol in allowed_roles."""
+    """Returns a DRF permission class that checks user rol in allowed_roles."""
     class RolePermission(permissions.BasePermission):
         message = f"Acceso denegado. Roles permitidos: {', '.join(allowed_roles)}"
 
         def has_permission(self, request, view):
-            return bool(
-                request.user
-                and request.user.is_authenticated
-                and request.user.rol in allowed_roles
-            )
+            if not request.user or not request.user.is_authenticated:
+                return False
+            u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+            return u_rol in allowed_roles or u_rol == 'admin'
 
     return RolePermission

@@ -24,9 +24,13 @@ class SimularPagoView(APIView):
         metodo_pago = serializer.validated_data.get('metodo_pago', 'sandbox')
 
         try:
-            cita = Cita.objects.select_related('medico__especialidad').get(id=cita_id)
+            cita = Cita.objects.select_related('medico__especialidad', 'paciente').get(id=cita_id)
         except Cita.DoesNotExist:
             return Response({"detail": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol == 'paciente' and cita.paciente.usuario_id != request.user.id:
+            return Response({"detail": "No puedes gestionar el pago de citas de otro paciente."}, status=status.HTTP_403_FORBIDDEN)
 
         if cita.estado != "pendiente_pago":
             return Response(
@@ -87,9 +91,13 @@ class DetallePagoView(APIView):
 
     def get(self, request, cita_id):
         try:
-            pago = Pago.objects.get(cita_id=cita_id)
+            pago = Pago.objects.select_related('cita__paciente').get(cita_id=cita_id)
         except Pago.DoesNotExist:
             return Response({"detail": "No se encontró pago para esta cita"}, status=status.HTTP_404_NOT_FOUND)
+
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol == 'paciente' and pago.cita.paciente.usuario_id != request.user.id:
+            return Response({"detail": "No tienes acceso al comprobante de pago de otro paciente."}, status=status.HTTP_403_FORBIDDEN)
 
         return Response(PagoResponseSerializer(pago).data)
 
@@ -98,7 +106,8 @@ class MisPagosView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        if request.user.rol == "paciente":
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol == "paciente":
             from apps.clinica.models import Paciente
             paciente = Paciente.objects.filter(usuario=request.user).first()
             if paciente:
@@ -116,8 +125,8 @@ class MisPagosView(APIView):
                         monto=precio,
                         moneda="COP",
                         referencia=f"MED-{uuid.uuid4().hex[:10].upper()}",
-                        metodo_pago="sandbox",
-                        estado="pendiente"
+                        metodo_pago_id="sandbox",
+                        estado_id="pendiente"
                     )
 
                 pagos = Pago.objects.filter(cita__paciente=paciente).select_related(
@@ -125,7 +134,7 @@ class MisPagosView(APIView):
                 ).order_by('-actualizado_en')
             else:
                 pagos = Pago.objects.none()
-        elif request.user.rol in ["admin", "recepcionista"]:
+        elif u_rol in ["admin", "agente_atencion", "recepcionista"]:
             # Backfill any system-wide citas in pendiente_pago without pago
             citas_sin_pago = Cita.objects.filter(
                 estado="pendiente_pago",

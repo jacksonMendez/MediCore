@@ -93,7 +93,7 @@ class DisponibilidadView(APIView):
 
 
 class CitaCreateView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [require_role(['paciente', 'admin', 'agente_atencion'])]
 
     def post(self, request):
         serializer = CitaCreateSerializer(data=request.data)
@@ -198,10 +198,10 @@ class AgendaHoyView(APIView):
 
 
 class CambiarEstadoCitaView(APIView):
-    permission_classes = [require_role(['medico', 'admin'])]
+    permission_classes = [require_role(['paciente', 'medico', 'admin', 'agente_atencion'])]
 
     def patch(self, request, cita_id):
-        nuevo_estado = request.query_params.get('nuevo_estado') or request.data.get('nuevo_estado')
+        nuevo_estado = request.query_params.get('nuevo_estado') or request.data.get('nuevo_estado') or request.data.get('estado')
         valid_estados = ["pendiente_pago", "confirmada", "cancelada", "atendida", "no_asistio"]
 
         if not nuevo_estado or nuevo_estado not in valid_estados:
@@ -217,7 +217,18 @@ class CambiarEstadoCitaView(APIView):
         except Cita.DoesNotExist:
             return Response({"detail": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
 
-        cita.estado = nuevo_estado
+        # RBAC and Ownership Enforcement
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol == 'paciente':
+            if cita.paciente.usuario_id != request.user.id:
+                return Response({"detail": "No tienes permiso para modificar citas de otros pacientes."}, status=status.HTTP_403_FORBIDDEN)
+            if nuevo_estado != 'cancelada':
+                return Response({"detail": "Los pacientes solo pueden cancelar citas."}, status=status.HTTP_403_FORBIDDEN)
+        elif u_rol == 'medico':
+            if cita.medico.usuario_id != request.user.id and u_rol != 'admin':
+                return Response({"detail": "No tienes permiso para modificar citas de otro médico."}, status=status.HTTP_403_FORBIDDEN)
+
+        cita.estado_id = nuevo_estado
         cita.save(update_fields=['estado'])
 
         return Response(CitaResponseSerializer(cita).data)
