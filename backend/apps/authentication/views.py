@@ -174,7 +174,6 @@ class RegisterView(APIView):
             "detail": "Registro exitoso. Se ha enviado un código de verificación de 6 dígitos a tu correo electrónico.",
             "requiere_verificacion": True,
             "correo": user.correo,
-            "codigo_demo": codigo,
         }, status=status.HTTP_201_CREATED)
 
 
@@ -269,7 +268,6 @@ class ReenviarCodigoView(APIView):
 
         return Response({
             "detail": "Se ha reenviado un nuevo código de verificación a tu correo.",
-            "codigo_demo": codigo,
         }, status=status.HTTP_200_OK)
 
 

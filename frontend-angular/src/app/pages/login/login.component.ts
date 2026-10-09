@@ -31,7 +31,7 @@ import { AuthService } from '../../services/auth.service';
               MediCore<span class="text-[#4FA8A0]">OS</span>
             </h1>
             <p class="text-xs text-[#5A7A94] mt-1">
-              {{ requiereVerificacion ? 'Verificación de seguridad en dos pasos' : (isRegister ? 'Registro de nuevo paciente' : 'Acceso seguro al sistema clínico') }}
+              {{ requiereVerificacion ? 'Verificación de seguridad en dos pasos' : (isRegister ? 'Registro clínico de nuevo paciente' : 'Acceso seguro al sistema clínico') }}
             </p>
           </div>
 
@@ -53,17 +53,17 @@ import { AuthService } from '../../services/auth.service';
           <!-- STEP 1: VERIFICACIÓN OTP POR CORREO -->
           <div *ngIf="requiereVerificacion" class="space-y-4 animate-fade-in">
             <div class="p-3.5 rounded-xl bg-secondary/60 border border-border text-center space-y-1">
-              <p class="text-xs text-foreground font-semibold">Protección de Datos Sensibles</p>
+              <p class="text-xs text-foreground font-semibold">Protección de Datos Clínicos</p>
               <p class="text-[11px] text-muted-foreground">
-                Hemos enviado un código de 6 dígitos a <span class="text-primary font-mono font-bold">{{ emailParaVerificar }}</span>.
+                Hemos enviado un código de seguridad de 6 dígitos a <span class="text-primary font-mono font-bold">{{ emailParaVerificar }}</span>.
               </p>
-              <p *ngIf="codigoDemo" class="text-[10px] text-amber-400 font-mono mt-1">
-                (Código generado: <strong>{{ codigoDemo }}</strong>)
+              <p class="text-[11px] text-muted-foreground mt-1">
+                Revisa tu bandeja de entrada o carpeta de spam e introduce el código a continuación.
               </p>
             </div>
 
             <div>
-              <label class="text-xs text-[#8BA3B8] mb-1.5 block">Código de 6 dígitos</label>
+              <label class="text-xs text-[#8BA3B8] mb-1.5 block">Código de verificación (6 dígitos)</label>
               <input
                 type="text"
                 maxlength="6"
@@ -104,10 +104,10 @@ import { AuthService } from '../../services/auth.service';
 
             <!-- Alternativa: Validar con Google -->
             <div class="pt-4 border-t border-white/[0.06] text-center space-y-2">
-              <p class="text-[11px] text-muted-foreground">O verifica al instante vinculando tu cuenta:</p>
+              <p class="text-[11px] text-muted-foreground">O verifica al instante vinculando tu cuenta de Google:</p>
               <button
                 type="button"
-                (click)="iniciarConGoogle(emailParaVerificar)"
+                (click)="abrirModalGoogle(emailParaVerificar)"
                 class="w-full py-2 px-3 rounded-xl border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08] text-foreground text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <svg class="size-4" viewBox="0 0 24 24">
@@ -123,10 +123,10 @@ import { AuthService } from '../../services/auth.service';
 
           <!-- STEP 2: FORMULARIO PRINCIPAL (LOGIN O REGISTRO) -->
           <div *ngIf="!requiereVerificacion" class="space-y-4">
-            <!-- Google One-Click Button -->
+            <!-- Google Button (Abre diálogo Google Sign-In) -->
             <button
               type="button"
-              (click)="iniciarConGoogle()"
+              (click)="abrirModalGoogle()"
               class="w-full py-2.5 px-3 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] text-foreground text-xs font-semibold flex items-center justify-center gap-2.5 cursor-pointer transition-all shadow-sm"
             >
               <svg class="size-4 shrink-0" viewBox="0 0 24 24">
@@ -135,63 +135,98 @@ import { AuthService } from '../../services/auth.service';
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
-              <span>{{ isRegister ? 'Registrarse con Google' : 'Continuar con Google' }}</span>
+              <span>{{ isRegister ? 'Registrarse con cuenta Google' : 'Continuar con Google' }}</span>
             </button>
 
             <div class="flex items-center gap-3 my-2">
               <div class="h-px bg-white/[0.08] flex-1"></div>
-              <span class="text-[10px] uppercase font-semibold text-[#5A7A94] tracking-wider">o con correo</span>
+              <span class="text-[10px] uppercase font-semibold text-[#5A7A94] tracking-wider">o con formulario</span>
               <div class="h-px bg-white/[0.08] flex-1"></div>
             </div>
 
-            <form (ngSubmit)="onSubmit()" class="space-y-4">
+            <form (ngSubmit)="onSubmit()" class="space-y-3.5">
+              <!-- CAMPOS COMPLETOS PARA REGISTRO DE PACIENTE -->
               <ng-container *ngIf="isRegister">
                 <div>
-                  <label class="text-xs text-[#8BA3B8] mb-1.5 block">Nombre completo *</label>
+                  <label class="text-xs text-[#8BA3B8] mb-1 block">Nombre completo *</label>
                   <input
                     type="text"
                     [(ngModel)]="registerForm.nombre_completo"
                     name="nombre_completo"
                     class="glass-input"
-                    placeholder="Carlos Mendoza"
+                    placeholder="Ej. Juan Pérez Gómez"
                     required
                   />
                 </div>
 
-                <div>
-                  <label class="text-xs text-[#8BA3B8] mb-1.5 block">Documento de identidad *</label>
-                  <input
-                    type="text"
-                    [(ngModel)]="registerForm.documento_numero"
-                    name="documento_numero"
-                    class="glass-input"
-                    placeholder="1098765432"
-                    required
-                  />
+                <div class="grid grid-cols-3 gap-2">
+                  <div>
+                    <label class="text-xs text-[#8BA3B8] mb-1 block">Tipo Doc. *</label>
+                    <select [(ngModel)]="registerForm.documento_tipo" name="documento_tipo"
+                      class="glass-input cursor-pointer">
+                      <option value="CC">CC</option>
+                      <option value="TI">TI</option>
+                      <option value="CE">CE</option>
+                      <option value="PAS">PAS</option>
+                    </select>
+                  </div>
+                  <div class="col-span-2">
+                    <label class="text-xs text-[#8BA3B8] mb-1 block">Número de documento *</label>
+                    <input
+                      type="text"
+                      [(ngModel)]="registerForm.documento_numero"
+                      name="documento_numero"
+                      class="glass-input"
+                      placeholder="1098765432"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="text-xs text-[#8BA3B8] mb-1 block">Fecha nacimiento</label>
+                    <input
+                      type="date"
+                      [(ngModel)]="registerForm.fecha_nacimiento"
+                      name="fecha_nacimiento"
+                      class="glass-input text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label class="text-xs text-[#8BA3B8] mb-1 block">Teléfono / Celular</label>
+                    <input
+                      type="tel"
+                      [(ngModel)]="registerForm.telefono"
+                      name="telefono"
+                      class="glass-input"
+                      placeholder="300 123 4567"
+                    />
+                  </div>
                 </div>
               </ng-container>
 
               <div>
-                <label class="text-xs text-[#8BA3B8] mb-1.5 block">Correo electrónico *</label>
+                <label class="text-xs text-[#8BA3B8] mb-1 block">Correo electrónico *</label>
                 <input
                   type="email"
                   [(ngModel)]="email"
                   name="email"
                   class="glass-input"
-                  placeholder="paciente@medicore.com"
+                  placeholder="tu_correo@ejemplo.com"
                   required
                 />
               </div>
 
               <div>
-                <label class="text-xs text-[#8BA3B8] mb-1.5 block">Contraseña *</label>
+                <label class="text-xs text-[#8BA3B8] mb-1 block">Contraseña *</label>
                 <div class="relative">
                   <input
                     [type]="showPassword ? 'text' : 'password'"
                     [(ngModel)]="password"
                     name="password"
                     class="glass-input pr-10"
-                    placeholder="••••••••••••"
+                    placeholder="Mínimo 6 caracteres"
                     required
                   />
                   <button
@@ -210,39 +245,39 @@ import { AuthService } from '../../services/auth.service';
                 </div>
               </div>
 
-              <ng-container *ngIf="isRegister">
-                <div>
-                  <label class="text-xs text-[#8BA3B8] mb-1.5 block">Teléfono (opcional)</label>
-                  <input
-                    type="tel"
-                    [(ngModel)]="registerForm.telefono"
-                    name="telefono"
-                    class="glass-input"
-                    placeholder="+57 300 123 4567"
-                  />
-                </div>
-              </ng-container>
+              <!-- Confirmar contraseña solo en registro -->
+              <div *ngIf="isRegister">
+                <label class="text-xs text-[#8BA3B8] mb-1 block">Confirmar contraseña *</label>
+                <input
+                  type="password"
+                  [(ngModel)]="registerForm.password_confirmacion"
+                  name="password_confirmacion"
+                  class="glass-input"
+                  placeholder="Repite la contraseña"
+                  required
+                />
+              </div>
 
               <!-- Submit Button -->
               <button
                 type="submit"
                 [disabled]="loading || !email || !password"
-                class="glass-btn-primary w-full py-2.5 text-sm mt-2 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#4FA8A0]/15"
+                class="glass-btn-primary w-full py-2.5 text-sm mt-3 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#4FA8A0]/15"
               >
                 <span *ngIf="loading" class="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin"></span>
                 <span *ngIf="!loading" class="flex items-center gap-2">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                   </svg>
-                  <span>{{ isRegister ? 'Registrarme y verificar' : 'Iniciar sesión' }}</span>
+                  <span>{{ isRegister ? 'Registrarme y recibir código' : 'Iniciar sesión' }}</span>
                 </span>
                 <span *ngIf="loading">{{ isRegister ? 'Registrando...' : 'Ingresando...' }}</span>
               </button>
             </form>
 
             <!-- Toggle Register / Login -->
-            <div class="mt-5 text-center text-xs text-[#5A7A94]">
-              {{ isRegister ? '¿Ya tienes una cuenta?' : '¿No tienes cuenta registrada?' }}
+            <div class="mt-4 text-center text-xs text-[#5A7A94]">
+              {{ isRegister ? '¿Ya tienes una cuenta registrada?' : '¿No tienes cuenta registrada?' }}
               <button
                 type="button"
                 (click)="isRegister = !isRegister; errorMessage = ''; successMessage = ''"
@@ -299,6 +334,70 @@ import { AuthService } from '../../services/auth.service';
           </div>
         </div>
       </div>
+
+      <!-- GOOGLE SIGN-IN MODAL (Diálogo de autenticación Google) -->
+      <div *ngIf="mostrarModalGoogle" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-[#162134] p-6 shadow-2xl space-y-4">
+          <!-- Google Header -->
+          <div class="text-center space-y-2">
+            <svg class="size-8 mx-auto" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <h3 class="text-base font-bold text-foreground">Acceder con Google</h3>
+            <p class="text-xs text-muted-foreground">Elige o ingresa tu cuenta para continuar en MediCore OS</p>
+          </div>
+
+          <!-- Inputs -->
+          <div class="space-y-3 text-xs text-left">
+            <div>
+              <label class="text-muted-foreground mb-1 block font-medium">Correo de Google (&#64;gmail.com o institucional) *</label>
+              <input
+                type="email"
+                [(ngModel)]="googleAccountEmail"
+                placeholder="tu_cuenta@gmail.com"
+                class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label class="text-muted-foreground mb-1 block font-medium">Nombre en tu cuenta de Google *</label>
+              <input
+                type="text"
+                [(ngModel)]="googleAccountNombre"
+                placeholder="Tu Nombre Completo"
+                class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+              />
+            </div>
+
+            <div class="p-3 rounded-lg bg-secondary/50 border border-border/60 text-[11px] text-muted-foreground">
+              Google compartirá de forma segura tu correo verificado y tu nombre con MediCore Clinical OS.
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-border/80">
+            <button
+              type="button"
+              (click)="mostrarModalGoogle = false"
+              class="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              (click)="confirmarLoginGoogle()"
+              [disabled]="!googleAccountEmail.trim() || loading"
+              class="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:bg-primary-hover disabled:opacity-50 cursor-pointer shadow-md flex items-center gap-2"
+            >
+              <span *ngIf="loading" class="size-3 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin"></span>
+              <span>Continuar con Google</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `
 })
@@ -311,25 +410,61 @@ export class LoginComponent {
   errorMessage = '';
   successMessage = '';
 
-  email = 'paciente@medicore.com';
-  password = 'Password123!';
+  // Formulario vacío por defecto (no fuerza paciente de prueba)
+  email = '';
+  password = '';
 
   // Verificación OTP
   requiereVerificacion = false;
   emailParaVerificar = '';
   codigoVerificacion = '';
-  codigoDemo = '';
 
+  // Registro Completo de Paciente
   registerForm = {
     nombre_completo: '',
+    documento_tipo: 'CC',
     documento_numero: '',
+    fecha_nacimiento: '',
     telefono: '',
+    password_confirmacion: '',
   };
+
+  // Google OAuth Modal
+  mostrarModalGoogle = false;
+  googleAccountEmail = '';
+  googleAccountNombre = '';
 
   fillDemo(email: string, pass: string) {
     this.email = email;
     this.password = pass;
     this.onSubmit();
+  }
+
+  abrirModalGoogle(prefillEmail?: string) {
+    this.googleAccountEmail = prefillEmail || (this.email.includes('@') ? this.email : '');
+    this.googleAccountNombre = this.registerForm.nombre_completo || '';
+    this.mostrarModalGoogle = true;
+    this.errorMessage = '';
+  }
+
+  confirmarLoginGoogle() {
+    if (!this.googleAccountEmail.trim()) return;
+    this.loading = true;
+    this.errorMessage = '';
+
+    const googleEmail = this.googleAccountEmail.trim().toLowerCase();
+    const googleNombre = this.googleAccountNombre.trim() || googleEmail.split('@')[0].replace('.', ' ');
+
+    this.auth.loginConGoogle(googleEmail, googleNombre).subscribe({
+      next: () => {
+        this.loading = false;
+        this.mostrarModalGoogle = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.errorMessage = err?.error?.detail || 'Error al autenticar con Google.';
+      }
+    });
   }
 
   onSubmit() {
@@ -339,29 +474,46 @@ export class LoginComponent {
     this.successMessage = '';
 
     if (this.isRegister) {
+      if (!this.registerForm.nombre_completo.trim()) {
+        this.loading = false;
+        this.errorMessage = 'El nombre completo es obligatorio.';
+        return;
+      }
+      if (!this.registerForm.documento_numero.trim()) {
+        this.loading = false;
+        this.errorMessage = 'El número de documento de identidad es obligatorio.';
+        return;
+      }
+      if (this.password !== this.registerForm.password_confirmacion) {
+        this.loading = false;
+        this.errorMessage = 'Las contraseñas no coinciden.';
+        return;
+      }
+
       this.auth.register({
-        correo: this.email,
+        correo: this.email.trim().toLowerCase(),
         password: this.password,
-        nombre_completo: this.registerForm.nombre_completo,
-        documento_numero: this.registerForm.documento_numero,
-        telefono: this.registerForm.telefono,
+        nombre_completo: this.registerForm.nombre_completo.trim(),
+        documento_tipo: this.registerForm.documento_tipo,
+        documento_numero: this.registerForm.documento_numero.trim(),
+        fecha_nacimiento: this.registerForm.fecha_nacimiento || null,
+        telefono: this.registerForm.telefono.trim(),
       }).subscribe({
         next: (res) => {
           this.loading = false;
           if (res?.requiere_verificacion) {
             this.requiereVerificacion = true;
             this.emailParaVerificar = res.correo || this.email;
-            this.codigoDemo = res.codigo_demo || '';
             this.successMessage = 'Código de verificación de 6 dígitos enviado a tu correo.';
           }
         },
         error: (err) => {
           this.loading = false;
-          this.errorMessage = err?.error?.detail || err?.error?.rol?.[0] || 'Error al registrar la cuenta.';
+          this.errorMessage = err?.error?.detail || err?.error?.rol?.[0] || err?.error?.correo?.[0] || 'Error al registrar la cuenta.';
         }
       });
     } else {
-      this.auth.login(this.email, this.password).subscribe({
+      this.auth.login(this.email.trim(), this.password).subscribe({
         next: () => {
           this.loading = false;
         },
@@ -370,7 +522,6 @@ export class LoginComponent {
           if (err?.error?.requiere_verificacion) {
             this.requiereVerificacion = true;
             this.emailParaVerificar = err.error.correo || this.email;
-            this.codigoDemo = err.error.codigo_demo || '';
             this.errorMessage = 'Debes verificar tu correo para ingresar a la plataforma.';
           } else {
             this.errorMessage = err?.error?.detail || 'Correo o contraseña incorrectos. Verifica tus credenciales.';
@@ -400,29 +551,11 @@ export class LoginComponent {
     if (!this.emailParaVerificar) return;
     this.auth.reenviarCodigo(this.emailParaVerificar).subscribe({
       next: (res) => {
-        this.codigoDemo = res?.codigo_demo || '';
         this.successMessage = 'Se ha generado y enviado un nuevo código a tu correo.';
         setTimeout(() => this.successMessage = '', 5000);
       },
       error: (err) => {
         this.errorMessage = err?.error?.detail || 'No se pudo reenviar el código.';
-      }
-    });
-  }
-
-  iniciarConGoogle(emailPrefill?: string) {
-    this.loading = true;
-    this.errorMessage = '';
-    const googleEmail = emailPrefill || (this.email.includes('@') ? this.email : 'paciente.google@medicore.com');
-    const googleNombre = this.registerForm.nombre_completo || 'Paciente Google';
-
-    this.auth.loginConGoogle(googleEmail, googleNombre).subscribe({
-      next: () => {
-        this.loading = false;
-      },
-      error: (err) => {
-        this.loading = false;
-        this.errorMessage = err?.error?.detail || 'Error al autenticar con Google.';
       }
     });
   }
