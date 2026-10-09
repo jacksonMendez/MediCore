@@ -36,7 +36,9 @@ class SimularPagoView(APIView):
             return Response({"detail": "Datos inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         cita_id = serializer.validated_data['cita_id']
-        metodo_pago = serializer.validated_data.get('metodo_pago', 'sandbox')
+        metodo_pago = serializer.validated_data.get('metodo_pago', 'transferencia')
+        banco_origen = serializer.validated_data.get('banco_origen', '') or request.data.get('banco_origen', '')
+        comprobante_archivo = serializer.validated_data.get('comprobante_archivo', '') or request.data.get('comprobante_archivo', '')
 
         try:
             cita = Cita.objects.select_related('medico__especialidad', 'paciente').get(id=cita_id)
@@ -47,25 +49,43 @@ class SimularPagoView(APIView):
         if u_rol == 'paciente' and cita.paciente.usuario_id != request.user.id:
             return Response({"detail": "No puedes gestionar el pago de citas de otro paciente."}, status=status.HTTP_403_FORBIDDEN)
 
-        if cita.estado != "pendiente_pago":
+        if str(cita.estado_id) != "pendiente_pago":
             return Response(
-                {"detail": f"La cita no está en estado pendiente_pago. Estado actual: {cita.estado}"},
+                {"detail": f"La cita no está en estado pendiente_pago. Estado actual: {cita.estado_id}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         pago_existente = Pago.objects.filter(cita=cita).first()
         if pago_existente:
-            if pago_existente.estado_id in ["aprobado", "completado"]:
+            if str(pago_existente.estado_id) in ["aprobado", "completado"]:
                 return Response({"detail": "La cita ya se encuentra pagada y confirmada."}, status=status.HTTP_400_BAD_REQUEST)
             if request.data.get('referencia'):
                 pago_existente.referencia = str(request.data.get('referencia')).strip()
             if metodo_pago:
                 pago_existente.metodo_pago_id = metodo_pago
-            pago_existente.save(update_fields=['referencia', 'metodo_pago'])
+            if banco_origen:
+                pago_existente.banco_origen = banco_origen
+            if comprobante_archivo:
+                pago_existente.comprobante_archivo = comprobante_archivo
+            pago_existente.estado_id = 'pendiente'
+            pago_existente.save(update_fields=['referencia', 'metodo_pago', 'banco_origen', 'comprobante_archivo', 'estado'])
+
+            registrar_auditoria(
+                accion='comprobante_pago_actualizado',
+                entidad_tipo='Pago',
+                entidad_id=str(pago_existente.id),
+                usuario=request.user,
+                datos_cambio={
+                    'cita_id': str(cita.id),
+                    'referencia': pago_existente.referencia,
+                    'banco_origen': banco_origen,
+                    'tiene_comprobante': bool(comprobante_archivo),
+                }
+            )
             return Response(PagoResponseSerializer(pago_existente).data, status=status.HTTP_200_OK)
 
         custom_ref = request.data.get('referencia')
-        referencia = str(custom_ref).strip() if custom_ref else f"SANDBOX-{uuid.uuid4().hex[:12].upper()}"
+        referencia = str(custom_ref).strip() if custom_ref else f"TRF-{uuid.uuid4().hex[:10].upper()}"
         monto = cita.medico.especialidad.precio_base
 
         pago = Pago.objects.create(
@@ -74,11 +94,13 @@ class SimularPagoView(APIView):
             moneda="COP",
             referencia=referencia,
             metodo_pago_id=metodo_pago,
+            banco_origen=banco_origen,
+            comprobante_archivo=comprobante_archivo,
             estado_id="pendiente",
         )
 
         registrar_auditoria(
-            accion='pago_simulado',
+            accion='comprobante_pago_radicado' if comprobante_archivo else 'pago_iniciado',
             entidad_tipo='Pago',
             entidad_id=str(pago.id),
             usuario=request.user,
@@ -87,6 +109,8 @@ class SimularPagoView(APIView):
                 'monto': float(monto),
                 'referencia': referencia,
                 'metodo_pago': metodo_pago,
+                'banco_origen': banco_origen,
+                'tiene_comprobante': bool(comprobante_archivo),
             }
         )
 

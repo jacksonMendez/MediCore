@@ -130,7 +130,8 @@ import { ChatMessage } from '../../models/chat.model';
             (keydown.enter)="onEnter($event)"
             rows="1"
             placeholder="Escribe tu consulta o pide una cita..."
-            class="flex-1 max-h-32 min-h-10 resize-none rounded-lg bg-secondary/80 border border-border px-3.5 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all">
+            class="flex-1 max-h-32 min-h-10 resize-none rounded-lg bg-white border border-slate-300 px-3.5 py-2 text-sm text-black font-semibold placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary transition-all shadow-sm"
+            style="color: #000000 !important; background-color: #ffffff !important;">
           </textarea>
 
           <button type="submit" [disabled]="!draft.trim() || chat.loading()"

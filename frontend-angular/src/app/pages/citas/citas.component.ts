@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SidebarComponent } from '../../components/layout/sidebar.component';
 import { HeaderComponent } from '../../components/layout/header.component';
+import { ModalPagoComponent } from '../../components/modal-pago/modal-pago.component';
 import { CitasService } from '../../services/citas.service';
 import { PagosService } from '../../services/pagos.service';
 import { CitaItem } from '../../models/cita.model';
@@ -9,7 +10,7 @@ import { CitaItem } from '../../models/cita.model';
 @Component({
   selector: 'app-citas',
   standalone: true,
-  imports: [CommonModule, SidebarComponent, HeaderComponent],
+  imports: [CommonModule, SidebarComponent, HeaderComponent, ModalPagoComponent],
   template: `
     <div class="flex h-screen overflow-hidden bg-background">
       <app-sidebar></app-sidebar>
@@ -72,16 +73,19 @@ import { CitaItem } from '../../models/cita.model';
                   </div>
 
                   <!-- Actions -->
-                  <div *ngIf="cita.estado !== 'cancelada'" class="flex items-center gap-2">
+                  <div class="flex items-center gap-2">
                     <button *ngIf="cita.estado === 'pendiente_pago'"
                       (click)="pagar(cita)"
-                      [disabled]="pagosService.payingCitaId() === cita.id"
-                      class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50">
-                      <span *ngIf="pagosService.payingCitaId() === cita.id" class="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                      <span>{{ pagosService.payingCitaId() === cita.id ? 'Aprobando...' : 'Pagar Cita ($ 50.000)' }}</span>
+                      class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-1.5">
+                      <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      <span>Pagar Cita ($ 50.000)</span>
                     </button>
 
-                    <button (click)="cancelar(cita)"
+                    <!-- Solo se puede cancelar si es futura y está pendiente o confirmada -->
+                    <button *ngIf="puedeCancelar(cita)"
+                      (click)="cancelar(cita)"
                       class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white text-xs font-semibold border border-rose-500/30 transition-all cursor-pointer">
                       Cancelar Cita
                     </button>
@@ -103,6 +107,14 @@ import { CitaItem } from '../../models/cita.model';
           </div>
         </main>
       </div>
+
+      <!-- Payment & Voucher Modal -->
+      <app-modal-pago
+        *ngIf="mostrarModalPago && citaSeleccionadaParaPago"
+        [cita]="citaSeleccionadaParaPago"
+        (closed)="mostrarModalPago = false"
+        (pagado)="onPagoCompletado()">
+      </app-modal-pago>
     </div>
   `
 })
@@ -111,6 +123,9 @@ export class CitasComponent implements OnInit {
   pagosService = inject(PagosService);
 
   activeTab: string = 'todas';
+  mostrarModalPago: boolean = false;
+  citaSeleccionadaParaPago: CitaItem | null = null;
+
   readonly tabs = [
     { id: 'todas', label: 'Todas' },
     { id: 'confirmada', label: 'Confirmadas' },
@@ -132,17 +147,33 @@ export class CitasComponent implements OnInit {
     return list.filter(c => c.estado === this.activeTab);
   }
 
+  puedeCancelar(cita: CitaItem): boolean {
+    const now = new Date().getTime();
+    const fechaCita = new Date(cita.fecha_hora).getTime();
+    return fechaCita >= now && ['confirmada', 'pendiente_pago'].includes(cita.estado);
+  }
+
   pagar(cita: CitaItem) {
-    this.pagosService.simularPago(cita.id).subscribe({
-      next: () => {
-        this.citasService.loadMisCitas().subscribe();
-      }
-    });
+    this.citaSeleccionadaParaPago = cita;
+    this.mostrarModalPago = true;
+  }
+
+  onPagoCompletado() {
+    this.mostrarModalPago = false;
+    this.citaSeleccionadaParaPago = null;
+    this.load();
   }
 
   cancelar(cita: CitaItem) {
-    if (confirm(`¿Estás seguro de que deseas cancelar la cita con ${cita.medico_nombre}?`)) {
-      this.citasService.cancelarCita(cita.id).subscribe();
+    if (confirm(`¿Estás seguro de que deseas cancelar tu cita de ${cita.especialidad_nombre || 'consulta'} con ${cita.medico_nombre}?`)) {
+      this.citasService.cancelarCita(cita.id).subscribe({
+        next: () => {
+          this.load();
+        },
+        error: (err) => {
+          alert(err?.error?.detail || 'No se pudo cancelar la cita.');
+        }
+      });
     }
   }
 
@@ -154,6 +185,8 @@ export class CitasComponent implements OnInit {
         return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
       case 'cancelada':
         return 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
+      case 'atendida':
+        return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
       default:
         return 'bg-secondary text-muted-foreground';
     }

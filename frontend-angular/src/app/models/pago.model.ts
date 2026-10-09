@@ -7,6 +7,8 @@ export interface PagoItem {
   moneda: string;
   estado: PaymentStatus;
   metodo_pago?: string;
+  banco_origen?: string;
+  comprobante_archivo?: string;
   transaccion_id?: string;
   referencia?: string;
   concepto?: string;

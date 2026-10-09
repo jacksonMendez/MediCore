@@ -17,6 +17,14 @@ class EstadoCita(models.Model):
     def __str__(self):
         return self.nombre
 
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.codigo == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return super().__hash__()
+
 
 class TipoPQR(models.Model):
     codigo = models.CharField(max_length=30, primary_key=True)

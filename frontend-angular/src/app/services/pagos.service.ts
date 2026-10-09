@@ -67,11 +67,19 @@ export class PagosService {
     );
   }
 
-  reportarTransferencia(citaId: string, referenciaTransferencia: string, metodo: string = 'transferencia'): Observable<any> {
+  reportarTransferencia(
+    citaId: string,
+    referenciaTransferencia: string,
+    bancoOrigen: string = 'nequi',
+    comprobanteArchivo: string = '',
+    metodo: string = 'transferencia'
+  ): Observable<any> {
     this.loading.set(true);
     return this.http.post<any>(`${this.apiUrl}/simular`, {
       cita_id: citaId,
       referencia: referenciaTransferencia,
+      banco_origen: bancoOrigen,
+      comprobante_archivo: comprobanteArchivo,
       metodo_pago: metodo
     }, {
       headers: this.authService.getAuthHeaders()
@@ -79,7 +87,7 @@ export class PagosService {
       tap({
         next: () => {
           this.loading.set(false);
-          this.lastSuccessMessage.set('✅ Comprobante de transferencia radicado exitosamente. Un administrador verificará y autorizará tu cita médica.');
+          this.lastSuccessMessage.set('✅ Comprobante de transferencia radicado exitosamente. Un administrador verificará el comprobante para confirmar tu cita.');
           setTimeout(() => this.lastSuccessMessage.set(null), 6000);
           this.loadMisPagos().subscribe();
         },

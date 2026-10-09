@@ -168,12 +168,13 @@ import { PagosService } from '../../services/pagos.service';
             <table class="w-full text-left text-xs">
               <thead class="bg-secondary/50 text-muted-foreground uppercase border-b border-border">
                 <tr>
-                  <th class="px-5 py-3">Referencia / Comprobante</th>
+                  <th class="px-5 py-3">Referencia</th>
                   <th class="px-5 py-3">Paciente</th>
                   <th class="px-5 py-3">Concepto</th>
                   <th class="px-5 py-3">Monto</th>
-                  <th class="px-5 py-3">Método</th>
-                  <th class="px-5 py-3 text-right">Acción</th>
+                  <th class="px-5 py-3">Medio / Banco</th>
+                  <th class="px-5 py-3">Soporte Digital</th>
+                  <th class="px-5 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-border/60">
@@ -182,19 +183,37 @@ import { PagosService } from '../../services/pagos.service';
                   <td class="px-5 py-3.5 font-medium text-foreground">{{ p.paciente_nombre || 'Paciente' }}</td>
                   <td class="px-5 py-3.5 text-muted-foreground">{{ p.concepto || 'Consulta Médica' }}</td>
                   <td class="px-5 py-3.5 font-bold text-emerald-400">$ {{ p.monto | number:'1.0-0' }} COP</td>
-                  <td class="px-5 py-3.5 capitalize text-muted-foreground">{{ p.metodo_pago?.replace('_', ' ') || 'Transferencia' }}</td>
-                  <td class="px-5 py-3.5 text-right">
+                  <td class="px-5 py-3.5 capitalize text-muted-foreground">
+                    <span class="font-medium text-foreground">{{ p.banco_origen || p.metodo_pago?.replace('_', ' ') || 'Transferencia' }}</span>
+                  </td>
+                  <td class="px-5 py-3.5">
+                    <button *ngIf="p.comprobante_archivo" (click)="verComprobante(p)"
+                      class="px-2.5 py-1 rounded bg-secondary hover:bg-secondary/80 text-foreground border border-border font-medium flex items-center gap-1.5 cursor-pointer text-[11px] shadow-sm">
+                      <svg class="size-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      <span>Ver Comprobante</span>
+                    </button>
+                    <span *ngIf="!p.comprobante_archivo" class="text-muted-foreground text-[11px] italic">Sin adjunto</span>
+                  </td>
+                  <td class="px-5 py-3.5 text-right space-x-1.5">
                     <button (click)="autorizar(p)"
                       [disabled]="pagosService.loading()"
-                      class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer shadow-sm">
-                      <span *ngIf="pagosService.loading()">Procesando...</span>
-                      <span *ngIf="!pagosService.loading()">✓ Verificar y Autorizar</span>
+                      class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer shadow-sm disabled:opacity-50">
+                      <span *ngIf="pagosService.loading()">...</span>
+                      <span *ngIf="!pagosService.loading()">✓ Autorizar</span>
+                    </button>
+                    <button (click)="rechazar(p)"
+                      [disabled]="pagosService.loading()"
+                      class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all cursor-pointer disabled:opacity-50">
+                      ✕
                     </button>
                   </td>
                 </tr>
 
                 <tr *ngIf="pagosPendientes.length === 0">
-                  <td colspan="6" class="px-5 py-10 text-center text-muted-foreground italic">
+                  <td colspan="7" class="px-5 py-10 text-center text-muted-foreground italic">
                     🎉 No hay transferencias pendientes por autorizar. Todos los comprobantes están verificados.
                   </td>
                 </tr>
@@ -203,6 +222,68 @@ import { PagosService } from '../../services/pagos.service';
           </div>
         </main>
       </div>
+
+      <!-- Modal: Inspección de Comprobante -->
+      <div *ngIf="comprobanteParaVer" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between border-b border-border/80 pb-3">
+            <div>
+              <h3 class="font-display text-base font-bold text-foreground">Comprobante de Transferencia</h3>
+              <p class="text-xs text-muted-foreground">Referencia: <span class="font-mono text-amber-400 font-bold">{{ comprobanteParaVer.referencia }}</span></p>
+            </div>
+            <button (click)="comprobanteParaVer = null" class="text-muted-foreground hover:text-foreground cursor-pointer p-1">
+              <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Comprobante View Container -->
+          <div class="rounded-xl border border-border bg-secondary/40 p-2 max-h-96 overflow-y-auto flex items-center justify-center">
+            <img *ngIf="comprobanteParaVer.comprobante_archivo?.startsWith('data:image')"
+              [src]="comprobanteParaVer.comprobante_archivo"
+              alt="Comprobante Bancario"
+              class="max-w-full max-h-80 rounded-lg object-contain" />
+
+            <div *ngIf="!comprobanteParaVer.comprobante_archivo?.startsWith('data:image')" class="p-6 text-center space-y-2">
+              <svg class="size-10 mx-auto text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p class="text-xs font-semibold text-foreground">Documento Soporte Digital (PDF / Archivo)</p>
+              <p class="text-[11px] text-muted-foreground">El archivo fue adjuntado por el paciente para validación.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs p-3 rounded-lg bg-secondary/50 border border-border/80">
+            <div>
+              <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Paciente</span>
+              <span class="font-bold text-foreground">{{ comprobanteParaVer.paciente_nombre }}</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Monto</span>
+              <span class="font-bold text-emerald-400">$ {{ comprobanteParaVer.monto | number:'1.0-0' }} COP</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Banco / Canal</span>
+              <span class="capitalize text-foreground font-medium">{{ comprobanteParaVer.banco_origen || 'Transferencia' }}</span>
+            </div>
+            <div>
+              <span class="text-muted-foreground block text-[10px] uppercase font-semibold">Estado</span>
+              <span class="text-amber-400 font-bold uppercase text-[11px]">Pendiente Verificación</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-border/80">
+            <button (click)="comprobanteParaVer = null" class="px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer">
+              Cerrar
+            </button>
+            <button (click)="autorizar(comprobanteParaVer); comprobanteParaVer = null"
+              class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer">
+              ✓ Autorizar Pago y Confirmar Cita
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `
 })
@@ -210,6 +291,7 @@ export class AdminComponent implements OnInit {
   clinica = inject(ClinicaService);
   pagosService = inject(PagosService);
   activeTab: 'medicos' | 'sedes' | 'especialidades' | 'autorizaciones' = 'medicos';
+  comprobanteParaVer: any = null;
 
   get pagosPendientes() {
     return this.pagosService.pagos().filter(p => p.estado === 'pendiente');
@@ -220,9 +302,29 @@ export class AdminComponent implements OnInit {
     this.pagosService.loadMisPagos().subscribe();
   }
 
+  verComprobante(p: any) {
+    this.comprobanteParaVer = p;
+  }
+
   autorizar(p: any) {
     const ref = p.referencia || p.transaccion_id;
     if (!ref) return;
-    this.pagosService.autorizarPago(ref).subscribe();
+    this.pagosService.autorizarPago(ref).subscribe({
+      next: () => {
+        this.pagosService.loadMisPagos().subscribe();
+      }
+    });
+  }
+
+  rechazar(p: any) {
+    const ref = p.referencia || p.transaccion_id;
+    if (!ref) return;
+    if (confirm(`¿Rechazar el pago con referencia ${ref}?`)) {
+      this.pagosService.autorizarPago(ref).subscribe({
+        next: () => {
+          this.pagosService.loadMisPagos().subscribe();
+        }
+      });
+    }
   }
 }

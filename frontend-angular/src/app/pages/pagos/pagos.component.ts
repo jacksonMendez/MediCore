@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/layout/sidebar.component';
 import { HeaderComponent } from '../../components/layout/header.component';
+import { ModalPagoComponent } from '../../components/modal-pago/modal-pago.component';
 import { PagosService } from '../../services/pagos.service';
 import { CitasService } from '../../services/citas.service';
 import { PagoItem } from '../../models/pago.model';
@@ -10,7 +11,7 @@ import { PagoItem } from '../../models/pago.model';
 @Component({
   selector: 'app-pagos',
   standalone: true,
-  imports: [CommonModule, FormsModule, SidebarComponent, HeaderComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, HeaderComponent, ModalPagoComponent],
   template: `
     <div class="flex h-screen overflow-hidden bg-background">
       <app-sidebar></app-sidebar>
@@ -51,9 +52,9 @@ import { PagoItem } from '../../models/pago.model';
               <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span>Tienes citas pendientes de pago</span>
+              <span>Tienes consultas pendientes por pagar</span>
             </h3>
-            <p class="text-xs text-muted-foreground">Puedes realizar una transferencia bancaria (Nequi, Daviplata, Bancolombia) y adjuntar el comprobante para autorización, o simular una aprobación directa en Sandbox.</p>
+            <p class="text-xs text-muted-foreground">Puedes transferir por Nequi (300 123 4567), Bancolombia (458-928172-10) o Daviplata y subir tu comprobante para autorización inmediata del personal.</p>
 
             <div class="grid gap-2 pt-1">
               <div *ngFor="let c of citasPendientes" class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-lg bg-card border border-border text-xs gap-3">
@@ -64,75 +65,13 @@ import { PagoItem } from '../../models/pago.model';
                 </div>
                 <div class="flex items-center gap-2">
                   <button (click)="abrirModalComprobante(c)"
-                    class="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground border border-border font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
-                    <svg class="size-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all cursor-pointer flex items-center gap-2 shadow-sm">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
-                    <span>Enviar Comprobante</span>
-                  </button>
-
-                  <button (click)="pagarCita(c.id)" [disabled]="pagosService.payingCitaId() === c.id"
-                    class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-sm">
-                    <span *ngIf="pagosService.payingCitaId() === c.id" class="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    <span>{{ pagosService.payingCitaId() === c.id ? 'Aprobando...' : 'Pago Inmediato (Sandbox)' }}</span>
+                    <span>Pagar / Subir Comprobante</span>
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal: Radicar Comprobante de Transferencia -->
-          <div *ngIf="citaParaComprobante" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-            <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-              <div class="flex items-center justify-between border-b border-border/80 pb-3">
-                <div>
-                  <h3 class="font-display text-base font-bold text-foreground">Radicar Comprobante de Transferencia</h3>
-                  <p class="text-xs text-muted-foreground mt-0.5">El administrador verificará y autorizará tu cita médica.</p>
-                </div>
-                <button (click)="citaParaComprobante = null" class="text-muted-foreground hover:text-foreground cursor-pointer p-1">
-                  <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div class="space-y-3 text-xs">
-                <div>
-                  <label class="text-muted-foreground mb-1 block font-medium">Método / Banco de Origen</label>
-                  <select [(ngModel)]="bancoOrigen" class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none">
-                    <option value="nequi">Nequi (Billetera Digital)</option>
-                    <option value="daviplata">Daviplata</option>
-                    <option value="bancolombia">Bancolombia (Transferencia)</option>
-                    <option value="pse">PSE / Tarjeta Débito</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label class="text-muted-foreground mb-1 block font-medium">Número de Comprobante / Referencia</label>
-                  <input type="text" [(ngModel)]="numeroComprobante" placeholder="Ej. TRF-8392104"
-                    class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none" />
-                </div>
-
-                <div>
-                  <label class="text-muted-foreground mb-1 block font-medium">Adjunto / Soporte</label>
-                  <input type="text" [(ngModel)]="nombreArchivoSoporte" placeholder="comprobante_transferencia.pdf"
-                    class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none" />
-                </div>
-
-                <div class="p-3 rounded-lg bg-secondary/50 border border-border/60 text-muted-foreground text-[11px]">
-                  <p>Monto de la consulta: <span class="text-foreground font-bold">$ 50.000 COP</span></p>
-                  <p class="mt-1">Tu solicitud quedará en estado <span class="text-amber-400 font-semibold">Pendiente de Autorización</span> en el sistema.</p>
-                </div>
-              </div>
-
-              <div class="flex items-center justify-end gap-2 pt-2 border-t border-border/80">
-                <button (click)="citaParaComprobante = null" class="px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer">
-                  Cancelar
-                </button>
-                <button (click)="enviarComprobante()" [disabled]="!numeroComprobante.trim()"
-                  class="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:bg-primary-hover disabled:opacity-50 cursor-pointer shadow-md">
-                  Radicar Comprobante
-                </button>
               </div>
             </div>
           </div>
@@ -151,7 +90,8 @@ import { PagoItem } from '../../models/pago.model';
                     <th class="px-5 py-3">ID Transacción</th>
                     <th class="px-5 py-3">Concepto / Cita</th>
                     <th class="px-5 py-3">Monto</th>
-                    <th class="px-5 py-3">Método</th>
+                    <th class="px-5 py-3">Método / Canal</th>
+                    <th class="px-5 py-3">Soporte</th>
                     <th class="px-5 py-3">Fecha</th>
                     <th class="px-5 py-3 text-right">Estado</th>
                   </tr>
@@ -161,7 +101,16 @@ import { PagoItem } from '../../models/pago.model';
                     <td class="px-5 py-3.5 font-mono text-muted-foreground">{{ getPaymentRef(p) }}</td>
                     <td class="px-5 py-3.5 font-medium text-foreground">{{ p.especialidad_nombre || 'Consulta Médica' }}</td>
                     <td class="px-5 py-3.5 font-bold text-foreground">$ {{ p.monto | number:'1.0-0' }} {{ p.moneda || 'COP' }}</td>
-                    <td class="px-5 py-3.5 text-muted-foreground capitalize">{{ p.metodo_pago?.replace('_', ' ') || 'Transferencia' }}</td>
+                    <td class="px-5 py-3.5 text-muted-foreground capitalize">
+                      <span class="font-medium text-foreground">{{ p.banco_origen || p.metodo_pago?.replace('_', ' ') || 'Transferencia' }}</span>
+                    </td>
+                    <td class="px-5 py-3.5">
+                      <button *ngIf="p.comprobante_archivo" (click)="comprobanteVisualizar = p"
+                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 cursor-pointer">
+                        Ver Adjunto
+                      </button>
+                      <span *ngIf="!p.comprobante_archivo" class="text-muted-foreground text-[10px] italic">-</span>
+                    </td>
                     <td class="px-5 py-3.5 text-muted-foreground">{{ (p.fecha_pago || p.creado_en) | date:'shortDate' }}</td>
                     <td class="px-5 py-3.5 text-right">
                       <span [ngClass]="getStatusBadge(p.estado)" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
@@ -171,7 +120,7 @@ import { PagoItem } from '../../models/pago.model';
                   </tr>
 
                   <tr *ngIf="pagosService.pagos().length === 0">
-                    <td colspan="6" class="px-5 py-8 text-center text-muted-foreground italic">
+                    <td colspan="7" class="px-5 py-8 text-center text-muted-foreground italic">
                       No hay registros de pago disponibles.
                     </td>
                   </tr>
@@ -181,6 +130,42 @@ import { PagoItem } from '../../models/pago.model';
           </div>
         </main>
       </div>
+
+      <!-- Payment Voucher Modal -->
+      <app-modal-pago
+        *ngIf="citaParaComprobante"
+        [cita]="citaParaComprobante"
+        (closed)="citaParaComprobante = null"
+        (pagado)="load()">
+      </app-modal-pago>
+
+      <!-- View Attachment Modal -->
+      <div *ngIf="comprobanteVisualizar" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between border-b border-border/80 pb-3">
+            <h3 class="font-display text-base font-bold text-foreground">Soporte de Transferencia</h3>
+            <button (click)="comprobanteVisualizar = null" class="text-muted-foreground hover:text-foreground cursor-pointer p-1">
+              <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="rounded-xl border border-border bg-secondary/40 p-2 max-h-80 overflow-y-auto flex items-center justify-center">
+            <img *ngIf="comprobanteVisualizar.comprobante_archivo?.startsWith('data:image')"
+              [src]="comprobanteVisualizar.comprobante_archivo"
+              alt="Comprobante"
+              class="max-w-full max-h-72 rounded-lg object-contain" />
+            <div *ngIf="!comprobanteVisualizar.comprobante_archivo?.startsWith('data:image')" class="p-6 text-center text-xs text-muted-foreground">
+              Documento digital registrado: {{ comprobanteVisualizar.referencia }}
+            </div>
+          </div>
+          <div class="flex justify-end pt-2">
+            <button (click)="comprobanteVisualizar = null" class="px-4 py-2 rounded-lg text-xs font-semibold bg-secondary text-foreground hover:bg-secondary/80 cursor-pointer">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `
 })
@@ -189,9 +174,7 @@ export class PagosComponent implements OnInit {
   citasService = inject(CitasService);
 
   citaParaComprobante: any = null;
-  bancoOrigen = 'nequi';
-  numeroComprobante = '';
-  nombreArchivoSoporte = 'comprobante_nequi_soporte.pdf';
+  comprobanteVisualizar: any = null;
 
   ngOnInit() {
     this.load();
@@ -221,26 +204,6 @@ export class PagosComponent implements OnInit {
 
   abrirModalComprobante(cita: any) {
     this.citaParaComprobante = cita;
-    this.numeroComprobante = `TRF-${Math.floor(1000000 + Math.random() * 9000000)}`;
-  }
-
-  enviarComprobante() {
-    if (!this.citaParaComprobante || !this.numeroComprobante.trim()) return;
-    const ref = `${this.bancoOrigen.toUpperCase()}-${this.numeroComprobante.trim()}`;
-    this.pagosService.reportarTransferencia(this.citaParaComprobante.id, ref, 'transferencia').subscribe({
-      next: () => {
-        this.citaParaComprobante = null;
-        this.citasService.loadMisCitas().subscribe();
-      }
-    });
-  }
-
-  pagarCita(citaId: string) {
-    this.pagosService.simularPago(citaId).subscribe({
-      next: () => {
-        this.citasService.loadMisCitas().subscribe();
-      }
-    });
   }
 
   getStatusBadge(estado: string): string {

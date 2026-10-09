@@ -71,6 +71,19 @@ def get_disponibilidad(fecha: date, especialidad_id=None, especialidad_nombre=No
 
     from django.utils import timezone
     tz = timezone.get_current_timezone()
+    ahora_local = timezone.localtime(timezone.now(), tz)
+    hoy_local = ahora_local.date()
+    hora_actual = ahora_local.time()
+
+    # Si la fecha solicitada es anterior a hoy, no hay disponibilidad
+    if fecha < hoy_local:
+        return {
+            "fecha": fecha,
+            "especialidad": esp.nombre,
+            "slots": [],
+            "total_slots": 0,
+        }, None
+
     start_of_day = timezone.make_aware(datetime.combine(fecha, time(0, 0)), tz)
     end_of_day = timezone.make_aware(datetime.combine(fecha, time(23, 59, 59)), tz)
 
@@ -101,6 +114,10 @@ def get_disponibilidad(fecha: date, especialidad_id=None, especialidad_nombre=No
                 fecha,
             )
             for slot in raw_slots:
+                # Si la fecha es hoy, descartar turnos pasados
+                if fecha == hoy_local and slot["hora_inicio"] <= hora_actual:
+                    continue
+
                 if slot["hora_inicio"] not in booked_times:
                     available_slots.append({
                         "medico_id": medico.id,
@@ -166,7 +183,9 @@ def get_dias_disponibles(fecha_inicio: date, fecha_fin: date, especialidad_id=No
     dias_disponibles = []
     fechas_activas = []
 
-    cur = fecha_inicio
+    from django.utils import timezone
+    hoy_local = timezone.localtime(timezone.now()).date()
+    cur = max(fecha_inicio, hoy_local)
     while cur <= fecha_fin:
         dia_semana_str = DIAS_SEMANA[cur.weekday()]
         if dia_semana_str in active_weekdays:

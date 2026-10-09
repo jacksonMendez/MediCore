@@ -4,11 +4,12 @@ import { RouterModule } from '@angular/router';
 import { CitasService } from '../../services/citas.service';
 import { PagosService } from '../../services/pagos.service';
 import { CitaItem } from '../../models/cita.model';
+import { ModalPagoComponent } from '../modal-pago/modal-pago.component';
 
 @Component({
   selector: 'app-proxima-cita-widget',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ModalPagoComponent],
   template: `
     <div class="rounded-xl border border-primary/30 bg-card p-5 shadow-lg relative overflow-hidden">
       <div class="absolute inset-y-0 left-0 w-1.5 bg-primary"></div>
@@ -62,11 +63,14 @@ import { CitaItem } from '../../models/cita.model';
             </svg>
             <span class="truncate">{{ proximaCita.sede_nombre || 'Sede Central' }}</span>
           </div>
+
           <div *ngIf="proximaCita.estado === 'pendiente_pago'" class="pt-2">
-            <button (click)="pagarProximaCita()" [disabled]="pagosService.payingCitaId() === proximaCita.id"
-              class="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50">
-              <span *ngIf="pagosService.payingCitaId() === proximaCita.id" class="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>{{ pagosService.payingCitaId() === proximaCita.id ? 'Aprobando Pago...' : 'Pagar Cita Ahora ($ 50.000 COP)' }}</span>
+            <button (click)="abrirPagoModal()"
+              class="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2">
+              <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              <span>Pagar Cita Ahora ($ 50.000 COP)</span>
             </button>
           </div>
         </div>
@@ -83,12 +87,21 @@ import { CitaItem } from '../../models/cita.model';
           <p class="text-[11px] text-muted-foreground">Escríbele al copiloto para agendar una nueva consulta médica en segundos.</p>
         </div>
       </ng-template>
+
+      <!-- Reusable Payment & Voucher Modal -->
+      <app-modal-pago
+        *ngIf="mostrarModalPago && proximaCita"
+        [cita]="proximaCita"
+        (closed)="mostrarModalPago = false"
+        (pagado)="onPagoCompletado()">
+      </app-modal-pago>
     </div>
   `
 })
 export class ProximaCitaWidgetComponent implements OnInit {
   private citasService = inject(CitasService);
   pagosService = inject(PagosService);
+  mostrarModalPago: boolean = false;
 
   ngOnInit() {
     this.citasService.loadMisCitas().subscribe();
@@ -96,22 +109,24 @@ export class ProximaCitaWidgetComponent implements OnInit {
 
   get proximaCita(): CitaItem | undefined {
     const list = this.citasService.citas();
-    const now = new Date().toISOString();
-    // Priorizar citas activas futuras
-    const upcoming = list.filter(c => c.estado !== 'cancelada' && c.fecha_hora >= now)
-                         .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
-    if (upcoming.length > 0) return upcoming[0];
-    // Fallback: cualquier cita no cancelada
-    return list.find(c => c.estado !== 'cancelada');
+    const now = new Date().getTime();
+    // ÚNICAMENTE citas futuras activas (confirmadas o pendientes de pago)
+    // NUNCA atendidas, canceladas o pasadas
+    const upcoming = list.filter(c =>
+      ['confirmada', 'pendiente_pago'].includes(c.estado) &&
+      new Date(c.fecha_hora).getTime() >= now
+    ).sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
+
+    return upcoming[0];
   }
 
-  pagarProximaCita() {
-    if (!this.proximaCita) return;
-    this.pagosService.simularPago(this.proximaCita.id).subscribe({
-      next: () => {
-        this.citasService.loadMisCitas().subscribe();
-      }
-    });
+  abrirPagoModal() {
+    this.mostrarModalPago = true;
+  }
+
+  onPagoCompletado() {
+    this.mostrarModalPago = false;
+    this.citasService.loadMisCitas().subscribe();
   }
 
   getStatusBadgeClass(estado: string): string {

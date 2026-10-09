@@ -613,26 +613,47 @@ def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo
             "error": f"Ya tienes una cita agendada en esa misma fecha y hora ({hora_str}). Por favor selecciona otro horario diferente."
         }, ensure_ascii=False)
 
-    # 5. Create Cita
-    cita = Cita.objects.create(
+    # Auto-cancelar citas pasadas pendientes de pago que expiraron
+    Cita.objects.filter(
+        paciente=paciente,
+        estado='pendiente_pago',
+        fecha_hora__lt=timezone.now(),
+    ).update(estado='cancelada')
+
+    # Reutilizar cita pendiente de pago existente con el mismo médico si existe, para evitar duplicados
+    cita_pendiente_previa = Cita.objects.filter(
         paciente=paciente,
         medico=medico,
-        sede=medico.sede,
-        fecha_hora=fecha_dt,
-        duracion_minutos=medico.duracion_cita_minutos,
-        motivo=motivo or "Consulta médica general",
-        estado_id="pendiente_pago",
-    )
+        estado='pendiente_pago',
+    ).first()
+
+    if cita_pendiente_previa:
+        cita = cita_pendiente_previa
+        cita.fecha_hora = fecha_dt
+        cita.sede = medico.sede
+        cita.motivo = motivo or "Consulta médica general"
+        cita.save(update_fields=['fecha_hora', 'sede', 'motivo'])
+    else:
+        # 5. Create Cita
+        cita = Cita.objects.create(
+            paciente=paciente,
+            medico=medico,
+            sede=medico.sede,
+            fecha_hora=fecha_dt,
+            duracion_minutos=medico.duracion_cita_minutos,
+            motivo=motivo or "Consulta médica general",
+            estado_id="pendiente_pago",
+        )
 
     # Opción b: Automatically create pending Pago record
     precio_base = medico.especialidad.precio_base if (medico and medico.especialidad) else 50000.00
-    Pago.objects.get_or_create(
+    pago_obj, _ = Pago.objects.get_or_create(
         cita=cita,
         defaults={
             "monto": precio_base,
             "moneda": "COP",
-            "referencia": f"MED-{uuid.uuid4().hex[:10].upper()}",
-            "metodo_pago_id": "sandbox",
+            "referencia": f"TRF-{uuid.uuid4().hex[:10].upper()}",
+            "metodo_pago_id": "transferencia",
             "estado_id": "pendiente",
         }
     )
@@ -665,10 +686,10 @@ def _tool_agendar_cita(paciente_id: str, medico_id: str, fecha_hora: str, motivo
         "especialidad": medico.especialidad.nombre,
         "sede": medico.sede.nombre,
         "fecha_hora": cita.fecha_hora.strftime("%Y-%m-%d %H:%M"),
-        "estado": cita.estado,
+        "estado": str(cita.estado_id),
         "precio": float(medico.especialidad.precio_base),
-        "instrucciones_pago": "La cita está en estado 'pendiente_pago'. Puede proceder al pago con Wompi para confirmarla.",
-    }, ensure_ascii=False)
+        "instrucciones_pago": "La cita está en estado 'pendiente_pago'. Puedes transferir por Nequi o Bancolombia y radicar tu comprobante para que el personal lo autorice.",
+    }, default=str, ensure_ascii=False)
 
 
 def _tool_consultar_agenda_hoy(medico_id: str) -> str:

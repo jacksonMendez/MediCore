@@ -31,6 +31,14 @@ class EstadoPago(models.Model):
     def __str__(self):
         return self.nombre
 
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.codigo == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return super().__hash__()
+
 
 class Pago(models.Model):
     ESTADO_CHOICES = [
@@ -56,6 +64,17 @@ class Pago(models.Model):
         db_column='metodo_pago',
         default='sandbox',
         related_name='pagos',
+    )
+    banco_origen = models.CharField(
+        max_length=60,
+        null=True,
+        blank=True,
+        help_text='Banco o billetera de origen (Nequi, Bancolombia, Daviplata, etc.)',
+    )
+    comprobante_archivo = models.TextField(
+        null=True,
+        blank=True,
+        help_text='Imagen Base64 o ruta del archivo de comprobante de pago',
     )
     estado = models.ForeignKey(
         EstadoPago,
