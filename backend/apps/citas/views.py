@@ -6,12 +6,14 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiRespon
 from apps.authentication.authentication import require_role
 from apps.auditoria.services import registrar_auditoria
 from apps.clinica.models import Medico, Paciente
-from .models import Cita, PQRSolicitud, TipoPQR, EstadoPQR
+from .models import Cita, ConsultaNota, PQRSolicitud, TipoPQR, EstadoPQR
 from .services import get_disponibilidad, get_dias_disponibles
 from .serializers import (
     CitaCreateSerializer,
     CitaResponseSerializer,
     DisponibilidadResponseSerializer,
+    NotaCreateSerializer,
+    NotaResponseSerializer,
     PQRCreateSerializer,
     PQRSolicitudResponseSerializer,
 )
@@ -497,4 +499,72 @@ class PQRCambiarEstadoView(APIView):
         )
 
         return Response(PQRSolicitudResponseSerializer(pqr).data, status=status.HTTP_200_OK)
+
+
+class ConsultaNotaView(APIView):
+    permission_classes = [require_role(['medico', 'admin'])]
+    serializer_class = NotaResponseSerializer
+
+    @extend_schema(
+        tags=['Citas'],
+        summary='Consultar nota clínica de una cita',
+        description='Retorna el diagnóstico y fórmula médica de la consulta.',
+        responses={200: NotaResponseSerializer, 404: OpenApiResponse(description='No encontrada.')}
+    )
+    def get(self, request, cita_id):
+        try:
+            nota = ConsultaNota.objects.get(cita_id=cita_id)
+            return Response(NotaResponseSerializer(nota).data)
+        except ConsultaNota.DoesNotExist:
+            return Response({"detail": "No hay notas clínicas registradas para esta cita."}, status=status.HTTP_404_NOT_FOUND)
+
+    @extend_schema(
+        tags=['Citas'],
+        summary='Registrar o actualizar nota clínica y diagnóstico',
+        description='Guarda el diagnóstico y tratamiento, marcando la cita como atendida.',
+        request=NotaCreateSerializer,
+        responses={200: NotaResponseSerializer, 201: NotaResponseSerializer}
+    )
+    def post(self, request, cita_id):
+        serializer = NotaCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"detail": "Datos de nota clínica inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            cita = Cita.objects.select_related('medico__usuario', 'paciente__usuario').get(id=cita_id)
+        except Cita.DoesNotExist:
+            return Response({"detail": "Cita no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol == 'medico' and cita.medico.usuario_id != request.user.id:
+            return Response({"detail": "Solo el médico asignado puede diligenciar la nota clínica."}, status=status.HTTP_403_FORBIDDEN)
+
+        data = serializer.validated_data
+        nota, created = ConsultaNota.objects.update_or_create(
+            cita=cita,
+            defaults={
+                'diagnostico': data['diagnostico'],
+                'tratamiento': data.get('tratamiento', ''),
+                'receta_medica': data.get('receta_medica', ''),
+            }
+        )
+
+        # Actualizar estado de la cita a 'atendida'
+        cita.estado_id = 'atendida'
+        cita.save(update_fields=['estado'])
+
+        registrar_auditoria(
+            accion='nota_clinica_registrada',
+            entidad_tipo='ConsultaNota',
+            entidad_id=str(nota.id),
+            usuario=request.user,
+            datos_cambio={
+                'cita_id': str(cita.id),
+                'paciente': cita.paciente.usuario.nombre_completo,
+                'diagnostico': data['diagnostico'][:80],
+            },
+            ip=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response(NotaResponseSerializer(nota).data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 

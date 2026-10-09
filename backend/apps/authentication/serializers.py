@@ -6,7 +6,7 @@ class UsuarioResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Usuario
-        fields = ['id', 'nombre_completo', 'correo', 'rol', 'telefono', 'activo', 'creado_en']
+        fields = ['id', 'nombre_completo', 'correo', 'rol', 'telefono', 'activo', 'correo_verificado', 'creado_en']
 
 
 class TokenResponseSerializer(serializers.Serializer):
@@ -28,14 +28,37 @@ class UserLoginSerializer(serializers.Serializer):
         return data
 
 
-
 class UserCreateSerializer(serializers.Serializer):
     nombre_completo = serializers.CharField(min_length=3, max_length=200)
     correo = serializers.EmailField()
     password = serializers.CharField(min_length=6, write_only=True)
-    rol = serializers.ChoiceField(choices=['paciente', 'medico', 'admin', 'agente_atencion'], default='paciente')
+    rol = serializers.CharField(default='paciente', required=False)
     telefono = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     # Patient fields
     documento_tipo = serializers.CharField(default='CC', required=False)
     documento_numero = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     fecha_nacimiento = serializers.DateField(required=False, allow_null=True)
+
+    def validate_rol(self, value):
+        if value and value.lower() != 'paciente':
+            raise serializers.ValidationError(
+                "El autorregistro solo está habilitado para el rol 'paciente'. "
+                "Las cuentas de médicos y administradores deben ser creadas institucionalmente por la clínica."
+            )
+        return 'paciente'
+
+
+class VerificarCodigoSerializer(serializers.Serializer):
+    correo = serializers.EmailField()
+    codigo = serializers.CharField(min_length=6, max_length=6)
+
+
+class ReenviarCodigoSerializer(serializers.Serializer):
+    correo = serializers.EmailField()
+
+
+class GoogleAuthSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    nombre = serializers.CharField(required=False, allow_blank=True, default='')
+    google_id = serializers.CharField(required=False, allow_blank=True, default='')
+    credential = serializers.CharField(required=False, allow_blank=True, default='')

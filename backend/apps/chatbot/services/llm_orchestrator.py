@@ -212,6 +212,41 @@ TOOLS = [
     },
 ]
 
+SYSTEM_PROMPT_PACIENTE = SYSTEM_PROMPT
+
+SYSTEM_PROMPT_MEDICO = """Eres MediCore Clinical Copilot, el asistente clínico y operativo de consulta para el cuerpo médico de MediCore OS.
+
+ROL Y PROPÓSITO CLÍNICO:
+Tu función es asistir exclusivamente al médico profesional en la gestión de su práctica clínica:
+1) Consultar su agenda del día y citas programadas para hoy mediante `consultar_agenda_hoy`.
+2) Consultar el historial médico, antecedentes y notas de evolución de sus pacientes mediante `consultar_historial_paciente`.
+3) Consultar horarios y disponibilidad de otros colegas o especialidades mediante `consultar_disponibilidad` o `consultar_dias_disponibles` para remitir pacientes.
+4) Brindar orientación médica basada en evidencia, resúmenes farmacológicos y guías clínicas para soporte al diagnóstico.
+
+REGLA FUNDAMENTAL DE AGENDAMIENTO (ESTRICTA):
+TÚ NO AGENDAS CITAS MÉDICAS PARA EL MÉDICO. Las citas son solicitadas por los pacientes o registradas por admisión. Si el médico pide agendar una cita personal o reservar un horario en su nombre, debes responder con claridad y respeto:
+'Estimado(a) doctor(a), el agendamiento directo a través del asistente está reservado para los pacientes. Como copiloto clínico puedo ayudarte a revisar tu agenda del día, consultar el historial clínico de tus pacientes o brindarte soporte con guías médicas y de diagnóstico.'
+
+TONO Y PRECISIÓN:
+Mantén siempre un lenguaje médico profesional, conciso y empático."""
+
+SYSTEM_PROMPT_ADMIN = """Eres MediCore Admin Copilot, el asistente administrativo, analítico y operativo institucional de MediCore OS.
+
+ROL Y PROPÓSITO ADMINISTRATIVO:
+Tu función es asistir a la administración en la supervisión y gestión de la clínica:
+1) Consultar disponibilidad médica y ocupación por especialidad mediante `consultar_disponibilidad` y `consultar_dias_disponibles`.
+2) Consultar y resumir el estado de transacciones financieras, pagos y solicitudes de reembolso de pacientes.
+3) Consultar la agenda operativa del cuerpo médico mediante `consultar_agenda_hoy`.
+4) Brindar información operativa sobre sedes, médicos activos y especialidades registradas.
+
+REGLA FUNDAMENTAL DE AGENDAMIENTO (ESTRICTA):
+TÚ NO AGENDAS CITAS MÉDICAS PERSONALES. Si el administrador solicita agendar una cita personal, recuérdale:
+'Estimado(a) administrador(a), el agendamiento directo a través del asistente conversacional está habilitado para pacientes. Desde tu panel de administración puedes supervisar las sedes, médicos, citas y autorizar transferencias bancarias.'"""
+
+TOOLS_PACIENTE = TOOLS
+TOOLS_MEDICO = [t for t in TOOLS if t["function"]["name"] in ["consultar_agenda_hoy", "consultar_historial_paciente", "consultar_disponibilidad", "consultar_dias_disponibles"]]
+TOOLS_ADMIN = [t for t in TOOLS if t["function"]["name"] in ["consultar_agenda_hoy", "consultar_historial_paciente", "consultar_disponibilidad", "consultar_dias_disponibles", "consultar_mis_pagos"]]
+
 
 def _parse_flexible_date(fecha: str) -> date | None:
     if not fecha or not isinstance(fecha, str):
@@ -950,7 +985,14 @@ class LLMOrchestrator:
             context.append({"role": role, "content": content})
         return context
 
-    def _execute_tool(self, tool_name: str, arguments: dict) -> str:
+    def _execute_tool(self, tool_name: str, arguments: dict, usuario: Usuario = None) -> str:
+        if tool_name == "agendar_cita" and usuario:
+            u_rol = getattr(usuario, 'rol_id', None) or str(getattr(usuario, 'rol', ''))
+            if u_rol != "paciente":
+                return json.dumps({
+                    "error": "El agendamiento directo de citas está reservado exclusivamente para pacientes. Los médicos y administradores gestionan sus agendas desde su panel clínico."
+                }, ensure_ascii=False)
+
         func = TOOL_FUNCTIONS.get(tool_name)
         if not func:
             return json.dumps({"error": f"Herramienta desconocida: {tool_name}"})
@@ -1002,20 +1044,32 @@ class LLMOrchestrator:
         if time_match_user:
             estado_flujo["hora"] = time_match_user.group(1).strip()
 
-        # Contexto del usuario
+        # Contexto del usuario y selección de prompts/herramientas por rol
         context = self._load_context(sesion_id, current_mensaje=mensaje)
 
-        user_context = f"\n\nContexto del usuario actual:\n- Nombre: {usuario.nombre_completo}\n- Rol: {usuario.rol}\n- ID: {str(usuario.id)}"
-        if usuario.rol == "paciente":
-            paciente = Paciente.objects.filter(usuario=usuario).first()
-            if paciente:
-                user_context += f"\n- Paciente ID: {str(paciente.id)}\n- Documento: {paciente.documento_numero}"
-        elif usuario.rol == "medico":
-            medico = Medico.objects.filter(usuario=usuario).first()
-            if medico:
-                user_context += f"\n- Médico ID: {str(medico.id)}"
+        u_rol = getattr(usuario, 'rol_id', None) or str(getattr(usuario, 'rol', ''))
+        paciente = None
+        medico = None
 
-        if estado_flujo:
+        if u_rol == "medico":
+            system_prompt_to_use = SYSTEM_PROMPT_MEDICO
+            tools_to_use = TOOLS_MEDICO
+            medico = Medico.objects.filter(usuario=usuario).first()
+        elif u_rol == "admin":
+            system_prompt_to_use = SYSTEM_PROMPT_ADMIN
+            tools_to_use = TOOLS_ADMIN
+        else:
+            system_prompt_to_use = SYSTEM_PROMPT_PACIENTE
+            tools_to_use = TOOLS_PACIENTE
+            paciente = Paciente.objects.filter(usuario=usuario).first()
+
+        user_context = f"\n\nContexto del usuario actual:\n- Nombre: {usuario.nombre_completo}\n- Rol: {u_rol}\n- ID: {str(usuario.id)}"
+        if paciente:
+            user_context += f"\n- Paciente ID: {str(paciente.id)}\n- Documento: {paciente.documento_numero}"
+        elif medico:
+            user_context += f"\n- Médico ID: {str(medico.id)}\n- Especialidad: {medico.especialidad.nombre if medico.especialidad else 'General'}"
+
+        if estado_flujo and u_rol == "paciente":
             flow_items = []
             if estado_flujo.get("especialidad"):
                 flow_items.append(f"Especialidad en curso: {estado_flujo['especialidad']}")
@@ -1027,7 +1081,7 @@ class LLMOrchestrator:
                 user_context += f"\n- Progreso del agendamiento: {', '.join(flow_items)}"
 
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT + user_context},
+            {"role": "system", "content": system_prompt_to_use + user_context},
             *context,
             {"role": "user", "content": mensaje},
         ]
@@ -1039,7 +1093,7 @@ class LLMOrchestrator:
         try:
             response, provider, model, is_fallback = self.llm_client.create_completion(
                 messages=messages,
-                tools=TOOLS,
+                tools=tools_to_use,
                 temperature=0.0,
                 max_tokens=350,
             )
@@ -1077,8 +1131,12 @@ class LLMOrchestrator:
                         if paciente:
                             func_args["paciente_id"] = str(paciente.id)
 
+                    if func_name == "consultar_agenda_hoy" and not func_args.get("medico_id"):
+                        if medico:
+                            func_args["medico_id"] = str(medico.id)
+
                     logger.info(f"Executing tool: {func_name} with args: {func_args}")
-                    tool_result = self._execute_tool(func_name, func_args)
+                    tool_result = self._execute_tool(func_name, func_args, usuario=usuario)
                     tools_executed.append(func_name)
 
                     if func_name == "consultar_disponibilidad":
@@ -1114,7 +1172,7 @@ class LLMOrchestrator:
 
                 response, provider, model, is_fallback = self.llm_client.create_completion(
                     messages=messages,
-                    tools=TOOLS,
+                    tools=tools_to_use,
                     temperature=0.0,
                     max_tokens=350,
                 )

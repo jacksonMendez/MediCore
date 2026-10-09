@@ -216,11 +216,83 @@ paths:
           description: No autenticado.
         '403':
           description: 'Acceso denegado: solo administradores pueden auditar.'
+  /api/auth/google:
+    post:
+      operationId: auth_google_create
+      description: Permite iniciar sesión o registrarse automáticamente mediante una
+        cuenta verificada de Google. Si el paciente no existe, se crea con correo_verificado=True
+        y se notifica al admin.
+      summary: Autenticación y Registro con Google OAuth
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+        '400':
+          description: Datos de Google inválidos.
+        '403':
+          description: Cuenta desactivada.
+  /api/auth/google/:
+    post:
+      operationId: auth_google_create_2
+      description: Permite iniciar sesión o registrarse automáticamente mediante una
+        cuenta verificada de Google. Si el paciente no existe, se crea con correo_verificado=True
+        y se notifica al admin.
+      summary: Autenticación y Registro con Google OAuth
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+        '400':
+          description: Datos de Google inválidos.
+        '403':
+          description: Cuenta desactivada.
   /api/auth/login:
     post:
       operationId: auth_login_create
-      description: Autentica al usuario (paciente, médico, admin o agente) mediante
-        correo y contraseña. Retorna un JWT Bearer Token y los datos del perfil.
+      description: Autentica al usuario mediante correo y contraseña. Si es paciente
+        y no ha verificado su correo, solicita el código OTP.
       summary: Iniciar sesión con credenciales
       tags:
       - Auth
@@ -242,18 +314,22 @@ paths:
       - {}
       responses:
         '200':
-          description: Autenticación exitosa. Retorna access_token y datos del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
         '400':
           description: Datos de solicitud inválidos.
         '401':
           description: Credenciales incorrectas.
         '403':
-          description: Cuenta desactivada.
+          description: Cuenta desactivada o correo no verificado.
   /api/auth/login/:
     post:
       operationId: auth_login_create_2
-      description: Autentica al usuario (paciente, médico, admin o agente) mediante
-        correo y contraseña. Retorna un JWT Bearer Token y los datos del perfil.
+      description: Autentica al usuario mediante correo y contraseña. Si es paciente
+        y no ha verificado su correo, solicita el código OTP.
       summary: Iniciar sesión con credenciales
       tags:
       - Auth
@@ -275,13 +351,17 @@ paths:
       - {}
       responses:
         '200':
-          description: Autenticación exitosa. Retorna access_token y datos del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
         '400':
           description: Datos de solicitud inválidos.
         '401':
           description: Credenciales incorrectas.
         '403':
-          description: Cuenta desactivada.
+          description: Cuenta desactivada o correo no verificado.
   /api/auth/logout:
     post:
       operationId: auth_logout_create
@@ -318,8 +398,7 @@ paths:
     get:
       operationId: auth_me_retrieve
       description: 'Retorna la información del usuario en sesión activa a partir de
-        su Bearer Token. Roles permitidos: todos los roles autenticados (paciente,
-        medico, admin, agente_atencion).'
+        su Bearer Token. Roles permitidos: todos los roles autenticados.'
       summary: Perfil del usuario autenticado (Me)
       tags:
       - Auth
@@ -339,8 +418,7 @@ paths:
     get:
       operationId: auth_me_retrieve_2
       description: 'Retorna la información del usuario en sesión activa a partir de
-        su Bearer Token. Roles permitidos: todos los roles autenticados (paciente,
-        medico, admin, agente_atencion).'
+        su Bearer Token. Roles permitidos: todos los roles autenticados.'
       summary: Perfil del usuario autenticado (Me)
       tags:
       - Auth
@@ -356,12 +434,70 @@ paths:
           description: ''
         '401':
           description: Token de autorización ausente o expirado.
+  /api/auth/reenviar-codigo:
+    post:
+      operationId: auth_reenviar_codigo_create
+      description: Genera un nuevo código OTP de 6 dígitos y lo remite al correo del
+        paciente.
+      summary: Reenviar código OTP de verificación
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReenviarCodigoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReenviarCodigoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReenviarCodigoRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Código reenviado exitosamente.
+        '404':
+          description: Usuario no encontrado.
+  /api/auth/reenviar-codigo/:
+    post:
+      operationId: auth_reenviar_codigo_create_2
+      description: Genera un nuevo código OTP de 6 dígitos y lo remite al correo del
+        paciente.
+      summary: Reenviar código OTP de verificación
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReenviarCodigoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReenviarCodigoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReenviarCodigoRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: Código reenviado exitosamente.
+        '404':
+          description: Usuario no encontrado.
   /api/auth/register:
     post:
       operationId: auth_register_create
-      description: Crea una nueva cuenta de usuario en el sistema. Si el rol es paciente,
-        crea automáticamente el perfil clínico asociado.
-      summary: Registro de nuevo usuario/paciente
+      description: Registra un nuevo paciente en la plataforma. Genera un código OTP
+        de 6 dígitos enviado al correo para validar la identidad y notifica al administrador.
+      summary: Registro de nuevo usuario (exclusivo para pacientes)
       tags:
       - Auth
       requestBody:
@@ -382,17 +518,19 @@ paths:
       - {}
       responses:
         '201':
-          description: Usuario registrado exitosamente con token JWT y perfil.
+          description: Paciente pre-registrado. Requiere validación de código OTP.
         '400':
           description: Validación fallida en los datos enviados.
+        '403':
+          description: Intento de autoregistro con un rol no autorizado.
         '409':
           description: El correo electrónico ya se encuentra registrado.
   /api/auth/register/:
     post:
       operationId: auth_register_create_2
-      description: Crea una nueva cuenta de usuario en el sistema. Si el rol es paciente,
-        crea automáticamente el perfil clínico asociado.
-      summary: Registro de nuevo usuario/paciente
+      description: Registra un nuevo paciente en la plataforma. Genera un código OTP
+        de 6 dígitos enviado al correo para validar la identidad y notifica al administrador.
+      summary: Registro de nuevo usuario (exclusivo para pacientes)
       tags:
       - Auth
       requestBody:
@@ -413,11 +551,83 @@ paths:
       - {}
       responses:
         '201':
-          description: Usuario registrado exitosamente con token JWT y perfil.
+          description: Paciente pre-registrado. Requiere validación de código OTP.
         '400':
           description: Validación fallida en los datos enviados.
+        '403':
+          description: Intento de autoregistro con un rol no autorizado.
         '409':
           description: El correo electrónico ya se encuentra registrado.
+  /api/auth/verificar-codigo:
+    post:
+      operationId: auth_verificar_codigo_create
+      description: Valida el código de 6 dígitos enviado al correo del paciente. Al
+        verificar, emite el JWT y activa el acceso completo.
+      summary: Verificar código OTP de correo electrónico
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificarCodigoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerificarCodigoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerificarCodigoRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+        '400':
+          description: Código incorrecto o expirado.
+        '404':
+          description: Usuario no encontrado.
+  /api/auth/verificar-codigo/:
+    post:
+      operationId: auth_verificar_codigo_create_2
+      description: Valida el código de 6 dígitos enviado al correo del paciente. Al
+        verificar, emite el JWT y activa el acceso completo.
+      summary: Verificar código OTP de correo electrónico
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificarCodigoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerificarCodigoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerificarCodigoRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+        '400':
+          description: Código incorrecto o expirado.
+        '404':
+          description: Usuario no encontrado.
   /api/chat/mensaje:
     post:
       operationId: chat_mensaje_create
@@ -887,6 +1097,140 @@ paths:
           description: Permisos insuficientes para modificar esta cita.
         '404':
           description: Cita no encontrada.
+  /api/citas/{cita_id}/nota:
+    get:
+      operationId: citas_nota_retrieve
+      description: Retorna el diagnóstico y fórmula médica de la consulta.
+      summary: Consultar nota clínica de una cita
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaResponse'
+          description: ''
+        '404':
+          description: No encontrada.
+    post:
+      operationId: citas_nota_create
+      description: Guarda el diagnóstico y tratamiento, marcando la cita como atendida.
+      summary: Registrar o actualizar nota clínica y diagnóstico
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotaCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NotaCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NotaCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaResponse'
+          description: ''
+  /api/citas/{cita_id}/nota/:
+    get:
+      operationId: citas_nota_retrieve_2
+      description: Retorna el diagnóstico y fórmula médica de la consulta.
+      summary: Consultar nota clínica de una cita
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaResponse'
+          description: ''
+        '404':
+          description: No encontrada.
+    post:
+      operationId: citas_nota_create_2
+      description: Guarda el diagnóstico y tratamiento, marcando la cita como atendida.
+      summary: Registrar o actualizar nota clínica y diagnóstico
+      parameters:
+      - in: path
+        name: cita_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Citas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotaCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NotaCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NotaCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaResponse'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaResponse'
+          description: ''
   /api/citas/agenda-hoy/{medico_id}:
     get:
       operationId: citas_agenda_hoy_list
@@ -2249,9 +2593,8 @@ components:
           format: date-time
         duracion_minutos:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
         estado:
           type: string
           readOnly: true
@@ -2376,6 +2719,24 @@ components:
       description: |-
         * `aprobado` - aprobado
         * `rechazado` - rechazado
+    GoogleAuthRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        nombre:
+          type: string
+          default: ''
+        google_id:
+          type: string
+          default: ''
+        credential:
+          type: string
+          default: ''
+      required:
+      - email
     HorarioCreateRequest:
       type: object
       properties:
@@ -2483,9 +2844,8 @@ components:
           maxLength: 50
         duracion_cita_minutos:
           type: integer
-          maximum: 9223372036854775807
-          minimum: -9223372036854775808
-          format: int64
+          maximum: 2147483647
+          minimum: -2147483648
         genero:
           type: string
           nullable: true
@@ -2566,6 +2926,45 @@ components:
         * `ninguna` - Ninguna
         * `dia` - Seleccionar Día
         * `hora` - Seleccionar Hora
+    NotaCreateRequest:
+      type: object
+      properties:
+        diagnostico:
+          type: string
+          minLength: 1
+        tratamiento:
+          type: string
+          default: ''
+        receta_medica:
+          type: string
+          default: ''
+      required:
+      - diagnostico
+    NotaResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        cita_id:
+          type: string
+          format: uuid
+        diagnostico:
+          type: string
+          nullable: true
+        tratamiento:
+          type: string
+          nullable: true
+        receta_medica:
+          type: string
+          nullable: true
+        creado_en:
+          type: string
+          format: date-time
+      required:
+      - cita_id
+      - id
     OrigenEnum:
       enum:
       - bot_llm
@@ -2672,6 +3071,13 @@ components:
         concepto:
           type: string
           readOnly: true
+        paciente_nombre:
+          type: string
+          readOnly: true
+        cita_fecha_hora:
+          type: string
+          format: date-time
+          readOnly: true
         fecha:
           type: string
           format: date-time
@@ -2680,6 +3086,7 @@ components:
           type: string
           format: date-time
       required:
+      - cita_fecha_hora
       - cita_id
       - concepto
       - estado
@@ -2687,6 +3094,7 @@ components:
       - id
       - metodo_pago
       - monto
+      - paciente_nombre
       - referencia
     PagoSimularRequest:
       type: object
@@ -2698,6 +3106,8 @@ components:
           type: string
           minLength: 1
           default: sandbox
+        referencia:
+          type: string
       required:
       - cita_id
     PatchedCambiarEstadoCitaRequestRequest:
@@ -2725,6 +3135,15 @@ components:
 
             * `aprobada` - aprobada
             * `rechazada` - rechazada
+    ReenviarCodigoRequest:
+      type: object
+      properties:
+        correo:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - correo
     RegistroAuditoria:
       type: object
       properties:
@@ -2800,18 +3219,6 @@ components:
         * `en_curso` - En curso
         * `resuelta_ia` - Resuelta por IA
         * `escalada_humano` - Escalada a Humano
-    RolEnum:
-      enum:
-      - paciente
-      - medico
-      - admin
-      - agente_atencion
-      type: string
-      description: |-
-        * `paciente` - paciente
-        * `medico` - medico
-        * `admin` - admin
-        * `agente_atencion` - agente_atencion
     SedeCreateRequest:
       type: object
       properties:
@@ -2921,6 +3328,19 @@ components:
       - medico_nombre
       - precio
       - sede
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          default: bearer
+        usuario:
+          $ref: '#/components/schemas/UsuarioResponse'
+      required:
+      - access_token
+      - usuario
     UserCreateRequest:
       type: object
       properties:
@@ -2937,8 +3357,8 @@ components:
           writeOnly: true
           minLength: 6
         rol:
-          allOf:
-          - $ref: '#/components/schemas/RolEnum'
+          type: string
+          minLength: 1
           default: paciente
         telefono:
           type: string
@@ -2998,6 +3418,8 @@ components:
           maxLength: 20
         activo:
           type: boolean
+        correo_verificado:
+          type: boolean
         creado_en:
           type: string
           format: date-time
@@ -3006,6 +3428,20 @@ components:
       - id
       - nombre_completo
       - rol
+    VerificarCodigoRequest:
+      type: object
+      properties:
+        correo:
+          type: string
+          format: email
+          minLength: 1
+        codigo:
+          type: string
+          minLength: 6
+          maxLength: 6
+      required:
+      - codigo
+      - correo
     WebhookPagoRequest:
       type: object
       properties:

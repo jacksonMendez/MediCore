@@ -55,6 +55,8 @@ class UsuarioManager(BaseUserManager):
         if not correo:
             raise ValueError('El correo es obligatorio')
         correo = self.normalize_email(correo)
+        if 'rol' in extra_fields and isinstance(extra_fields['rol'], str):
+            extra_fields['rol_id'] = extra_fields.pop('rol')
         user = self.model(correo=correo, **extra_fields)
         if password:
             user.set_password(password)
@@ -89,6 +91,9 @@ class Usuario(AbstractBaseUser):
     )
     telefono = models.CharField(max_length=20, null=True, blank=True)
     activo = models.BooleanField(default=True)
+    correo_verificado = models.BooleanField(default=True)
+    codigo_verificacion = models.CharField(max_length=10, null=True, blank=True)
+    codigo_verificacion_expira = models.DateTimeField(null=True, blank=True)
     creado_en = models.DateTimeField(default=timezone.now)
 
     # Disable last_login field because it does not exist in schema.sql

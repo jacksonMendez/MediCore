@@ -36,7 +36,7 @@ export class CitasService {
 
   cancelarCita(citaId: string, motivo: string = 'Cancelado por el paciente'): Observable<any> {
     return this.http.patch(`${this.apiUrl}/${citaId}/estado`, {
-      estado: 'cancelada',
+      nuevo_estado: 'cancelada',
       motivo
     }, {
       headers: this.authService.getAuthHeaders()
@@ -45,6 +45,38 @@ export class CitasService {
         this.loadMisCitas().subscribe();
       })
     );
+  }
+
+  cambiarEstado(citaId: string, nuevoEstado: string): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/${citaId}/estado`, {
+      nuevo_estado: nuevoEstado
+    }, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => {
+        this.loadMisCitas().subscribe();
+      })
+    );
+  }
+
+  guardarNotaClinica(citaId: string, diagnostico: string, tratamiento: string = '', receta: string = ''): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${citaId}/nota`, {
+      diagnostico,
+      tratamiento,
+      receta_medica: receta
+    }, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => {
+        this.loadMisCitas().subscribe();
+      })
+    );
+  }
+
+  obtenerNotaClinica(citaId: string): Observable<any> {
+    return this.http.get(`${this.apiUrl}/${citaId}/nota`, {
+      headers: this.authService.getAuthHeaders()
+    });
   }
 
   notifyCitasUpdated() {

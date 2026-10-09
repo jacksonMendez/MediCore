@@ -75,6 +75,12 @@ class DisponibilidadResponseSerializer(serializers.Serializer):
     total_slots = serializers.IntegerField()
 
 
+class NotaCreateSerializer(serializers.Serializer):
+    diagnostico = serializers.CharField(required=True)
+    tratamiento = serializers.CharField(required=False, allow_blank=True, default='')
+    receta_medica = serializers.CharField(required=False, allow_blank=True, default='')
+
+
 class NotaResponseSerializer(serializers.ModelSerializer):
     cita_id = serializers.UUIDField(source='cita.id')
 

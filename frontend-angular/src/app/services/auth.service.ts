@@ -47,23 +47,53 @@ export class AuthService {
   login(correo: string, password: string): Observable<AuthResponse> {
     return this.http.post<AuthResponse>(`${this.apiUrl}/login`, { correo, password }).pipe(
       tap((res) => {
-        localStorage.setItem(this.tokenKey, res.access_token);
-        localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
-        this.token.set(res.access_token);
-        this.currentUser.set(res.usuario);
-        this.redirectAfterLogin(res.usuario.rol);
+        if (res?.access_token) {
+          localStorage.setItem(this.tokenKey, res.access_token);
+          localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
+          this.token.set(res.access_token);
+          this.currentUser.set(res.usuario);
+          this.redirectAfterLogin(res.usuario.rol);
+        }
       })
     );
   }
 
-  register(userData: any): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, userData).pipe(
+  register(userData: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/register`, userData);
+  }
+
+  verificarCodigo(correo: string, codigo: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/verificar-codigo`, { correo, codigo }).pipe(
       tap((res) => {
-        localStorage.setItem(this.tokenKey, res.access_token);
-        localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
-        this.token.set(res.access_token);
-        this.currentUser.set(res.usuario);
-        this.redirectAfterLogin(res.usuario.rol);
+        if (res?.access_token) {
+          localStorage.setItem(this.tokenKey, res.access_token);
+          localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
+          this.token.set(res.access_token);
+          this.currentUser.set(res.usuario);
+          this.redirectAfterLogin(res.usuario.rol);
+        }
+      })
+    );
+  }
+
+  reenviarCodigo(correo: string): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/reenviar-codigo`, { correo });
+  }
+
+  loginConGoogle(email: string, nombre?: string, credential?: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/google`, {
+      email,
+      nombre: nombre || '',
+      credential: credential || ''
+    }).pipe(
+      tap((res) => {
+        if (res?.access_token) {
+          localStorage.setItem(this.tokenKey, res.access_token);
+          localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
+          this.token.set(res.access_token);
+          this.currentUser.set(res.usuario);
+          this.redirectAfterLogin(res.usuario.rol);
+        }
       })
     );
   }
