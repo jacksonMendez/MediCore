@@ -40,6 +40,15 @@ class LoginView(APIView):
             return Response({"detail": "Correo o contraseña incorrectos"}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not user.check_password_compatible(password):
+            from apps.auditoria.services import registrar_auditoria
+            registrar_auditoria(
+                accion='login_fallido',
+                entidad_tipo='Usuario',
+                entidad_id=str(user.id),
+                usuario=user,
+                datos_cambio={'correo': correo, 'motivo': 'credenciales_incorrectas'},
+                ip=request.META.get('REMOTE_ADDR')
+            )
             return Response({"detail": "Correo o contraseña incorrectos"}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not user.activo:
@@ -130,3 +139,29 @@ class ProfileView(APIView):
     )
     def get(self, request):
         return Response(UsuarioResponseSerializer(request.user).data)
+
+
+class LogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=['Auth'],
+        summary='Cerrar sesión de usuario',
+        description='Registra el cierre de sesión en la auditoría inmutable del sistema. Roles permitidos: usuarios autenticados.',
+        request=None,
+        responses={
+            200: OpenApiResponse(description='Sesión cerrada exitosamente.'),
+            401: OpenApiResponse(description='No autenticado.'),
+        }
+    )
+    def post(self, request):
+        from apps.auditoria.services import registrar_auditoria
+        registrar_auditoria(
+            accion='logout',
+            entidad_tipo='Usuario',
+            entidad_id=str(request.user.id),
+            usuario=request.user,
+            datos_cambio={'correo': request.user.correo, 'rol': str(request.user.rol_id)},
+            ip=request.META.get('REMOTE_ADDR'),
+        )
+        return Response({"detail": "Sesión cerrada exitosamente."}, status=status.HTTP_200_OK)

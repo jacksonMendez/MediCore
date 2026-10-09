@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { SidebarComponent } from '../../components/layout/sidebar.component';
 import { HeaderComponent } from '../../components/layout/header.component';
 import { CitasService } from '../../services/citas.service';
+import { PagosService } from '../../services/pagos.service';
 import { CitaItem } from '../../models/cita.model';
 
 @Component({
@@ -72,6 +73,14 @@ import { CitaItem } from '../../models/cita.model';
 
                   <!-- Actions -->
                   <div *ngIf="cita.estado !== 'cancelada'" class="flex items-center gap-2">
+                    <button *ngIf="cita.estado === 'pendiente_pago'"
+                      (click)="pagar(cita)"
+                      [disabled]="pagosService.payingCitaId() === cita.id"
+                      class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50">
+                      <span *ngIf="pagosService.payingCitaId() === cita.id" class="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      <span>{{ pagosService.payingCitaId() === cita.id ? 'Aprobando...' : 'Pagar Cita ($ 50.000)' }}</span>
+                    </button>
+
                     <button (click)="cancelar(cita)"
                       class="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500 text-rose-400 hover:text-white text-xs font-semibold border border-rose-500/30 transition-all cursor-pointer">
                       Cancelar Cita
@@ -99,6 +108,7 @@ import { CitaItem } from '../../models/cita.model';
 })
 export class CitasComponent implements OnInit {
   citasService = inject(CitasService);
+  pagosService = inject(PagosService);
 
   activeTab: string = 'todas';
   readonly tabs = [
@@ -120,6 +130,14 @@ export class CitasComponent implements OnInit {
     const list = this.citasService.citas();
     if (this.activeTab === 'todas') return list;
     return list.filter(c => c.estado === this.activeTab);
+  }
+
+  pagar(cita: CitaItem) {
+    this.pagosService.simularPago(cita.id).subscribe({
+      next: () => {
+        this.citasService.loadMisCitas().subscribe();
+      }
+    });
   }
 
   cancelar(cita: CitaItem) {

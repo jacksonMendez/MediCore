@@ -34,8 +34,8 @@ import { AuthService } from '../../services/auth.service';
 
         <main class="flex-1 min-h-0 grid gap-6 p-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.85fr)] lg:p-6 overflow-hidden">
           <!-- Left Main Area: Chat Component -->
-          <div class="h-full min-h-0 flex flex-col">
-            <app-chat></app-chat>
+          <div class="h-full min-h-0 flex flex-col overflow-hidden">
+            <app-chat class="flex-1 h-full min-h-0 flex flex-col overflow-hidden"></app-chat>
           </div>
 
           <!-- Right Column: Interactive Widgets -->

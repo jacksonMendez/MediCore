@@ -9,10 +9,24 @@ import { ChatMessage } from '../../models/chat.model';
   selector: 'app-chat',
   standalone: true,
   imports: [CommonModule, FormsModule, ChatCalendarPickerComponent],
+  host: {
+    class: 'flex flex-col flex-1 h-full min-h-0 w-full overflow-hidden'
+  },
+  styles: [`
+    :host {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 0%;
+      height: 100%;
+      min-height: 0;
+      width: 100%;
+      overflow: hidden;
+    }
+  `],
   template: `
-    <div class="flex flex-col h-full rounded-xl border border-border bg-card/60 backdrop-blur-sm shadow-xl overflow-hidden">
+    <div class="flex flex-col flex-1 h-full min-h-0 rounded-xl border border-border bg-card/60 backdrop-blur-sm shadow-xl overflow-hidden">
       <!-- Chat Header -->
-      <div class="px-5 py-3.5 border-b border-border/70 bg-card flex items-center justify-between">
+      <div class="px-5 py-3.5 border-b border-border/70 bg-card flex items-center justify-between shrink-0">
         <div class="flex items-center gap-3">
           <div class="relative">
             <span class="grid size-9 place-items-center rounded-lg bg-primary/20 text-primary border border-primary/30">
@@ -43,7 +57,7 @@ import { ChatMessage } from '../../models/chat.model';
       </div>
 
       <!-- Messages Area -->
-      <div #scrollContainer class="flex-1 overflow-y-auto p-5 space-y-4">
+      <div #scrollContainer class="flex-1 min-h-0 overflow-y-auto p-5 space-y-4 custom-scrollbar">
         <ng-container *ngFor="let msg of chat.messages()">
           <!-- User message -->
           <div *ngIf="msg.emisor === 'usuario'" class="flex justify-end">
@@ -98,7 +112,7 @@ import { ChatMessage } from '../../models/chat.model';
       </div>
 
       <!-- Suggestion Pills -->
-      <div class="px-5 py-2 border-t border-border/40 bg-card/40 flex items-center gap-2 overflow-x-auto text-xs no-scrollbar">
+      <div class="px-5 py-2 border-t border-border/40 bg-card/40 flex items-center gap-2 overflow-x-auto text-xs no-scrollbar shrink-0">
         <span class="text-muted-foreground text-[11px] font-medium shrink-0">Sugerencias:</span>
         <button *ngFor="let s of suggestions"
           (click)="sendSuggestion(s)"
@@ -108,7 +122,7 @@ import { ChatMessage } from '../../models/chat.model';
       </div>
 
       <!-- Input Form -->
-      <div class="p-4 border-t border-border bg-card">
+      <div class="p-4 border-t border-border bg-card shrink-0">
         <form (ngSubmit)="send()" class="flex items-end gap-2">
           <textarea
             [(ngModel)]="draft"
@@ -135,6 +149,7 @@ export class ChatComponent implements AfterViewChecked {
 
   chat = inject(ChatService);
   draft: string = '';
+  private lastMsgCount = 0;
 
   readonly suggestions = [
     'Agendar una cita',
@@ -144,15 +159,21 @@ export class ChatComponent implements AfterViewChecked {
   ];
 
   ngAfterViewChecked() {
-    this.scrollToBottom();
+    const count = this.chat.messages().length;
+    if (count !== this.lastMsgCount || this.chat.loading()) {
+      this.lastMsgCount = count;
+      this.scrollToBottom();
+    }
   }
 
   private scrollToBottom(): void {
-    try {
-      if (this.scrollContainer) {
-        this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
-      }
-    } catch {}
+    setTimeout(() => {
+      try {
+        if (this.scrollContainer?.nativeElement) {
+          this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+        }
+      } catch {}
+    }, 30);
   }
 
   onEnter(event: Event) {

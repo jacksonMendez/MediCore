@@ -32,6 +32,7 @@ class RegistroAuditoria(models.Model):
         ('especialidad_editada', 'Especialidad Editada'),
         ('login_exitoso', 'Inicio de Sesión Exitoso'),
         ('login_fallido', 'Intento de Inicio de Sesión Fallido'),
+        ('logout', 'Cierre de Sesión'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

@@ -11,6 +11,8 @@ class PagoResponseSerializer(serializers.ModelSerializer):
     cita_id = serializers.UUIDField(source='cita.id')
     monto = serializers.FloatField()
     concepto = serializers.SerializerMethodField()
+    paciente_nombre = serializers.SerializerMethodField()
+    cita_fecha_hora = serializers.DateTimeField(source='cita.fecha_hora', read_only=True)
     fecha = serializers.DateTimeField(source='actualizado_en', read_only=True)
     metodo_pago = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
     estado = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
@@ -26,6 +28,8 @@ class PagoResponseSerializer(serializers.ModelSerializer):
             'metodo_pago',
             'estado',
             'concepto',
+            'paciente_nombre',
+            'cita_fecha_hora',
             'fecha',
             'actualizado_en',
         ]
@@ -36,6 +40,13 @@ class PagoResponseSerializer(serializers.ModelSerializer):
             return f"{obj.cita.medico.especialidad.nombre} - {obj.cita.medico.usuario.nombre_completo}"
         except Exception:
             return "Consulta médica MediCore"
+
+    @extend_schema_field(serializers.CharField())
+    def get_paciente_nombre(self, obj):
+        try:
+            return obj.cita.paciente.usuario.nombre_completo
+        except Exception:
+            return "Paciente MediCore"
 
 
 

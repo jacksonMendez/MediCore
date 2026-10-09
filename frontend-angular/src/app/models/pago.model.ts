@@ -1,4 +1,4 @@
-export type PaymentStatus = 'pendiente' | 'completado' | 'fallido' | 'reembolsado';
+export type PaymentStatus = 'pendiente' | 'completado' | 'aprobado' | 'fallido' | 'reembolsado';
 
 export interface PagoItem {
   id: string;
@@ -8,6 +8,10 @@ export interface PagoItem {
   estado: PaymentStatus;
   metodo_pago?: string;
   transaccion_id?: string;
+  referencia?: string;
+  concepto?: string;
+  paciente_nombre?: string;
+  fecha?: string;
   creado_en: string;
   fecha_pago?: string;
   cita_fecha_hora?: string;

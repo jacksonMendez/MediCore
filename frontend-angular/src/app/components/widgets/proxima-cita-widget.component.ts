@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { CitasService } from '../../services/citas.service';
+import { PagosService } from '../../services/pagos.service';
 import { CitaItem } from '../../models/cita.model';
 
 @Component({
@@ -61,6 +62,13 @@ import { CitaItem } from '../../models/cita.model';
             </svg>
             <span class="truncate">{{ proximaCita.sede_nombre || 'Sede Central' }}</span>
           </div>
+          <div *ngIf="proximaCita.estado === 'pendiente_pago'" class="pt-2">
+            <button (click)="pagarProximaCita()" [disabled]="pagosService.payingCitaId() === proximaCita.id"
+              class="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50">
+              <span *ngIf="pagosService.payingCitaId() === proximaCita.id" class="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+              <span>{{ pagosService.payingCitaId() === proximaCita.id ? 'Aprobando Pago...' : 'Pagar Cita Ahora ($ 50.000 COP)' }}</span>
+            </button>
+          </div>
         </div>
       </ng-container>
 
@@ -80,6 +88,7 @@ import { CitaItem } from '../../models/cita.model';
 })
 export class ProximaCitaWidgetComponent implements OnInit {
   private citasService = inject(CitasService);
+  pagosService = inject(PagosService);
 
   ngOnInit() {
     this.citasService.loadMisCitas().subscribe();
@@ -87,7 +96,22 @@ export class ProximaCitaWidgetComponent implements OnInit {
 
   get proximaCita(): CitaItem | undefined {
     const list = this.citasService.citas();
-    return list.find(c => c.estado !== 'cancelada') || list[0];
+    const now = new Date().toISOString();
+    // Priorizar citas activas futuras
+    const upcoming = list.filter(c => c.estado !== 'cancelada' && c.fecha_hora >= now)
+                         .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
+    if (upcoming.length > 0) return upcoming[0];
+    // Fallback: cualquier cita no cancelada
+    return list.find(c => c.estado !== 'cancelada');
+  }
+
+  pagarProximaCita() {
+    if (!this.proximaCita) return;
+    this.pagosService.simularPago(this.proximaCita.id).subscribe({
+      next: () => {
+        this.citasService.loadMisCitas().subscribe();
+      }
+    });
   }
 
   getStatusBadgeClass(estado: string): string {

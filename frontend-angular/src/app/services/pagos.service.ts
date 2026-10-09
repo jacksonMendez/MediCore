@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, switchMap, tap, of } from 'rxjs';
 import { AuthService } from './auth.service';
 import { PagoItem } from '../models/pago.model';
 
@@ -12,6 +12,8 @@ export class PagosService {
 
   readonly pagos = signal<PagoItem[]>([]);
   readonly loading = signal<boolean>(false);
+  readonly payingCitaId = signal<string | null>(null);
+  readonly lastSuccessMessage = signal<string | null>(null);
 
   constructor(private http: HttpClient, private authService: AuthService) {}
 
@@ -32,15 +34,78 @@ export class PagosService {
     );
   }
 
-  simularPago(citaId: string, metodo: string = 'tarjeta_credito'): Observable<any> {
-    return this.http.post(`${this.apiUrl}/simular`, {
+  simularPago(citaId: string, metodo: string = 'wompi_sandbox'): Observable<any> {
+    this.payingCitaId.set(citaId);
+    return this.http.post<any>(`${this.apiUrl}/simular`, {
       cita_id: citaId,
       metodo_pago: metodo
     }, {
       headers: this.authService.getAuthHeaders()
     }).pipe(
-      tap(() => {
-        this.loadMisPagos().subscribe();
+      switchMap((simRes) => {
+        const ref = simRes?.referencia;
+        if (!ref) {
+          return of(simRes);
+        }
+        // Aprobar el pago en Sandbox
+        return this.http.post<any>(`${this.apiUrl}/webhook`, {
+          referencia: ref,
+          estado: 'aprobado'
+        });
+      }),
+      tap({
+        next: () => {
+          this.payingCitaId.set(null);
+          this.lastSuccessMessage.set('¡Pago aprobado exitosamente! Tu cita médica ha sido confirmada.');
+          setTimeout(() => this.lastSuccessMessage.set(null), 5000);
+          this.loadMisPagos().subscribe();
+        },
+        error: () => {
+          this.payingCitaId.set(null);
+        }
+      })
+    );
+  }
+
+  reportarTransferencia(citaId: string, referenciaTransferencia: string, metodo: string = 'transferencia'): Observable<any> {
+    this.loading.set(true);
+    return this.http.post<any>(`${this.apiUrl}/simular`, {
+      cita_id: citaId,
+      referencia: referenciaTransferencia,
+      metodo_pago: metodo
+    }, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap({
+        next: () => {
+          this.loading.set(false);
+          this.lastSuccessMessage.set('✅ Comprobante de transferencia radicado exitosamente. Un administrador verificará y autorizará tu cita médica.');
+          setTimeout(() => this.lastSuccessMessage.set(null), 6000);
+          this.loadMisPagos().subscribe();
+        },
+        error: () => {
+          this.loading.set(false);
+        }
+      })
+    );
+  }
+
+  autorizarPago(referencia: string): Observable<any> {
+    this.loading.set(true);
+    return this.http.post<any>(`${this.apiUrl}/webhook`, {
+      referencia: referencia,
+      estado: 'aprobado'
+    }).pipe(
+      tap({
+        next: () => {
+          this.loading.set(false);
+          this.lastSuccessMessage.set('✅ Transferencia verificada y autorizada exitosamente. La cita está ahora confirmada.');
+          setTimeout(() => this.lastSuccessMessage.set(null), 5000);
+          this.loadMisPagos().subscribe();
+        },
+        error: () => {
+          this.loading.set(false);
+        }
       })
     );
   }

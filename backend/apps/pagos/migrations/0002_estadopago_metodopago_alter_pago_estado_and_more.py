@@ -25,6 +25,7 @@ def seed_catalogos_pagos(apps, schema_editor):
         ('tarjeta_credito', 'Tarjeta de Crédito / Débito', 'Cobro directo con tarjeta bancaria', True),
         ('pse', 'Transferencia PSE', 'Pagos Seguros en Línea a través de débito bancario', True),
         ('wompi', 'Pasarela Wompi Bancolombia', 'Integración Wompi para cobros nacionales', True),
+        ('wompi_sandbox', 'Wompi Sandbox', 'Modo de pruebas Wompi Sandbox', True),
         ('epayco', 'Pasarela ePayco', 'Integración ePayco multimétodo', True),
     ]
     for codigo, nombre, descripcion, activo in metodos:

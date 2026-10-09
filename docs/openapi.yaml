@@ -282,6 +282,38 @@ paths:
           description: Credenciales incorrectas.
         '403':
           description: Cuenta desactivada.
+  /api/auth/logout:
+    post:
+      operationId: auth_logout_create
+      description: 'Registra el cierre de sesión en la auditoría inmutable del sistema.
+        Roles permitidos: usuarios autenticados.'
+      summary: Cerrar sesión de usuario
+      tags:
+      - Auth
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Sesión cerrada exitosamente.
+        '401':
+          description: No autenticado.
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout_create_2
+      description: 'Registra el cierre de sesión en la auditoría inmutable del sistema.
+        Roles permitidos: usuarios autenticados.'
+      summary: Cerrar sesión de usuario
+      tags:
+      - Auth
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Sesión cerrada exitosamente.
+        '401':
+          description: No autenticado.
   /api/auth/me:
     get:
       operationId: auth_me_retrieve
@@ -1107,6 +1139,208 @@ paths:
                 items:
                   $ref: '#/components/schemas/CitaResponse'
           description: ''
+  /api/citas/pqr:
+    get:
+      operationId: citas_pqr_list
+      description: 'Retorna las solicitudes de PQR. Pacientes solo ven sus propias
+        solicitudes. Administradores y agentes de atención ven el consolidado global.
+        Roles: paciente, admin, agente_atencion.'
+      summary: Listar solicitudes de PQR y reembolsos
+      tags:
+      - PQR & Reembolsos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PQRSolicitudResponse'
+          description: ''
+    post:
+      operationId: citas_pqr_create
+      description: 'Permite al paciente radicar una solicitud formal o reclamo sobre
+        una cita médica existente. Registra auditoría automática inmutable con origen
+        humano_paciente. Roles: paciente.'
+      summary: Radicar nueva solicitud de PQR o Reembolso
+      tags:
+      - PQR & Reembolsos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PQRCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PQRCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PQRCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PQRSolicitudResponse'
+          description: ''
+        '400':
+          description: Datos inválidos o paciente sin perfil.
+        '403':
+          description: No autorizado para radicar PQR de citas ajenas.
+        '404':
+          description: Cita no encontrada.
+  /api/citas/pqr/:
+    get:
+      operationId: citas_pqr_list_2
+      description: 'Retorna las solicitudes de PQR. Pacientes solo ven sus propias
+        solicitudes. Administradores y agentes de atención ven el consolidado global.
+        Roles: paciente, admin, agente_atencion.'
+      summary: Listar solicitudes de PQR y reembolsos
+      tags:
+      - PQR & Reembolsos
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PQRSolicitudResponse'
+          description: ''
+    post:
+      operationId: citas_pqr_create_2
+      description: 'Permite al paciente radicar una solicitud formal o reclamo sobre
+        una cita médica existente. Registra auditoría automática inmutable con origen
+        humano_paciente. Roles: paciente.'
+      summary: Radicar nueva solicitud de PQR o Reembolso
+      tags:
+      - PQR & Reembolsos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PQRCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PQRCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PQRCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PQRSolicitudResponse'
+          description: ''
+        '400':
+          description: Datos inválidos o paciente sin perfil.
+        '403':
+          description: No autorizado para radicar PQR de citas ajenas.
+        '404':
+          description: Cita no encontrada.
+  /api/citas/pqr/{pqr_id}/estado:
+    patch:
+      operationId: citas_pqr_estado_partial_update
+      description: 'Permite al personal administrativo o agente resolver una PQR cambiándola
+        a "aprobada" o "rechazada". Genera automáticamente un registro inmutable de
+        auditoría con la acción correspondiente (pqr_aprobada o pqr_rechazada). Roles
+        permitidos: admin, agente_atencion.'
+      summary: Resolver o cambiar estado de solicitud PQR (Aprobar / Rechazar)
+      parameters:
+      - in: path
+        name: pqr_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - PQR & Reembolsos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPQRCambiarEstadoRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPQRCambiarEstadoRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPQRCambiarEstadoRequestRequest'
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PQRSolicitudResponse'
+          description: ''
+        '400':
+          description: Estado inválido. Debe ser "aprobada" o "rechazada".
+        '403':
+          description: Requiere rol admin o agente_atencion.
+        '404':
+          description: PQR no encontrada.
+  /api/citas/pqr/{pqr_id}/estado/:
+    patch:
+      operationId: citas_pqr_estado_partial_update_2
+      description: 'Permite al personal administrativo o agente resolver una PQR cambiándola
+        a "aprobada" o "rechazada". Genera automáticamente un registro inmutable de
+        auditoría con la acción correspondiente (pqr_aprobada o pqr_rechazada). Roles
+        permitidos: admin, agente_atencion.'
+      summary: Resolver o cambiar estado de solicitud PQR (Aprobar / Rechazar)
+      parameters:
+      - in: path
+        name: pqr_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - PQR & Reembolsos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPQRCambiarEstadoRequestRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPQRCambiarEstadoRequestRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPQRCambiarEstadoRequestRequest'
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PQRSolicitudResponse'
+          description: ''
+        '400':
+          description: Estado inválido. Debe ser "aprobada" o "rechazada".
+        '403':
+          description: Requiere rol admin o agente_atencion.
+        '404':
+          description: PQR no encontrada.
   /api/especialidades:
     get:
       operationId: especialidades_list
@@ -1885,6 +2119,7 @@ components:
       - especialidad_editada
       - login_exitoso
       - login_fallido
+      - logout
       type: string
       description: |-
         * `cita_creada` - Cita Creada
@@ -1904,6 +2139,21 @@ components:
         * `especialidad_editada` - Especialidad Editada
         * `login_exitoso` - Inicio de Sesión Exitoso
         * `login_fallido` - Intento de Inicio de Sesión Fallido
+        * `logout` - Cierre de Sesión
+    CambiarEstadoCitaRequestNuevoEstadoEnum:
+      enum:
+      - pendiente_pago
+      - confirmada
+      - cancelada
+      - atendida
+      - no_asistio
+      type: string
+      description: |-
+        * `pendiente_pago` - pendiente_pago
+        * `confirmada` - confirmada
+        * `cancelada` - cancelada
+        * `atendida` - atendida
+        * `no_asistio` - no_asistio
     ChatMessageRequest:
       type: object
       properties:
@@ -2316,20 +2566,6 @@ components:
         * `ninguna` - Ninguna
         * `dia` - Seleccionar Día
         * `hora` - Seleccionar Hora
-    NuevoEstadoEnum:
-      enum:
-      - pendiente_pago
-      - confirmada
-      - cancelada
-      - atendida
-      - no_asistio
-      type: string
-      description: |-
-        * `pendiente_pago` - pendiente_pago
-        * `confirmada` - confirmada
-        * `cancelada` - cancelada
-        * `atendida` - atendida
-        * `no_asistio` - no_asistio
     OrigenEnum:
       enum:
       - bot_llm
@@ -2346,6 +2582,68 @@ components:
         * `humano_admin` - Administrador Humano (Backoffice)
         * `humano_agente` - Agente de Atención al Cliente
         * `sistema` - Proceso Automatizado del Sistema
+    PQRCambiarEstadoRequestNuevoEstadoEnum:
+      enum:
+      - aprobada
+      - rechazada
+      type: string
+      description: |-
+        * `aprobada` - aprobada
+        * `rechazada` - rechazada
+    PQRCreateRequest:
+      type: object
+      properties:
+        cita_id:
+          type: string
+          format: uuid
+          description: UUID de la cita médica objeto del reclamo
+        tipo:
+          type: string
+          minLength: 1
+          default: reembolso
+          description: Tipo de PQR (reembolso, peticion, queja, reclamo)
+        motivo:
+          type: string
+          minLength: 1
+          description: Motivo o justificación detallada de la solicitud
+      required:
+      - cita_id
+      - motivo
+    PQRSolicitudResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        cita_id:
+          type: string
+          format: uuid
+        paciente_id:
+          type: string
+          format: uuid
+        paciente_nombre:
+          type: string
+          readOnly: true
+        tipo:
+          type: string
+          readOnly: true
+        motivo:
+          type: string
+        estado:
+          type: string
+          readOnly: true
+        creado_en:
+          type: string
+          format: date-time
+      required:
+      - cita_id
+      - estado
+      - id
+      - motivo
+      - paciente_id
+      - paciente_nombre
+      - tipo
     PagoResponse:
       type: object
       properties:
@@ -2407,7 +2705,7 @@ components:
       properties:
         nuevo_estado:
           allOf:
-          - $ref: '#/components/schemas/NuevoEstadoEnum'
+          - $ref: '#/components/schemas/CambiarEstadoCitaRequestNuevoEstadoEnum'
           description: |-
             Nuevo estado asignado a la cita
 
@@ -2416,6 +2714,17 @@ components:
             * `cancelada` - cancelada
             * `atendida` - atendida
             * `no_asistio` - no_asistio
+    PatchedPQRCambiarEstadoRequestRequest:
+      type: object
+      properties:
+        nuevo_estado:
+          allOf:
+          - $ref: '#/components/schemas/PQRCambiarEstadoRequestNuevoEstadoEnum'
+          description: |-
+            Nuevo estado asignado: "aprobada" o "rechazada"
+
+            * `aprobada` - aprobada
+            * `rechazada` - rechazada
     RegistroAuditoria:
       type: object
       properties:
@@ -2656,12 +2965,15 @@ components:
           type: string
           format: email
           minLength: 1
+        email:
+          type: string
+          format: email
+          minLength: 1
         password:
           type: string
           writeOnly: true
           minLength: 1
       required:
-      - correo
       - password
     UsuarioResponse:
       type: object

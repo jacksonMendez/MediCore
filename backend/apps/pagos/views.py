@@ -53,10 +53,19 @@ class SimularPagoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if Pago.objects.filter(cita=cita).exists():
-            return Response({"detail": "Ya existe un pago para esta cita"}, status=status.HTTP_409_CONFLICT)
+        pago_existente = Pago.objects.filter(cita=cita).first()
+        if pago_existente:
+            if pago_existente.estado_id in ["aprobado", "completado"]:
+                return Response({"detail": "La cita ya se encuentra pagada y confirmada."}, status=status.HTTP_400_BAD_REQUEST)
+            if request.data.get('referencia'):
+                pago_existente.referencia = str(request.data.get('referencia')).strip()
+            if metodo_pago:
+                pago_existente.metodo_pago_id = metodo_pago
+            pago_existente.save(update_fields=['referencia', 'metodo_pago'])
+            return Response(PagoResponseSerializer(pago_existente).data, status=status.HTTP_200_OK)
 
-        referencia = f"SANDBOX-{uuid.uuid4().hex[:12].upper()}"
+        custom_ref = request.data.get('referencia')
+        referencia = str(custom_ref).strip() if custom_ref else f"SANDBOX-{uuid.uuid4().hex[:12].upper()}"
         monto = cita.medico.especialidad.precio_base
 
         pago = Pago.objects.create(
@@ -215,8 +224,8 @@ class MisPagosView(APIView):
                     monto=precio,
                     moneda="COP",
                     referencia=f"MED-{uuid.uuid4().hex[:10].upper()}",
-                    metodo_pago="sandbox",
-                    estado="pendiente"
+                    metodo_pago_id="sandbox",
+                    estado_id="pendiente"
                 )
 
             pagos = Pago.objects.all().select_related(

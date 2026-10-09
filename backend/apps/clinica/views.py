@@ -4,6 +4,7 @@ from rest_framework import status, permissions
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from apps.authentication.models import Usuario
 from apps.authentication.authentication import require_role
+from apps.auditoria.services import registrar_auditoria
 from .models import Sede, Especialidad, Medico, HorarioMedico
 from .serializers import (
     SedeResponseSerializer,
@@ -49,6 +50,14 @@ class SedeListCreateView(APIView):
         if not serializer.is_valid():
             return Response({"detail": "Datos de sede inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         sede = serializer.save()
+        registrar_auditoria(
+            accion='sede_creada',
+            entidad_tipo='Sede',
+            entidad_id=str(sede.id),
+            usuario=request.user,
+            datos_cambio={'nombre': sede.nombre, 'direccion': sede.direccion},
+            ip=request.META.get('REMOTE_ADDR')
+        )
         return Response(SedeResponseSerializer(sede).data, status=status.HTTP_201_CREATED)
 
 
@@ -90,6 +99,14 @@ class EspecialidadListCreateView(APIView):
             return Response({"detail": "Especialidad ya existe"}, status=status.HTTP_409_CONFLICT)
 
         esp = serializer.save()
+        registrar_auditoria(
+            accion='especialidad_creada',
+            entidad_tipo='Especialidad',
+            entidad_id=str(esp.id),
+            usuario=request.user,
+            datos_cambio={'nombre': esp.nombre, 'precio_base': float(esp.precio_base)},
+            ip=request.META.get('REMOTE_ADDR')
+        )
         return Response(EspecialidadResponseSerializer(esp).data, status=status.HTTP_201_CREATED)
 
 
@@ -184,6 +201,21 @@ class MedicoListCreateView(APIView):
             genero=data.get('genero', 'M'),
         )
 
+        registrar_auditoria(
+            accion='medico_creado',
+            entidad_tipo='Medico',
+            entidad_id=str(medico.id),
+            usuario=request.user,
+            datos_cambio={
+                'usuario_id': str(user.id),
+                'nombre_completo': user.nombre_completo,
+                'especialidad': esp.nombre,
+                'sede': sede.nombre,
+                'tarjeta_profesional': medico.tarjeta_profesional,
+            },
+            ip=request.META.get('REMOTE_ADDR')
+        )
+
         return Response(MedicoResponseSerializer(medico).data, status=status.HTTP_201_CREATED)
 
 
@@ -233,6 +265,20 @@ class CrearHorarioView(APIView):
             dia=serializer.validated_data['dia'],
             hora_inicio=serializer.validated_data['hora_inicio'],
             hora_fin=serializer.validated_data['hora_fin'],
+        )
+
+        registrar_auditoria(
+            accion='medico_editado',
+            entidad_tipo='HorarioMedico',
+            entidad_id=str(horario.id),
+            usuario=request.user,
+            datos_cambio={
+                'medico_id': str(medico.id),
+                'dia': horario.dia,
+                'hora_inicio': str(horario.hora_inicio),
+                'hora_fin': str(horario.hora_fin),
+            },
+            ip=request.META.get('REMOTE_ADDR')
         )
 
         return Response(HorarioResponseSerializer(horario).data, status=status.HTTP_201_CREATED)

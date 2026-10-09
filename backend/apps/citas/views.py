@@ -6,12 +6,14 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiRespon
 from apps.authentication.authentication import require_role
 from apps.auditoria.services import registrar_auditoria
 from apps.clinica.models import Medico, Paciente
-from .models import Cita
+from .models import Cita, PQRSolicitud, TipoPQR, EstadoPQR
 from .services import get_disponibilidad, get_dias_disponibles
 from .serializers import (
     CitaCreateSerializer,
     CitaResponseSerializer,
     DisponibilidadResponseSerializer,
+    PQRCreateSerializer,
+    PQRSolicitudResponseSerializer,
 )
 
 
@@ -213,16 +215,27 @@ class MisCitasView(APIView):
         responses={200: CitaResponseSerializer(many=True)}
     )
     def get(self, request):
+        from django.utils import timezone
         user = request.user
-        if user.rol == 'paciente':
+        u_rol = getattr(user, 'rol_id', None) or str(getattr(user.rol, 'codigo', user.rol))
+        ahora = timezone.now()
+
+        if u_rol == 'paciente':
             try:
                 paciente = Paciente.objects.get(usuario=user)
+                # Las citas pasadas que no fueron pagadas expiran a cancelada automáticamente
+                Cita.objects.filter(
+                    paciente=paciente,
+                    fecha_hora__lt=ahora,
+                    estado='pendiente_pago'
+                ).update(estado='cancelada')
+
                 citas = Cita.objects.filter(paciente=paciente).select_related(
                     'medico__usuario', 'medico__especialidad', 'sede', 'paciente__usuario', 'pago'
                 ).order_by('-fecha_hora')
             except Paciente.DoesNotExist:
                 return Response([])
-        else:
+        elif u_rol == 'medico':
             try:
                 medico = Medico.objects.get(usuario=user)
                 citas = Cita.objects.filter(medico=medico).select_related(
@@ -230,6 +243,12 @@ class MisCitasView(APIView):
                 ).order_by('-fecha_hora')
             except Medico.DoesNotExist:
                 return Response([])
+        elif u_rol in ['admin', 'agente_atencion']:
+            citas = Cita.objects.all().select_related(
+                'paciente__usuario', 'medico__usuario', 'medico__especialidad', 'sede', 'pago'
+            ).order_by('-fecha_hora')
+        else:
+            return Response([])
 
         return Response(CitaResponseSerializer(citas, many=True).data)
 
@@ -335,3 +354,147 @@ class CambiarEstadoCitaView(APIView):
         )
 
         return Response(CitaResponseSerializer(cita).data)
+
+
+class PQRListCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=['PQR & Reembolsos'],
+        summary='Listar solicitudes de PQR y reembolsos',
+        description='Retorna las solicitudes de PQR. Pacientes solo ven sus propias solicitudes. Administradores y agentes de atención ven el consolidado global. Roles: paciente, admin, agente_atencion.',
+        responses={200: PQRSolicitudResponseSerializer(many=True)}
+    )
+    def get(self, request):
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol == 'paciente':
+            try:
+                paciente = Paciente.objects.get(usuario=request.user)
+                pqrs = PQRSolicitud.objects.filter(paciente=paciente).select_related('paciente__usuario', 'cita', 'tipo', 'estado').order_by('-creado_en')
+            except Paciente.DoesNotExist:
+                return Response([])
+        else:
+            pqrs = PQRSolicitud.objects.all().select_related('paciente__usuario', 'cita', 'tipo', 'estado').order_by('-creado_en')
+
+        return Response(PQRSolicitudResponseSerializer(pqrs, many=True).data)
+
+    @extend_schema(
+        tags=['PQR & Reembolsos'],
+        summary='Radicar nueva solicitud de PQR o Reembolso',
+        description='Permite al paciente radicar una solicitud formal o reclamo sobre una cita médica existente. Registra auditoría automática inmutable con origen humano_paciente. Roles: paciente.',
+        request=PQRCreateSerializer,
+        responses={
+            201: PQRSolicitudResponseSerializer,
+            400: OpenApiResponse(description='Datos inválidos o paciente sin perfil.'),
+            403: OpenApiResponse(description='No autorizado para radicar PQR de citas ajenas.'),
+            404: OpenApiResponse(description='Cita no encontrada.'),
+        }
+    )
+    def post(self, request):
+        serializer = PQRCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"detail": "Datos inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            paciente = Paciente.objects.get(usuario=request.user)
+        except Paciente.DoesNotExist:
+            return Response({"detail": "No tiene perfil de paciente registrado"}, status=status.HTTP_400_BAD_REQUEST)
+
+        cita_id = serializer.validated_data['cita_id']
+        try:
+            cita = Cita.objects.get(id=cita_id)
+        except Cita.DoesNotExist:
+            return Response({"detail": "Cita no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        if cita.paciente_id != paciente.id:
+            return Response({"detail": "No puede radicar PQR sobre citas de otro paciente"}, status=status.HTTP_403_FORBIDDEN)
+
+        tipo_codigo = serializer.validated_data.get('tipo', 'reembolso')
+        try:
+            tipo_obj = TipoPQR.objects.get(codigo=tipo_codigo)
+        except TipoPQR.DoesNotExist:
+            tipo_obj = TipoPQR.objects.get_or_create(codigo='reembolso', defaults={'nombre': 'Reembolso Económico'})[0]
+
+        pqr = PQRSolicitud.objects.create(
+            cita=cita,
+            paciente=paciente,
+            tipo=tipo_obj,
+            motivo=serializer.validated_data['motivo'],
+            estado_id='pendiente_revision',
+        )
+
+        registrar_auditoria(
+            accion='pqr_radicada',
+            entidad_tipo='PQRSolicitud',
+            entidad_id=str(pqr.id),
+            usuario=request.user,
+            datos_cambio={
+                'cita_id': str(cita.id),
+                'tipo': tipo_obj.codigo,
+                'motivo': pqr.motivo,
+                'estado': 'pendiente_revision',
+            },
+            ip=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response(PQRSolicitudResponseSerializer(pqr).data, status=status.HTTP_201_CREATED)
+
+
+class PQRCambiarEstadoView(APIView):
+    permission_classes = [require_role(['admin', 'agente_atencion'])]
+
+    @extend_schema(
+        tags=['PQR & Reembolsos'],
+        summary='Resolver o cambiar estado de solicitud PQR (Aprobar / Rechazar)',
+        description=(
+            'Permite al personal administrativo o agente resolver una PQR cambiándola a "aprobada" o "rechazada". '
+            'Genera automáticamente un registro inmutable de auditoría con la acción correspondiente (pqr_aprobada o pqr_rechazada). '
+            'Roles permitidos: admin, agente_atencion.'
+        ),
+        request=inline_serializer(
+            name='PQRCambiarEstadoRequest',
+            fields={
+                'nuevo_estado': serializers.ChoiceField(
+                    choices=['aprobada', 'rechazada'],
+                    required=True,
+                    help_text='Nuevo estado asignado: "aprobada" o "rechazada"'
+                )
+            }
+        ),
+        responses={
+            200: PQRSolicitudResponseSerializer,
+            400: OpenApiResponse(description='Estado inválido. Debe ser "aprobada" o "rechazada".'),
+            403: OpenApiResponse(description='Requiere rol admin o agente_atencion.'),
+            404: OpenApiResponse(description='PQR no encontrada.'),
+        }
+    )
+    def patch(self, request, pqr_id):
+        nuevo_estado = request.data.get('nuevo_estado') or request.query_params.get('nuevo_estado')
+        if nuevo_estado not in ['aprobada', 'rechazada']:
+            return Response({"detail": "Estado inválido. Opciones: ['aprobada', 'rechazada']"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            pqr = PQRSolicitud.objects.select_related('paciente__usuario', 'cita', 'tipo', 'estado').get(id=pqr_id)
+        except PQRSolicitud.DoesNotExist:
+            return Response({"detail": "PQR no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        estado_anterior = str(pqr.estado_id)
+        pqr.estado_id = nuevo_estado
+        pqr.save(update_fields=['estado'])
+
+        accion_audit = 'pqr_aprobada' if nuevo_estado == 'aprobada' else 'pqr_rechazada'
+        registrar_auditoria(
+            accion=accion_audit,
+            entidad_tipo='PQRSolicitud',
+            entidad_id=str(pqr.id),
+            usuario=request.user,
+            datos_cambio={
+                'estado_anterior': estado_anterior,
+                'estado_nuevo': nuevo_estado,
+                'cita_id': str(pqr.cita_id),
+            },
+            ip=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response(PQRSolicitudResponseSerializer(pqr).data, status=status.HTTP_200_OK)
+

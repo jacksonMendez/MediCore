@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field
-from .models import Cita, ConsultaNota
+from .models import Cita, ConsultaNota, PQRSolicitud
 
 class CitaCreateSerializer(serializers.Serializer):
     medico_id = serializers.UUIDField()
@@ -81,3 +81,30 @@ class NotaResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConsultaNota
         fields = ['id', 'cita_id', 'diagnostico', 'tratamiento', 'receta_medica', 'creado_en']
+
+
+class PQRCreateSerializer(serializers.Serializer):
+    cita_id = serializers.UUIDField(help_text='UUID de la cita médica objeto del reclamo')
+    tipo = serializers.CharField(required=False, default='reembolso', help_text='Tipo de PQR (reembolso, peticion, queja, reclamo)')
+    motivo = serializers.CharField(required=True, help_text='Motivo o justificación detallada de la solicitud')
+
+
+class PQRSolicitudResponseSerializer(serializers.ModelSerializer):
+    paciente_id = serializers.UUIDField(source='paciente.id')
+    cita_id = serializers.UUIDField(source='cita.id')
+    paciente_nombre = serializers.CharField(source='paciente.usuario.nombre_completo', read_only=True)
+    tipo = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
+    estado = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
+
+    class Meta:
+        model = PQRSolicitud
+        fields = [
+            'id',
+            'cita_id',
+            'paciente_id',
+            'paciente_nombre',
+            'tipo',
+            'motivo',
+            'estado',
+            'creado_en',
+        ]

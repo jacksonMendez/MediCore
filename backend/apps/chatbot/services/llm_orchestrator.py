@@ -197,6 +197,19 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "consultar_mis_pagos",
+            "description": "Consulta el historial de pagos y citas pendientes de pago del paciente autenticado.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "paciente_id": {"type": "string", "description": "UUID opcional del paciente"},
+                },
+            },
+        },
+    },
 ]
 
 
@@ -792,10 +805,65 @@ def _tool_solicitar_pqr_reembolso(cita_id: str, motivo: str) -> str:
     }, ensure_ascii=False)
 
 
+def _tool_consultar_mis_pagos(paciente_id: str = None) -> str:
+    paciente = None
+    if paciente_id:
+        try:
+            paciente = Paciente.objects.select_related('usuario').filter(id=paciente_id).first()
+        except Exception:
+            pass
+    if not paciente:
+        paciente = Paciente.objects.select_related('usuario').first()
+
+    if not paciente:
+        return json.dumps({"error": "Paciente no identificado"})
+
+    pagos = Pago.objects.filter(cita__paciente=paciente).select_related(
+        'cita__medico__usuario', 'cita__medico__especialidad'
+    ).order_by('-actualizado_en')[:8]
+
+    pagos_list = []
+    for p in pagos:
+        pagos_list.append({
+            "referencia": p.referencia,
+            "monto": float(p.monto),
+            "moneda": p.moneda,
+            "estado": str(p.estado_id),
+            "metodo": str(p.metodo_pago_id),
+            "especialidad": p.cita.medico.especialidad.nombre if (p.cita and p.cita.medico) else "Consulta",
+            "medico": p.cita.medico.usuario.nombre_completo if (p.cita and p.cita.medico) else "",
+        })
+
+    citas_pendientes = Cita.objects.filter(
+        paciente=paciente,
+        estado="pendiente_pago"
+    ).select_related('medico__usuario', 'medico__especialidad')
+
+    pendientes_list = []
+    for cp in citas_pendientes:
+        precio = float(cp.medico.especialidad.precio_base) if (cp.medico and cp.medico.especialidad) else 50000.0
+        pendientes_list.append({
+            "cita_id": str(cp.id),
+            "medico": cp.medico.usuario.nombre_completo,
+            "especialidad": cp.medico.especialidad.nombre,
+            "fecha_hora": cp.fecha_hora.strftime("%Y-%m-%d %H:%M"),
+            "precio": precio,
+        })
+
+    return json.dumps({
+        "paciente": paciente.usuario.nombre_completo,
+        "total_transacciones": len(pagos_list),
+        "pagos": pagos_list,
+        "citas_pendientes_pago": pendientes_list,
+        "aviso": "Puedes realizar el pago sandbox en un clic desde la vista de 'Pagos y Facturación' o 'Mis Citas'."
+    }, ensure_ascii=False)
+
+
 TOOL_FUNCTIONS = {
     "consultar_disponibilidad": _tool_consultar_disponibilidad,
     "consultar_dias_disponibles": _tool_consultar_dias_disponibles,
     "consultar_mis_citas": _tool_consultar_mis_citas,
+    "consultar_mis_pagos": _tool_consultar_mis_pagos,
     "registrar_paciente": _tool_registrar_paciente,
     "agendar_cita": _tool_agendar_cita,
     "consultar_agenda_hoy": _tool_consultar_agenda_hoy,
@@ -1004,6 +1072,10 @@ class LLMOrchestrator:
                     if func_name in ["consultar_disponibilidad", "consultar_dias_disponibles"] and not func_args.get("genero"):
                         if estado_flujo.get("genero"):
                             func_args["genero"] = estado_flujo["genero"]
+
+                    if func_name in ["consultar_mis_citas", "consultar_mis_pagos"] and not func_args.get("paciente_id"):
+                        if paciente:
+                            func_args["paciente_id"] = str(paciente.id)
 
                     logger.info(f"Executing tool: {func_name} with args: {func_args}")
                     tool_result = self._execute_tool(func_name, func_args)

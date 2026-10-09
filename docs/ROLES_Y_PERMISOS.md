@@ -37,6 +37,8 @@ El sistema inicializa la siguiente matriz mediante la migración de datos `authe
 | **Citas** | `citas.ver_agenda_doctor`| Ver agenda médica del día | ❌ | ✅ | ✅ | ✅ |
 | **Citas** | `citas.gestionar_estado` | Marcar atendida/inasistencia| ❌ | ✅ | ❌ | ✅ |
 | **Citas** | `citas.ver_todas` | Ver todas las citas clínicas | ❌ | ❌ | ✅ | ✅ |
+| **PQR** | `pqr.radicar` | Radicar queja/reembolso | ✅ | ❌ | ❌ | ✅ |
+| **PQR** | `pqr.resolver` | Aprobar/Rechazar PQR | ❌ | ❌ | ✅ | ✅ |
 | **Pagos** | `pagos.ver_mis_pagos` | Ver pagos propios | ✅ | ❌ | ✅ | ✅ |
 | **Pagos** | `pagos.simular_pago` | Simular pago de consulta | ✅ | ❌ | ❌ | ✅ |
 | **Pagos** | `pagos.gestionar_pagos` | Liquidar y auditar pagos | ❌ | ❌ | ✅ | ✅ |

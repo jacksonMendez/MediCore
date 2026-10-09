@@ -1,5 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { SidebarComponent } from '../../components/layout/sidebar.component';
 import { HeaderComponent } from '../../components/layout/header.component';
 import { PagosService } from '../../services/pagos.service';
@@ -9,7 +10,7 @@ import { PagoItem } from '../../models/pago.model';
 @Component({
   selector: 'app-pagos',
   standalone: true,
-  imports: [CommonModule, SidebarComponent, HeaderComponent],
+  imports: [CommonModule, FormsModule, SidebarComponent, HeaderComponent],
   template: `
     <div class="flex h-screen overflow-hidden bg-background">
       <app-sidebar></app-sidebar>
@@ -36,6 +37,14 @@ import { PagoItem } from '../../models/pago.model';
             </div>
           </div>
 
+          <!-- Success Banner -->
+          <div *ngIf="pagosService.lastSuccessMessage()" class="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs flex items-center gap-2.5 animate-fade-in shadow-lg">
+            <svg class="size-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="font-medium">{{ pagosService.lastSuccessMessage() }}</span>
+          </div>
+
           <!-- Pending Appointments Payment Trigger -->
           <div *ngIf="citasPendientes.length > 0" class="p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
             <h3 class="font-display text-sm font-bold text-amber-400 flex items-center gap-2">
@@ -44,17 +53,85 @@ import { PagoItem } from '../../models/pago.model';
               </svg>
               <span>Tienes citas pendientes de pago</span>
             </h3>
-            <p class="text-xs text-muted-foreground">Puedes simular el pago en línea para confirmar inmediatamente la reserva de tu consulta médica.</p>
+            <p class="text-xs text-muted-foreground">Puedes realizar una transferencia bancaria (Nequi, Daviplata, Bancolombia) y adjuntar el comprobante para autorización, o simular una aprobación directa en Sandbox.</p>
 
             <div class="grid gap-2 pt-1">
-              <div *ngFor="let c of citasPendientes" class="flex items-center justify-between p-3 rounded-lg bg-card border border-border text-xs">
+              <div *ngFor="let c of citasPendientes" class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-lg bg-card border border-border text-xs gap-3">
                 <div>
-                  <p class="font-bold text-foreground">{{ c.especialidad_nombre || 'Consulta' }} - {{ c.medico_nombre }}</p>
-                  <p class="text-muted-foreground">{{ c.fecha_hora | date:'medium' }}</p>
+                  <p class="font-bold text-foreground text-sm">{{ c.especialidad_nombre || 'Consulta' }} - {{ c.medico_nombre }}</p>
+                  <p class="text-muted-foreground mt-0.5">{{ c.fecha_hora | date:'fullDate' }} a las {{ c.fecha_hora | date:'shortTime' }}</p>
+                  <p class="text-primary font-semibold mt-1">Valor consulta: $ 50.000 COP</p>
                 </div>
-                <button (click)="pagarCita(c.id)"
-                  class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all cursor-pointer">
-                  Simular Pago ($ 50.000 COP)
+                <div class="flex items-center gap-2">
+                  <button (click)="abrirModalComprobante(c)"
+                    class="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground border border-border font-medium transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    <svg class="size-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Enviar Comprobante</span>
+                  </button>
+
+                  <button (click)="pagarCita(c.id)" [disabled]="pagosService.payingCitaId() === c.id"
+                    class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-sm">
+                    <span *ngIf="pagosService.payingCitaId() === c.id" class="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>{{ pagosService.payingCitaId() === c.id ? 'Aprobando...' : 'Pago Inmediato (Sandbox)' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal: Radicar Comprobante de Transferencia -->
+          <div *ngIf="citaParaComprobante" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+              <div class="flex items-center justify-between border-b border-border/80 pb-3">
+                <div>
+                  <h3 class="font-display text-base font-bold text-foreground">Radicar Comprobante de Transferencia</h3>
+                  <p class="text-xs text-muted-foreground mt-0.5">El administrador verificará y autorizará tu cita médica.</p>
+                </div>
+                <button (click)="citaParaComprobante = null" class="text-muted-foreground hover:text-foreground cursor-pointer p-1">
+                  <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div class="space-y-3 text-xs">
+                <div>
+                  <label class="text-muted-foreground mb-1 block font-medium">Método / Banco de Origen</label>
+                  <select [(ngModel)]="bancoOrigen" class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none">
+                    <option value="nequi">Nequi (Billetera Digital)</option>
+                    <option value="daviplata">Daviplata</option>
+                    <option value="bancolombia">Bancolombia (Transferencia)</option>
+                    <option value="pse">PSE / Tarjeta Débito</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-muted-foreground mb-1 block font-medium">Número de Comprobante / Referencia</label>
+                  <input type="text" [(ngModel)]="numeroComprobante" placeholder="Ej. TRF-8392104"
+                    class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none" />
+                </div>
+
+                <div>
+                  <label class="text-muted-foreground mb-1 block font-medium">Adjunto / Soporte</label>
+                  <input type="text" [(ngModel)]="nombreArchivoSoporte" placeholder="comprobante_transferencia.pdf"
+                    class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none" />
+                </div>
+
+                <div class="p-3 rounded-lg bg-secondary/50 border border-border/60 text-muted-foreground text-[11px]">
+                  <p>Monto de la consulta: <span class="text-foreground font-bold">$ 50.000 COP</span></p>
+                  <p class="mt-1">Tu solicitud quedará en estado <span class="text-amber-400 font-semibold">Pendiente de Autorización</span> en el sistema.</p>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-end gap-2 pt-2 border-t border-border/80">
+                <button (click)="citaParaComprobante = null" class="px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer">
+                  Cancelar
+                </button>
+                <button (click)="enviarComprobante()" [disabled]="!numeroComprobante.trim()"
+                  class="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:bg-primary-hover disabled:opacity-50 cursor-pointer shadow-md">
+                  Radicar Comprobante
                 </button>
               </div>
             </div>
@@ -81,14 +158,14 @@ import { PagoItem } from '../../models/pago.model';
                 </thead>
                 <tbody class="divide-y divide-border/60">
                   <tr *ngFor="let p of pagosService.pagos()" class="hover:bg-secondary/30 transition-colors">
-                    <td class="px-5 py-3.5 font-mono text-muted-foreground">{{ (p.transaccion_id || p.id).substring(0, 13) }}...</td>
+                    <td class="px-5 py-3.5 font-mono text-muted-foreground">{{ getPaymentRef(p) }}</td>
                     <td class="px-5 py-3.5 font-medium text-foreground">{{ p.especialidad_nombre || 'Consulta Médica' }}</td>
                     <td class="px-5 py-3.5 font-bold text-foreground">$ {{ p.monto | number:'1.0-0' }} {{ p.moneda || 'COP' }}</td>
-                    <td class="px-5 py-3.5 text-muted-foreground capitalize">{{ p.metodo_pago?.replace('_', ' ') || 'Pasarela' }}</td>
+                    <td class="px-5 py-3.5 text-muted-foreground capitalize">{{ p.metodo_pago?.replace('_', ' ') || 'Transferencia' }}</td>
                     <td class="px-5 py-3.5 text-muted-foreground">{{ (p.fecha_pago || p.creado_en) | date:'shortDate' }}</td>
                     <td class="px-5 py-3.5 text-right">
                       <span [ngClass]="getStatusBadge(p.estado)" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                        {{ p.estado }}
+                        {{ p.estado === 'pendiente' ? 'Pendiente de Autorización' : p.estado }}
                       </span>
                     </td>
                   </tr>
@@ -111,6 +188,11 @@ export class PagosComponent implements OnInit {
   pagosService = inject(PagosService);
   citasService = inject(CitasService);
 
+  citaParaComprobante: any = null;
+  bancoOrigen = 'nequi';
+  numeroComprobante = '';
+  nombreArchivoSoporte = 'comprobante_nequi_soporte.pdf';
+
   ngOnInit() {
     this.load();
   }
@@ -121,15 +203,36 @@ export class PagosComponent implements OnInit {
   }
 
   get exitososCount(): number {
-    return this.pagosService.pagos().filter(p => p.estado === 'completado').length;
+    return this.pagosService.pagos().filter(p => (p.estado as string) === 'completado' || (p.estado as string) === 'aprobado').length;
   }
 
   get pendientesCount(): number {
-    return this.pagosService.pagos().filter(p => p.estado === 'pendiente').length;
+    return this.pagosService.pagos().filter(p => (p.estado as string) === 'pendiente').length;
+  }
+
+  getPaymentRef(p: any): string {
+    const val = p.transaccion_id || p.referencia || p.id || '';
+    return String(val).substring(0, 16);
   }
 
   get citasPendientes() {
     return this.citasService.citas().filter(c => c.estado === 'pendiente_pago');
+  }
+
+  abrirModalComprobante(cita: any) {
+    this.citaParaComprobante = cita;
+    this.numeroComprobante = `TRF-${Math.floor(1000000 + Math.random() * 9000000)}`;
+  }
+
+  enviarComprobante() {
+    if (!this.citaParaComprobante || !this.numeroComprobante.trim()) return;
+    const ref = `${this.bancoOrigen.toUpperCase()}-${this.numeroComprobante.trim()}`;
+    this.pagosService.reportarTransferencia(this.citaParaComprobante.id, ref, 'transferencia').subscribe({
+      next: () => {
+        this.citaParaComprobante = null;
+        this.citasService.loadMisCitas().subscribe();
+      }
+    });
   }
 
   pagarCita(citaId: string) {
@@ -142,6 +245,7 @@ export class PagosComponent implements OnInit {
 
   getStatusBadge(estado: string): string {
     switch (estado) {
+      case 'aprobado':
       case 'completado':
         return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
       case 'pendiente':

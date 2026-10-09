@@ -56,6 +56,18 @@ export class AuthService {
     );
   }
 
+  register(userData: any): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, userData).pipe(
+      tap((res) => {
+        localStorage.setItem(this.tokenKey, res.access_token);
+        localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
+        this.token.set(res.access_token);
+        this.currentUser.set(res.usuario);
+        this.redirectAfterLogin(res.usuario.rol);
+      })
+    );
+  }
+
   redirectAfterLogin(rol: string) {
     if (rol === 'paciente') {
       this.router.navigate(['/paciente']);

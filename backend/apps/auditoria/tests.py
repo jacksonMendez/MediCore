@@ -150,3 +150,51 @@ class AuditoriaApiTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['count'], 1)
         self.assertEqual(response.data['results'][0]['accion'], 'login_exitoso')
+
+    def test_auditoria_creacion_sede_y_especialidad(self):
+        self.client.force_authenticate(user=self.admin)
+        resp_sede = self.client.post('/api/sedes/', {
+            'nombre': 'Sede Auditoría Test',
+            'direccion': 'Calle 100 # 15-20',
+            'telefono': '3001234567',
+        })
+        self.assertEqual(resp_sede.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(RegistroAuditoria.objects.filter(accion='sede_creada', entidad_tipo='Sede').exists())
+
+        resp_esp = self.client.post('/api/especialidades/', {
+            'nombre': 'Neurología Test',
+            'descripcion': 'Atención neurológica',
+            'precio_base': 120000.00,
+        })
+        self.assertEqual(resp_esp.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(RegistroAuditoria.objects.filter(accion='especialidad_creada', entidad_tipo='Especialidad').exists())
+
+    def test_auditoria_login_fallido_y_logout(self):
+        # Login fallido registra auditoría
+        resp_fail = self.client.post('/api/auth/login/', {
+            'correo': 'admin.view@medicore.com',
+            'password': 'WrongPassword!',
+        })
+        self.assertEqual(resp_fail.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertTrue(RegistroAuditoria.objects.filter(accion='login_fallido').exists())
+
+        # Logout registra auditoría
+        self.client.force_authenticate(user=self.admin)
+        resp_logout = self.client.post('/api/auth/logout/')
+        self.assertEqual(resp_logout.status_code, status.HTTP_200_OK)
+        self.assertTrue(RegistroAuditoria.objects.filter(accion='logout').exists())
+
+    def test_rbac_paciente_bloqueado_en_endpoints_admin(self):
+        self.client.force_authenticate(user=self.paciente)
+
+        # Paciente no puede crear sedes
+        resp_sede = self.client.post('/api/sedes/', {'nombre': 'Sede Hack', 'direccion': 'Cra 1'})
+        self.assertEqual(resp_sede.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Paciente no puede crear especialidades
+        resp_esp = self.client.post('/api/especialidades/', {'nombre': 'Cardio Hack'})
+        self.assertEqual(resp_esp.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Paciente no puede ver registros de auditoría
+        resp_audit = self.client.get('/api/auditoria/')
+        self.assertEqual(resp_audit.status_code, status.HTTP_403_FORBIDDEN)
