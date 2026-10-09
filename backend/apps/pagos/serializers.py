@@ -5,6 +5,7 @@ from .models import Pago
 class PagoSimularSerializer(serializers.Serializer):
     cita_id = serializers.UUIDField()
     metodo_pago = serializers.CharField(default='sandbox', required=False)
+    referencia = serializers.CharField(required=False, allow_blank=True)
 
 
 class PagoResponseSerializer(serializers.ModelSerializer):
