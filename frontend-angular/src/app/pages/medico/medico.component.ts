@@ -135,6 +135,14 @@ import { CitaItem } from '../../models/cita.model';
             <button (click)="cerrarModal()" class="text-muted-foreground hover:text-foreground cursor-pointer text-lg font-bold">✕</button>
           </div>
 
+          <!-- Alerta de Error en el Modal -->
+          <div *ngIf="errorMensaje" class="p-3 rounded-xl border border-rose-500/40 bg-rose-500/15 text-rose-300 text-xs flex items-center gap-2 animate-fade-in shadow-md">
+            <svg class="size-4 shrink-0 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span class="font-semibold">{{ errorMensaje }}</span>
+          </div>
+
           <div class="space-y-4 text-xs">
             <div>
               <label class="block font-semibold text-muted-foreground mb-1.5">Diagnóstico Clínico *</label>
@@ -257,6 +265,7 @@ export class MedicoComponent implements OnInit {
   citasService = inject(CitasService);
 
   mensajeExito: string | null = null;
+  errorMensaje: string | null = null;
   citaSeleccionada: CitaItem | null = null;
   soloLectura = false;
   guardandoNota = false;
@@ -365,6 +374,7 @@ export class MedicoComponent implements OnInit {
     this.archivoSeleccionado = null;
     this.archivoNombre = null;
     this.archivoTipo = null;
+    this.errorMensaje = null;
 
     if (soloLectura) {
       this.citasService.obtenerNotaClinica(cita.id).subscribe({
@@ -390,11 +400,13 @@ export class MedicoComponent implements OnInit {
     this.archivoSeleccionado = null;
     this.archivoNombre = null;
     this.archivoTipo = null;
+    this.errorMensaje = null;
   }
 
   guardarNota() {
     if (!this.citaSeleccionada || !this.formNota.diagnostico) return;
     this.guardandoNota = true;
+    this.errorMensaje = null;
 
     this.citasService.guardarNotaClinica(
       this.citaSeleccionada.id,
@@ -412,8 +424,18 @@ export class MedicoComponent implements OnInit {
         setTimeout(() => this.mensajeExito = null, 5000);
         this.load();
       },
-      error: () => {
+      error: (err) => {
         this.guardandoNota = false;
+        const detail = err?.error?.detail || err?.error?.message;
+        if (detail) {
+          this.errorMensaje = detail;
+        } else if (typeof err?.error === 'string') {
+          this.errorMensaje = err.error;
+        } else if (err?.status === 413 || err?.status === 400) {
+          this.errorMensaje = 'El documento adjunto supera el tamaño máximo permitido o el formato no es válido.';
+        } else {
+          this.errorMensaje = 'Error al registrar la atención médica. Verifica que la cita no haya expirado.';
+        }
       }
     });
   }
