@@ -7,6 +7,7 @@ from .views import (
     GoogleAuthView,
     ProfileView,
     LogoutView,
+    CompletarPerfilPacienteView,
 )
 
 urlpatterns = [
@@ -20,6 +21,8 @@ urlpatterns = [
     path('reenviar-codigo/', ReenviarCodigoView.as_view(), name='auth-reenviar-codigo-slash'),
     path('google', GoogleAuthView.as_view(), name='auth-google'),
     path('google/', GoogleAuthView.as_view(), name='auth-google-slash'),
+    path('completar-perfil', CompletarPerfilPacienteView.as_view(), name='auth-completar-perfil'),
+    path('completar-perfil/', CompletarPerfilPacienteView.as_view(), name='auth-completar-perfil-slash'),
     path('me', ProfileView.as_view(), name='auth-me'),
     path('me/', ProfileView.as_view(), name='auth-me-slash'),
     path('logout', LogoutView.as_view(), name='auth-logout'),

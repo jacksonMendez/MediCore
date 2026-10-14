@@ -50,4 +50,80 @@ export class ClinicaService {
       error: () => this.loading.set(false)
     });
   }
+
+  // Admin CRUD: Médicos
+  crearMedico(data: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/medicos`, data, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadMedicos().subscribe())
+    );
+  }
+
+  actualizarMedico(id: string, data: any): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/medicos/${id}`, data, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadMedicos().subscribe())
+    );
+  }
+
+  desactivarMedico(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/medicos/${id}`, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadMedicos().subscribe())
+    );
+  }
+
+  // Admin CRUD: Sedes
+  crearSede(data: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/sedes`, data, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadSedes().subscribe())
+    );
+  }
+
+  actualizarSede(id: string, data: any): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/sedes/${id}`, data, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadSedes().subscribe())
+    );
+  }
+
+  desactivarSede(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/sedes/${id}`, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadSedes().subscribe())
+    );
+  }
+
+  // Admin CRUD: Especialidades
+  crearEspecialidad(data: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/especialidades`, data, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadEspecialidades().subscribe())
+    );
+  }
+
+  actualizarEspecialidad(id: string, data: any): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/especialidades/${id}`, data, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadEspecialidades().subscribe())
+    );
+  }
+
+  eliminarEspecialidad(id: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/especialidades/${id}`, {
+      headers: this.authService.getAuthHeaders()
+    }).pipe(
+      tap(() => this.loadEspecialidades().subscribe())
+    );
+  }
 }
+

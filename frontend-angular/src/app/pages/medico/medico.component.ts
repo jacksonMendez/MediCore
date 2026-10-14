@@ -75,16 +75,22 @@ import { CitaItem } from '../../models/cita.model';
                     <td class="px-5 py-3.5 text-muted-foreground">{{ cita.sede_nombre || 'Sede Central' }}</td>
                     <td class="px-5 py-3.5">
                       <span [ngClass]="getStatusBadge(cita.estado)" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
-                        {{ cita.estado }}
+                        {{ cita.estado === 'no_asistio' ? 'NO ASISTIÓ' : cita.estado }}
                       </span>
                     </td>
                     <td class="px-5 py-3.5 text-right space-x-2">
-                      <!-- Atender con nota clínica -->
-                      <button *ngIf="cita.estado === 'confirmada'"
+                      <!-- Atender con nota clínica: SOLO para citas confirmadas NO expiradas -->
+                      <button *ngIf="cita.estado === 'confirmada' && !esCitaExpirada(cita)"
                         (click)="abrirModalNota(cita)"
                         class="px-3 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white font-semibold transition-all cursor-pointer border border-emerald-500/40">
                         Atender Consulta
                       </button>
+
+                      <!-- Indicador de cita expirada (solo permite registrar 'No asistió') -->
+                      <span *ngIf="cita.estado === 'confirmada' && esCitaExpirada(cita)"
+                        class="inline-block px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-bold uppercase tracking-wider mr-1">
+                        Cita Expirada
+                      </span>
 
                       <!-- Ver nota ya registrada -->
                       <button *ngIf="cita.estado === 'atendida'"
@@ -93,9 +99,10 @@ import { CitaItem } from '../../models/cita.model';
                         Ver Ficha Clínica
                       </button>
 
+                      <!-- Botón 'No asistió': habilitado para citas confirmadas (tanto vigentes como expiradas) -->
                       <button *ngIf="cita.estado === 'confirmada'"
                         (click)="cambiarEstado(cita, 'no_asistio')"
-                        class="px-2.5 py-1.5 rounded-lg bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground font-semibold transition-all cursor-pointer">
+                        class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/30 font-semibold transition-all cursor-pointer">
                         No asistió
                       </button>
                     </td>
@@ -115,8 +122,8 @@ import { CitaItem } from '../../models/cita.model';
 
       <!-- Modal: Ficha Clínica y Registro de Diagnóstico -->
       <div *ngIf="citaSeleccionada" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-        <div class="w-full max-w-lg rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5">
-          <div class="flex items-center justify-between pb-3 border-b border-border">
+        <div class="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-5">
+          <div class="flex items-center justify-between pb-3 border-b border-border sticky top-0 bg-card z-10">
             <div>
               <h3 class="font-display text-base font-bold text-foreground">
                 {{ soloLectura ? 'Ficha Clínica de la Consulta' : 'Atención Médica y Diagnóstico' }}
@@ -161,9 +168,74 @@ import { CitaItem } from '../../models/cita.model';
                 placeholder="Ej: Amoxicilina 500mg cada 8 horas por 7 días. Ibuprofeno 400mg cada 8 horas si hay dolor."
               ></textarea>
             </div>
+
+            <!-- ADJUNTO DE DOCUMENTOS CLÍNICOS: WORD O PDF -->
+            <div class="p-3.5 rounded-xl bg-secondary/40 border border-border space-y-2.5">
+              <div class="flex items-center justify-between">
+                <label class="block font-semibold text-foreground flex items-center gap-1.5">
+                  <svg class="size-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  Documento Clínico Adjunto (Historia Clínica, Órdenes o Exámenes)
+                </label>
+                <span class="text-[10px] text-muted-foreground font-semibold">PDF o Word (.docx/.doc)</span>
+              </div>
+
+              <!-- Modo edición: Doctor adjuntando archivo -->
+              <div *ngIf="!soloLectura" class="space-y-2">
+                <div *ngIf="!archivoSeleccionado" class="flex items-center gap-3">
+                  <label class="px-3 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border text-xs font-semibold cursor-pointer transition-colors flex items-center gap-2">
+                    <svg class="size-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Subir Documento (PDF / Word)</span>
+                    <input type="file" accept=".pdf,.doc,.docx" (change)="onArchivoSeleccionado($event)" class="hidden" />
+                  </label>
+                  <span class="text-[11px] text-muted-foreground">El paciente podrá visualizarlo y descargarlo.</span>
+                </div>
+
+                <!-- Preview del archivo cargado antes de guardar -->
+                <div *ngIf="archivoSeleccionado" class="flex items-center justify-between p-2.5 rounded-lg bg-card border border-border">
+                  <div class="flex items-center gap-2 overflow-hidden">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                      [ngClass]="esPdf(archivoNombre) ? 'bg-rose-500/20 text-rose-300' : 'bg-blue-500/20 text-blue-300'">
+                      {{ esPdf(archivoNombre) ? 'PDF' : 'WORD (.DOCX)' }}
+                    </span>
+                    <span class="text-xs font-semibold text-foreground truncate">{{ archivoNombre }}</span>
+                  </div>
+                  <button type="button" (click)="quitarArchivo()" class="text-rose-400 hover:text-rose-300 text-xs font-semibold cursor-pointer p-1">
+                    ✕ Quitar
+                  </button>
+                </div>
+              </div>
+
+              <!-- Modo sólo lectura: Ver o descargar archivo guardado -->
+              <div *ngIf="soloLectura">
+                <div *ngIf="archivoSeleccionado" class="flex items-center justify-between p-2.5 rounded-lg bg-card border border-border">
+                  <div class="flex items-center gap-2 overflow-hidden">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase"
+                      [ngClass]="esPdf(archivoNombre) ? 'bg-rose-500/20 text-rose-300' : 'bg-blue-500/20 text-blue-300'">
+                      {{ esPdf(archivoNombre) ? 'PDF' : 'WORD (.DOCX)' }}
+                    </span>
+                    <span class="text-xs font-semibold text-foreground truncate">{{ archivoNombre }}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button *ngIf="esPdf(archivoNombre)" (click)="abrirDocumento(archivoSeleccionado)" class="px-2.5 py-1 rounded bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border cursor-pointer">
+                      Ver
+                    </button>
+                    <a [href]="archivoSeleccionado" [download]="archivoNombre || 'documento_clinico'" class="px-3 py-1 rounded bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary-hover cursor-pointer">
+                      Descargar
+                    </a>
+                  </div>
+                </div>
+                <div *ngIf="!archivoSeleccionado" class="text-[11px] text-muted-foreground italic">
+                  No se adjuntaron archivos para esta consulta médica.
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="flex items-center justify-end gap-3 pt-3 border-t border-border">
+          <div class="flex items-center justify-end gap-3 pt-3 border-t border-border sticky bottom-0 bg-card">
             <button (click)="cerrarModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer">
               {{ soloLectura ? 'Cerrar' : 'Cancelar' }}
             </button>
@@ -195,6 +267,10 @@ export class MedicoComponent implements OnInit {
     receta_medica: ''
   };
 
+  archivoSeleccionado: string | null = null;
+  archivoNombre: string | null = null;
+  archivoTipo: string | null = null;
+
   ngOnInit() {
     this.load();
   }
@@ -219,10 +295,63 @@ export class MedicoComponent implements OnInit {
     return this.citasService.citas().filter(c => c.estado === 'pendiente_pago').length;
   }
 
+  esCitaExpirada(cita: CitaItem): boolean {
+    if (!cita.fecha_hora) return false;
+    const fecha = new Date(cita.fecha_hora).getTime();
+    // Expirada si han pasado más de 1 hora después de la cita
+    return Date.now() > (fecha + 60 * 60 * 1000);
+  }
+
+  esPdf(nombre?: string | null): boolean {
+    if (!nombre) return false;
+    return nombre.toLowerCase().endsWith('.pdf');
+  }
+
+  abrirDocumento(dataUrl?: string | null) {
+    if (!dataUrl) return;
+    const win = window.open();
+    if (win) {
+      win.document.write(`<iframe src="${dataUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+    }
+  }
+
+  onArchivoSeleccionado(event: any) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ['.pdf', '.doc', '.docx'];
+    const name = file.name.toLowerCase();
+    const isValid = allowed.some(ext => name.endsWith(ext));
+    if (!isValid) {
+      alert('Solo se admiten documentos en formato PDF (.pdf) o Word (.doc, .docx).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('El archivo no debe superar los 10 MB.');
+      return;
+    }
+
+    this.archivoNombre = file.name;
+    this.archivoTipo = file.type || (name.endsWith('.pdf') ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.archivoSeleccionado = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  quitarArchivo() {
+    this.archivoSeleccionado = null;
+    this.archivoNombre = null;
+    this.archivoTipo = null;
+  }
+
   cambiarEstado(cita: CitaItem, nuevoEstado: string) {
     this.citasService.cambiarEstado(cita.id, nuevoEstado).subscribe({
       next: () => {
-        this.mensajeExito = `Cita actualizada a estado: ${nuevoEstado}`;
+        this.mensajeExito = `Cita actualizada a estado: ${nuevoEstado === 'no_asistio' ? 'No asistió' : nuevoEstado}`;
         setTimeout(() => this.mensajeExito = null, 4000);
         this.load();
       }
@@ -233,6 +362,9 @@ export class MedicoComponent implements OnInit {
     this.citaSeleccionada = cita;
     this.soloLectura = soloLectura;
     this.formNota = { diagnostico: '', tratamiento: '', receta_medica: '' };
+    this.archivoSeleccionado = null;
+    this.archivoNombre = null;
+    this.archivoTipo = null;
 
     if (soloLectura) {
       this.citasService.obtenerNotaClinica(cita.id).subscribe({
@@ -242,6 +374,9 @@ export class MedicoComponent implements OnInit {
             tratamiento: nota.tratamiento || '',
             receta_medica: nota.receta_medica || ''
           };
+          this.archivoSeleccionado = nota.archivo_adjunto || null;
+          this.archivoNombre = nota.archivo_nombre || null;
+          this.archivoTipo = nota.archivo_tipo || null;
         },
         error: () => {
           this.formNota.diagnostico = 'No hay nota registrada para esta consulta.';
@@ -252,6 +387,9 @@ export class MedicoComponent implements OnInit {
 
   cerrarModal() {
     this.citaSeleccionada = null;
+    this.archivoSeleccionado = null;
+    this.archivoNombre = null;
+    this.archivoTipo = null;
   }
 
   guardarNota() {
@@ -262,7 +400,10 @@ export class MedicoComponent implements OnInit {
       this.citaSeleccionada.id,
       this.formNota.diagnostico,
       this.formNota.tratamiento,
-      this.formNota.receta_medica
+      this.formNota.receta_medica,
+      this.archivoSeleccionado || '',
+      this.archivoNombre || '',
+      this.archivoTipo || ''
     ).subscribe({
       next: () => {
         this.guardandoNota = false;
@@ -288,7 +429,7 @@ export class MedicoComponent implements OnInit {
       case 'cancelada':
         return 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
       case 'no_asistio':
-        return 'bg-secondary text-muted-foreground border border-border';
+        return 'bg-purple-500/20 text-purple-400 border border-purple-500/30';
       default:
         return 'bg-secondary text-muted-foreground';
     }

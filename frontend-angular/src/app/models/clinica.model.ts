@@ -25,4 +25,5 @@ export interface MedicoItem {
   tarjeta_profesional: string;
   duracion_cita_minutos: number;
   genero: string;
+  activo?: boolean;
 }

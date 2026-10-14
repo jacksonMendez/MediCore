@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="320" viewBox="0 0 900 320">
+  <defs>
+    <filter id="glow-primary" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#0d9488" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="bg-sidebar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a1019"/>
+      <stop offset="100%" stop-color="#0f1724"/>
+    </linearGradient>
+    <linearGradient id="primary-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background dark sidebar matching interior UI -->
+  <rect width="900" height="320" rx="24" fill="url(#bg-sidebar)"/>
+  <rect width="898" height="318" x="1" y="1" rx="23" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+
+  <!-- Contenedor alineado horizontalmente: Icono corazón + texto -->
+  <g transform="translate(250, 105)">
+    <!-- Icono de corazón (exacto de sidebar.component.ts) -->
+    <g filter="url(#glow-primary)">
+      <rect width="90" height="90" rx="20" fill="url(#primary-grad)"/>
+      <g transform="translate(15, 15) scale(2.5)">
+        <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+
+    <!-- Texto exacto: MediCore / Clinical OS -->
+    <text x="120" y="50" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="44" font-weight="800" fill="#f8fafc" letter-spacing="-0.8">
+      MediCore
+    </text>
+    <text x="122" y="78" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" fill="#94a3b8" letter-spacing="4">
+      CLINICAL OS
+    </text>
+  </g>
+</svg>

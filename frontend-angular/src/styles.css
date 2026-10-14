@@ -152,3 +152,64 @@ html, body {
   background: rgba(79, 168, 160, 0.6);
 }
 
+/* ============================================================
+   Light Clinical Theme Adaptation
+   ============================================================ */
+html.light-theme, body.light-theme {
+  --background: #F1F5F9;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+
+  --primary: #0D9488;
+  --primary-hover: #0F766E;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #E2E8F0;
+  --secondary-foreground: #1E293B;
+  --muted: #E2E8F0;
+  --muted-foreground: #64748B;
+  --accent: #E0F2FE;
+  --accent-foreground: #0369A1;
+
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: #FFFFFF;
+  --ring: #0D9488;
+  --surface-muted: #F8FAFC;
+
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0F172A;
+  --sidebar-primary: #0D9488;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+}
+
+html.light-theme .glass-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+}
+
+html.light-theme .glass-panel-strong {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+}
+
+html.light-theme .glass-input {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #0F172A;
+}
+
+html.light-theme .glass-btn-secondary {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+

@@ -32,7 +32,8 @@ import { AuthService } from '../../services/auth.service';
 
         <!-- User profile summary -->
         <div class="hidden h-9 items-center gap-2.5 border-l border-border pl-3 sm:flex">
-          <span class="grid size-8 place-items-center rounded-full bg-primary/20 text-xs font-bold text-primary border border-primary/30">
+          <img *ngIf="avatarUrl" [src]="avatarUrl" class="size-8 rounded-full object-cover border border-primary/40 shadow-sm" alt="Avatar" />
+          <span *ngIf="!avatarUrl" class="grid size-8 place-items-center rounded-full bg-primary/20 text-xs font-bold text-primary border border-primary/30">
             {{ userInitials }}
           </span>
           <div class="text-xs">
@@ -51,6 +52,30 @@ export class HeaderComponent {
   @Input() subtitle: string = 'Sistema Clínico Asistido por IA';
 
   private auth = inject(AuthService);
+  avatarUrl: string | null = null;
+
+  constructor() {
+    this.loadAvatar();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('medicore:avatar-changed', (e: any) => {
+        this.avatarUrl = e.detail;
+      });
+      window.addEventListener('medicore:auth-changed', () => {
+        this.loadAvatar();
+      });
+    }
+  }
+
+  loadAvatar() {
+    const user = this.auth.currentUser();
+    if (user) {
+      try {
+        this.avatarUrl = localStorage.getItem(`medicore_avatar_${user.id}`) || null;
+      } catch {}
+    } else {
+      this.avatarUrl = null;
+    }
+  }
 
   get userName(): string {
     return this.auth.currentUser()?.nombre_completo || 'Usuario';

@@ -482,8 +482,9 @@ async def _tool_consultar_agenda_hoy(
 async def _tool_consultar_historial_paciente(
     db: AsyncSession,
     documento_numero: str,
+    medico_id: str = None,
 ) -> str:
-    """Get clinical history for a patient by document number."""
+    """Get clinical history for an attended patient by document number."""
     pac_result = await db.execute(
         select(Paciente)
         .options(selectinload(Paciente.usuario))
@@ -493,14 +494,27 @@ async def _tool_consultar_historial_paciente(
     if not paciente:
         return json.dumps({"error": f"No se encontró paciente con documento {documento_numero}"})
 
+    if medico_id:
+        citas_atendidas_res = await db.execute(
+            select(Cita)
+            .where(Cita.paciente_id == paciente.id, Cita.medico_id == medico_id, Cita.estado == 'atendida')
+        )
+        if not citas_atendidas_res.scalars().first():
+            return json.dumps({
+                "error": "acceso_restringido_no_atendido",
+                "mensaje": f"Por políticas de privacidad médica y Habeas Data clínico, solo tienes autorización para consultar el historial de pacientes que has atendido en consulta. El paciente con documento {documento_numero} no registra atenciones previas contigo."
+            }, ensure_ascii=False)
+
     # Get clinical notes
-    notas_result = await db.execute(
+    query = (
         select(ConsultaNota)
         .join(Cita, ConsultaNota.cita_id == Cita.id)
         .where(Cita.paciente_id == paciente.id)
-        .order_by(ConsultaNota.creado_en.desc())
-        .limit(10)
     )
+    if medico_id:
+        query = query.where(Cita.medico_id == medico_id)
+
+    notas_result = await db.execute(query.order_by(ConsultaNota.creado_en.desc()).limit(10))
     notas = notas_result.scalars().all()
 
     historial = []
@@ -515,7 +529,7 @@ async def _tool_consultar_historial_paciente(
     return json.dumps({
         "paciente": paciente.usuario.nombre_completo,
         "documento": documento_numero,
-        "total_consultas": len(historial),
+        "total_consultas_atendidas": len(historial),
         "historial": historial,
     }, ensure_ascii=False)
 

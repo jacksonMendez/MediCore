@@ -66,11 +66,12 @@ import { ModalPagoComponent } from '../modal-pago/modal-pago.component';
 
           <div *ngIf="proximaCita.estado === 'pendiente_pago'" class="pt-2">
             <button (click)="abrirPagoModal()"
-              class="w-full py-2.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2">
-              <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              [ngClass]="proximaCita.tiene_comprobante ? 'bg-secondary hover:bg-secondary/80 text-foreground border border-amber-500/40' : 'bg-emerald-600 hover:bg-emerald-500 text-white'"
+              class="w-full py-2.5 px-3 rounded-lg text-xs font-semibold shadow-md transition-all cursor-pointer flex items-center justify-center gap-2">
+              <svg class="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
-              <span>Pagar Cita Ahora ($ 50.000 COP)</span>
+              <span>{{ proximaCita.tiene_comprobante ? 'Comprobante en Revisión ($ ' + ((proximaCita.precio || proximaCita.pago_monto || 50000) | number:'1.0-0') + ' COP)' : 'Pagar Cita Ahora ($ ' + ((proximaCita.precio || proximaCita.pago_monto || 50000) | number:'1.0-0') + ' COP)' }}</span>
             </button>
           </div>
         </div>
@@ -105,6 +106,11 @@ export class ProximaCitaWidgetComponent implements OnInit {
 
   ngOnInit() {
     this.citasService.loadMisCitas().subscribe();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('medicore:auth-changed', () => {
+        this.citasService.loadMisCitas().subscribe();
+      });
+    }
   }
 
   get proximaCita(): CitaItem | undefined {

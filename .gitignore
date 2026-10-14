@@ -36,3 +36,13 @@ htmlcov/
 .git_lovable/
 *.backup*
 *.db.backup*
+
+# Academic / Non-project documents
+*.docx
+*.doc
+*.pptx
+*.xlsx
+docs/*.docx
+docs/*.doc
+docs/*.pptx
+docs/*.xlsx

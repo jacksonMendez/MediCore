@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, serializers
@@ -151,6 +152,12 @@ class CitaCreateView(APIView):
         data = serializer.validated_data
         medico_id = data['medico_id']
         fecha_hora = data['fecha_hora']
+        from django.utils import timezone
+        import zoneinfo
+        if timezone.is_naive(fecha_hora):
+            fecha_hora = timezone.make_aware(fecha_hora, timezone=zoneinfo.ZoneInfo("America/Bogota"))
+        else:
+            fecha_hora = fecha_hora.astimezone(zoneinfo.ZoneInfo("America/Bogota"))
 
         try:
             medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').get(id=medico_id)
@@ -221,16 +228,23 @@ class MisCitasView(APIView):
         user = request.user
         u_rol = getattr(user, 'rol_id', None) or str(getattr(user.rol, 'codigo', user.rol))
         ahora = timezone.now()
+        limite_no_asistio = ahora - timedelta(hours=2)
+
+        # Regla automática: Las citas confirmadas pasadas de tiempo pasan a 'no_asistio' automáticamente
+        Cita.objects.filter(
+            fecha_hora__lt=limite_no_asistio,
+            estado='confirmada'
+        ).update(estado='no_asistio')
+
+        # Las citas pasadas pendientes de pago pasan a 'cancelada'
+        Cita.objects.filter(
+            fecha_hora__lt=ahora,
+            estado='pendiente_pago'
+        ).update(estado='cancelada')
 
         if u_rol == 'paciente':
             try:
                 paciente = Paciente.objects.get(usuario=user)
-                # Las citas pasadas que no fueron pagadas expiran a cancelada automáticamente
-                Cita.objects.filter(
-                    paciente=paciente,
-                    fecha_hora__lt=ahora,
-                    estado='pendiente_pago'
-                ).update(estado='cancelada')
 
                 citas = Cita.objects.filter(paciente=paciente).select_related(
                     'medico__usuario', 'medico__especialidad', 'sede', 'paciente__usuario', 'pago'
@@ -502,18 +516,29 @@ class PQRCambiarEstadoView(APIView):
 
 
 class ConsultaNotaView(APIView):
-    permission_classes = [require_role(['medico', 'admin'])]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = NotaResponseSerializer
 
     @extend_schema(
         tags=['Citas'],
         summary='Consultar nota clínica de una cita',
-        description='Retorna el diagnóstico y fórmula médica de la consulta.',
+        description='Retorna el diagnóstico, fórmula médica y documentos adjuntos de la consulta. Roles: paciente (propietario), medico tratante, admin.',
         responses={200: NotaResponseSerializer, 404: OpenApiResponse(description='No encontrada.')}
     )
     def get(self, request, cita_id):
         try:
-            nota = ConsultaNota.objects.get(cita_id=cita_id)
+            cita = Cita.objects.select_related('paciente__usuario', 'medico__usuario').get(id=cita_id)
+        except Cita.DoesNotExist:
+            return Response({"detail": "Cita no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol == 'paciente' and cita.paciente.usuario_id != request.user.id:
+            return Response({"detail": "No tienes permiso para ver la nota clínica de otro paciente."}, status=status.HTTP_403_FORBIDDEN)
+        elif u_rol == 'medico' and cita.medico.usuario_id != request.user.id and u_rol != 'admin':
+            return Response({"detail": "No tienes permiso para ver la nota clínica de otro médico."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            nota = ConsultaNota.objects.get(cita=cita)
             return Response(NotaResponseSerializer(nota).data)
         except ConsultaNota.DoesNotExist:
             return Response({"detail": "No hay notas clínicas registradas para esta cita."}, status=status.HTTP_404_NOT_FOUND)
@@ -521,11 +546,15 @@ class ConsultaNotaView(APIView):
     @extend_schema(
         tags=['Citas'],
         summary='Registrar o actualizar nota clínica y diagnóstico',
-        description='Guarda el diagnóstico y tratamiento, marcando la cita como atendida.',
+        description='Guarda el diagnóstico, tratamiento y documentos Word/PDF adjuntos, marcando la cita como atendida. Roles: medico, admin.',
         request=NotaCreateSerializer,
         responses={200: NotaResponseSerializer, 201: NotaResponseSerializer}
     )
     def post(self, request, cita_id):
+        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
+        if u_rol not in ['medico', 'admin']:
+            return Response({"detail": "Solo el médico tratante o administrador puede registrar notas clínicas."}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = NotaCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({"detail": "Datos de nota clínica inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -535,18 +564,31 @@ class ConsultaNotaView(APIView):
         except Cita.DoesNotExist:
             return Response({"detail": "Cita no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
-        u_rol = getattr(request.user, 'rol_id', None) or str(request.user.rol)
-        if u_rol == 'medico' and cita.medico.usuario_id != request.user.id:
+        if u_rol == 'medico' and cita.medico.usuario_id != request.user.id and u_rol != 'admin':
             return Response({"detail": "Solo el médico asignado puede diligenciar la nota clínica."}, status=status.HTTP_403_FORBIDDEN)
 
+        # Regla: los médicos solo pueden atender fechas que no hayan expirado
+        ahora = timezone.now()
+        limite_expiracion = ahora - timedelta(hours=2)
+        if cita.fecha_hora < limite_expiracion and str(cita.estado_id) != 'atendida':
+            return Response({
+                "detail": "Esta cita médica ya expiró de su ventana de atención clínica. Solo es posible registrar 'No asistió'."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         data = serializer.validated_data
+        defaults = {
+            'diagnostico': data['diagnostico'],
+            'tratamiento': data.get('tratamiento', ''),
+            'receta_medica': data.get('receta_medica', ''),
+        }
+        if data.get('archivo_adjunto'):
+            defaults['archivo_adjunto'] = data['archivo_adjunto']
+            defaults['archivo_nombre'] = data.get('archivo_nombre', 'documento_clinico.pdf')
+            defaults['archivo_tipo'] = data.get('archivo_tipo', 'application/pdf')
+
         nota, created = ConsultaNota.objects.update_or_create(
             cita=cita,
-            defaults={
-                'diagnostico': data['diagnostico'],
-                'tratamiento': data.get('tratamiento', ''),
-                'receta_medica': data.get('receta_medica', ''),
-            }
+            defaults=defaults
         )
 
         # Actualizar estado de la cita a 'atendida'
@@ -562,6 +604,7 @@ class ConsultaNotaView(APIView):
                 'cita_id': str(cita.id),
                 'paciente': cita.paciente.usuario.nombre_completo,
                 'diagnostico': data['diagnostico'][:80],
+                'tiene_archivo': bool(defaults.get('archivo_adjunto')),
             },
             ip=request.META.get('REMOTE_ADDR')
         )

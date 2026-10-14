@@ -1,7 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
+import { environment } from '../../../environments/environment';
+
+declare const google: any;
+declare const grecaptcha: any;
 
 @Component({
   selector: 'app-login',
@@ -95,7 +99,7 @@ import { AuthService } from '../../services/auth.service';
               </button>
               <button
                 type="button"
-                (click)="requiereVerificacion = false; errorMessage = ''"
+                (click)="volverAlFormulario()"
                 class="text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 Volver
@@ -107,7 +111,7 @@ import { AuthService } from '../../services/auth.service';
               <p class="text-[11px] text-muted-foreground">O verifica al instante vinculando tu cuenta de Google:</p>
               <button
                 type="button"
-                (click)="abrirModalGoogle(emailParaVerificar)"
+                (click)="iniciarGoogleReal()"
                 class="w-full py-2 px-3 rounded-xl border border-white/[0.1] bg-white/[0.03] hover:bg-white/[0.08] text-foreground text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <svg class="size-4" viewBox="0 0 24 24">
@@ -123,10 +127,10 @@ import { AuthService } from '../../services/auth.service';
 
           <!-- STEP 2: FORMULARIO PRINCIPAL (LOGIN O REGISTRO) -->
           <div *ngIf="!requiereVerificacion" class="space-y-4">
-            <!-- Google Button (Abre diálogo Google Sign-In) -->
+            <!-- Google Button (Abre Google Sign-In real) -->
             <button
               type="button"
-              (click)="abrirModalGoogle()"
+              (click)="iniciarGoogleReal()"
               class="w-full py-2.5 px-3 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] text-foreground text-xs font-semibold flex items-center justify-center gap-2.5 cursor-pointer transition-all shadow-sm"
             >
               <svg class="size-4 shrink-0" viewBox="0 0 24 24">
@@ -213,55 +217,94 @@ import { AuthService } from '../../services/auth.service';
                   [(ngModel)]="email"
                   name="email"
                   class="glass-input"
-                  placeholder="tu_correo@ejemplo.com"
+                  [placeholder]="isRegister ? 'tu_correo_real@ejemplo.com' : 'tu_correo@ejemplo.com'"
                   required
                 />
+                <p *ngIf="isRegister" class="text-[11px] text-[#4FA8A0] mt-1 flex items-center gap-1.5 font-medium">
+                  <svg class="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Debe ser un correo real: recibirás un código OTP de 6 dígitos obligatorio para ingresar.</span>
+                </p>
               </div>
 
               <div>
                 <label class="text-xs text-[#8BA3B8] mb-1 block">Contraseña *</label>
-                <div class="relative">
+                <div class="relative flex items-center">
                   <input
                     [type]="showPassword ? 'text' : 'password'"
                     [(ngModel)]="password"
                     name="password"
-                    class="glass-input pr-10"
-                    placeholder="Mínimo 6 caracteres"
+                    class="glass-input pr-11"
+                    [placeholder]="isRegister ? 'Mínimo 8 caracteres (A-Z, a-z, 0-9, #)' : 'Ingresa tu contraseña'"
                     required
                   />
                   <button
                     type="button"
                     (click)="showPassword = !showPassword"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-[#5A7A94] hover:text-[#8BA3B8] transition-colors cursor-pointer"
+                    [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Ver contraseña'"
+                    [title]="showPassword ? 'Ocultar contraseña' : 'Ver contraseña'"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#8BA3B8] hover:text-[#4FA8A0] transition-colors rounded-lg hover:bg-white/[0.08] focus:outline-none cursor-pointer z-10"
                   >
-                    <svg *ngIf="!showPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <svg *ngIf="!showPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
-                    <svg *ngIf="showPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    <svg *ngIf="showPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
                     </svg>
                   </button>
                 </div>
+                <p *ngIf="isRegister" class="text-[10px] text-[#5A7A94] mt-1">
+                  Mínimo 8 caracteres: requiere mayúscula, minúscula, número y un símbolo (ej: !&#64;#$).
+                </p>
               </div>
 
               <!-- Confirmar contraseña solo en registro -->
               <div *ngIf="isRegister">
                 <label class="text-xs text-[#8BA3B8] mb-1 block">Confirmar contraseña *</label>
-                <input
-                  type="password"
-                  [(ngModel)]="registerForm.password_confirmacion"
-                  name="password_confirmacion"
-                  class="glass-input"
-                  placeholder="Repite la contraseña"
-                  required
-                />
+                <div class="relative flex items-center">
+                  <input
+                    [type]="showConfirmPassword ? 'text' : 'password'"
+                    [(ngModel)]="registerForm.password_confirmacion"
+                    name="password_confirmacion"
+                    class="glass-input pr-11"
+                    placeholder="Repite la contraseña"
+                    required
+                  />
+                  <button
+                    type="button"
+                    (click)="showConfirmPassword = !showConfirmPassword"
+                    [attr.aria-label]="showConfirmPassword ? 'Ocultar confirmación' : 'Ver confirmación'"
+                    [title]="showConfirmPassword ? 'Ocultar confirmación' : 'Ver confirmación'"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#8BA3B8] hover:text-[#4FA8A0] transition-colors rounded-lg hover:bg-white/[0.08] focus:outline-none cursor-pointer z-10"
+                  >
+                    <svg *ngIf="!showConfirmPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <svg *ngIf="showConfirmPassword" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Verificación Oficial Google reCAPTCHA v2 -->
+              <div class="my-4 flex flex-col items-center justify-center">
+                <div id="recaptcha-widget" class="min-h-[78px] flex items-center justify-center"></div>
+                <div *ngIf="!captchaToken" class="text-[11px] text-[#5A7A94] mt-1.5 flex items-center gap-1.5 select-none">
+                  <svg class="w-3.5 h-3.5 text-[#4FA8A0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <span>Verificación humana protegida por Google reCAPTCHA</span>
+                </div>
               </div>
 
               <!-- Submit Button -->
               <button
                 type="submit"
-                [disabled]="loading || !email || !password"
+                [disabled]="loading || !email || !password || !captchaToken"
                 class="glass-btn-primary w-full py-2.5 text-sm mt-3 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-[#4FA8A0]/15"
               >
                 <span *ngIf="loading" class="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin"></span>
@@ -280,10 +323,10 @@ import { AuthService } from '../../services/auth.service';
               {{ isRegister ? '¿Ya tienes una cuenta registrada?' : '¿No tienes cuenta registrada?' }}
               <button
                 type="button"
-                (click)="isRegister = !isRegister; errorMessage = ''; successMessage = ''"
+                (click)="toggleModoRegistro()"
                 class="text-[#4FA8A0] hover:underline ml-1 font-medium cursor-pointer"
               >
-                {{ isRegister ? 'Iniciar sesión' : 'Registrarse como paciente' }}
+                {{ isRegister ? 'Iniciar sesión' : 'Registrarse' }}
               </button>
             </div>
 
@@ -334,81 +377,23 @@ import { AuthService } from '../../services/auth.service';
           </div>
         </div>
       </div>
-
-      <!-- GOOGLE SIGN-IN MODAL (Diálogo de autenticación Google) -->
-      <div *ngIf="mostrarModalGoogle" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-        <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-[#162134] p-6 shadow-2xl space-y-4">
-          <!-- Google Header -->
-          <div class="text-center space-y-2">
-            <svg class="size-8 mx-auto" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-            </svg>
-            <h3 class="text-base font-bold text-foreground">Acceder con Google</h3>
-            <p class="text-xs text-muted-foreground">Elige o ingresa tu cuenta para continuar en MediCore OS</p>
-          </div>
-
-          <!-- Inputs -->
-          <div class="space-y-3 text-xs text-left">
-            <div>
-              <label class="text-muted-foreground mb-1 block font-medium">Correo de Google (&#64;gmail.com o institucional) *</label>
-              <input
-                type="email"
-                [(ngModel)]="googleAccountEmail"
-                placeholder="tu_cuenta@gmail.com"
-                class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label class="text-muted-foreground mb-1 block font-medium">Nombre en tu cuenta de Google *</label>
-              <input
-                type="text"
-                [(ngModel)]="googleAccountNombre"
-                placeholder="Tu Nombre Completo"
-                class="w-full rounded-lg bg-secondary border border-border px-3 py-2 text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
-              />
-            </div>
-
-            <div class="p-3 rounded-lg bg-secondary/50 border border-border/60 text-[11px] text-muted-foreground">
-              Google compartirá de forma segura tu correo verificado y tu nombre con MediCore Clinical OS.
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center justify-end gap-2 pt-2 border-t border-border/80">
-            <button
-              type="button"
-              (click)="mostrarModalGoogle = false"
-              class="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              (click)="confirmarLoginGoogle()"
-              [disabled]="!googleAccountEmail.trim() || loading"
-              class="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-semibold text-xs hover:bg-primary-hover disabled:opacity-50 cursor-pointer shadow-md flex items-center gap-2"
-            >
-              <span *ngIf="loading" class="size-3 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin"></span>
-              <span>Continuar con Google</span>
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   `
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit, AfterViewInit {
   private auth = inject(AuthService);
 
   isRegister = false;
   showPassword = false;
+  showConfirmPassword = false;
   loading = false;
   errorMessage = '';
   successMessage = '';
+
+  // Google reCAPTCHA v2 Oficial
+  recaptchaWidgetId: any = null;
+  captchaToken = '';
+  recaptchaSiteKey = environment.recaptchaSiteKey;
 
   // Formulario vacío por defecto (no fuerza paciente de prueba)
   email = '';
@@ -429,46 +414,214 @@ export class LoginComponent {
     password_confirmacion: '',
   };
 
-  // Google OAuth Modal
-  mostrarModalGoogle = false;
-  googleAccountEmail = '';
-  googleAccountNombre = '';
+  // Google OAuth Oficial
+  googleClientId = environment.googleClientId || localStorage.getItem('medicore_google_client_id') || '';
+
+  ngOnInit() {
+    this.initGoogleGsi();
+    try {
+      if (localStorage.getItem('medicore_logout_reason') === 'inactividad') {
+        this.errorMessage = '⚠️ Tu sesión se cerró automáticamente por inactividad para proteger tus datos médicos.';
+        localStorage.removeItem('medicore_logout_reason');
+      }
+    } catch {}
+  }
+
+  initGoogleGsi() {
+    const tryInit = (retries = 10) => {
+      if (typeof google !== 'undefined' && google?.accounts?.id && this.googleClientId) {
+        try {
+          google.accounts.id.initialize({
+            client_id: this.googleClientId,
+            callback: (response: any) => this.handleGoogleCredential(response)
+          });
+        } catch (e) {
+          console.warn('Google GSI init:', e);
+        }
+      } else if (retries > 0) {
+        setTimeout(() => tryInit(retries - 1), 300);
+      }
+    };
+    tryInit();
+  }
+
+  iniciarGoogleReal() {
+    this.errorMessage = '';
+
+    if (typeof google === 'undefined' || !google?.accounts?.oauth2) {
+      this.errorMessage = 'Google Identity Services se está cargando. Por favor presiona de nuevo en 2 segundos.';
+      return;
+    }
+
+    try {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: this.googleClientId,
+        scope: 'email profile openid',
+        callback: async (tokenResponse: any) => {
+          if (tokenResponse?.error) {
+            this.errorMessage = `Error de Google OAuth: ${tokenResponse.error_description || tokenResponse.error}`;
+            return;
+          }
+          if (tokenResponse?.access_token) {
+            this.loading = true;
+            try {
+              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+              });
+              const info = await res.json();
+              if (info?.email) {
+                this.auth.loginConGoogle(info.email, info.name || info.given_name || '').subscribe({
+                  next: () => {
+                    this.loading = false;
+                  },
+                  error: (err) => {
+                    this.loading = false;
+                    this.errorMessage = err?.error?.detail || 'Error al autenticar en el servidor MediCore.';
+                  }
+                });
+              } else {
+                this.loading = false;
+                this.errorMessage = 'No se pudo obtener el correo de la cuenta de Google.';
+              }
+            } catch (e: any) {
+              this.loading = false;
+              this.errorMessage = 'Error al consultar cuenta de Google: ' + (e.message || e);
+            }
+          }
+        }
+      });
+      client.requestAccessToken();
+    } catch (err: any) {
+      this.errorMessage = `No se pudo abrir la ventana de Google: ${err?.message || err}`;
+    }
+  }
+
+  handleGoogleCredential(response: any) {
+    if (response?.credential) {
+      this.loading = true;
+      this.auth.loginConGoogle('', '', response.credential).subscribe({
+        next: () => {
+          this.loading = false;
+        },
+        error: (err) => {
+          this.loading = false;
+          this.errorMessage = err?.error?.detail || 'Error al verificar credencial de Google.';
+        }
+      });
+    }
+  }
+
+  ngAfterViewInit() {
+    this.renderRecaptcha();
+  }
+
+  renderRecaptcha(retries = 25) {
+    if (this.requiereVerificacion) return;
+
+    const container = document.getElementById('recaptcha-widget');
+    if (!container) {
+      if (retries > 0) {
+        setTimeout(() => this.renderRecaptcha(retries - 1), 200);
+      }
+      return;
+    }
+
+    if (typeof grecaptcha !== 'undefined' && grecaptcha.render) {
+      try {
+        if (this.recaptchaWidgetId !== null) {
+          return;
+        }
+
+        if (container.childElementCount === 0) {
+          this.recaptchaWidgetId = grecaptcha.render('recaptcha-widget', {
+            sitekey: this.recaptchaSiteKey,
+            theme: 'dark',
+            callback: (token: string) => {
+              this.captchaToken = token;
+              this.errorMessage = '';
+            },
+            'expired-callback': () => {
+              this.captchaToken = '';
+            },
+            'error-callback': () => {
+              this.captchaToken = '';
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('reCAPTCHA render:', e);
+      }
+    } else if (retries > 0) {
+      setTimeout(() => this.renderRecaptcha(retries - 1), 250);
+    }
+  }
+
+  resetRecaptcha() {
+    if (typeof grecaptcha !== 'undefined' && this.recaptchaWidgetId !== null) {
+      try {
+        grecaptcha.reset(this.recaptchaWidgetId);
+      } catch (e) {}
+    }
+    this.captchaToken = '';
+  }
+
+  toggleModoRegistro() {
+    this.isRegister = !this.isRegister;
+    this.showPassword = false;
+    this.showConfirmPassword = false;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.resetRecaptcha();
+  }
+
+  volverAlFormulario() {
+    this.requiereVerificacion = false;
+    this.recaptchaWidgetId = null;
+    this.captchaToken = '';
+    this.errorMessage = '';
+    setTimeout(() => this.renderRecaptcha(), 150);
+  }
 
   fillDemo(email: string, pass: string) {
     this.email = email;
     this.password = pass;
-    this.onSubmit();
-  }
-
-  abrirModalGoogle(prefillEmail?: string) {
-    this.googleAccountEmail = prefillEmail || (this.email.includes('@') ? this.email : '');
-    this.googleAccountNombre = this.registerForm.nombre_completo || '';
-    this.mostrarModalGoogle = true;
+    this.captchaToken = '';
+    this.resetRecaptcha();
     this.errorMessage = '';
-  }
-
-  confirmarLoginGoogle() {
-    if (!this.googleAccountEmail.trim()) return;
-    this.loading = true;
-    this.errorMessage = '';
-
-    const googleEmail = this.googleAccountEmail.trim().toLowerCase();
-    const googleNombre = this.googleAccountNombre.trim() || googleEmail.split('@')[0].replace('.', ' ');
-
-    this.auth.loginConGoogle(googleEmail, googleNombre).subscribe({
-      next: () => {
-        this.loading = false;
-        this.mostrarModalGoogle = false;
-      },
-      error: (err) => {
-        this.loading = false;
-        this.errorMessage = err?.error?.detail || 'Error al autenticar con Google.';
-      }
-    });
+    this.successMessage = 'Credenciales cargadas. Por favor marca la casilla "No soy un robot" de Google para poder ingresar.';
   }
 
   onSubmit() {
-    if (!this.email || !this.password) return;
+    if (!this.email || !this.password) {
+      this.errorMessage = "Por favor ingresa tu correo y contraseña.";
+      return;
+    }
+
+    const emailTrimmed = this.email.trim().toLowerCase();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(emailTrimmed)) {
+      this.errorMessage = "Por favor ingresa un correo electrónico válido y real (ej: usuario@gmail.com).";
+      return;
+    }
+
+    if (this.isRegister) {
+      const dominio = emailTrimmed.split('@')[1] || '';
+      const dominiosDesechables = [
+        'mailinator.com', 'tempmail.com', '10minutemail.com', 'guerrillamail.com',
+        'yopmail.com', 'throwawaymail.com', 'fake.com', 'dispostable.com',
+        'sharklasers.com', 'trashmail.com', 'temp-mail.org', 'getairmail.com',
+        'mohmal.com', 'generator.email'
+      ];
+      if (dominiosDesechables.includes(dominio)) {
+        this.errorMessage = "Debes registrar un correo electrónico real al que tengas acceso. No se permiten correos temporales ni desechables ya que recibirás un código de verificación de 6 dígitos para activar tu cuenta.";
+        return;
+      }
+    }
+
+    if (!this.captchaToken) {
+      this.errorMessage = "Debes completar la verificación 'No soy un robot' antes de poder ingresar.";
+      return;
+    }
     this.loading = true;
     this.errorMessage = '';
     this.successMessage = '';
@@ -482,6 +635,13 @@ export class LoginComponent {
       if (!this.registerForm.documento_numero.trim()) {
         this.loading = false;
         this.errorMessage = 'El número de documento de identidad es obligatorio.';
+        return;
+      }
+      // Validar complejidad de contraseña (8+ caracteres, mayúscula, minúscula, número, especial)
+      const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+      if (!passRegex.test(this.password)) {
+        this.loading = false;
+        this.errorMessage = 'La contraseña debe tener al menos 8 caracteres, incluir una mayúscula, una minúscula, un número y un símbolo especial (ej: !@#$).';
         return;
       }
       if (this.password !== this.registerForm.password_confirmacion) {
@@ -498,6 +658,7 @@ export class LoginComponent {
         documento_numero: this.registerForm.documento_numero.trim(),
         fecha_nacimiento: this.registerForm.fecha_nacimiento || null,
         telefono: this.registerForm.telefono.trim(),
+        recaptcha_token: this.captchaToken,
       }).subscribe({
         next: (res) => {
           this.loading = false;
@@ -509,16 +670,18 @@ export class LoginComponent {
         },
         error: (err) => {
           this.loading = false;
+          this.resetRecaptcha();
           this.errorMessage = err?.error?.detail || err?.error?.rol?.[0] || err?.error?.correo?.[0] || 'Error al registrar la cuenta.';
         }
       });
     } else {
-      this.auth.login(this.email.trim(), this.password).subscribe({
+      this.auth.login(this.email.trim(), this.password, this.captchaToken).subscribe({
         next: () => {
           this.loading = false;
         },
         error: (err) => {
           this.loading = false;
+          this.resetRecaptcha();
           if (err?.error?.requiere_verificacion) {
             this.requiereVerificacion = true;
             this.emailParaVerificar = err.error.correo || this.email;

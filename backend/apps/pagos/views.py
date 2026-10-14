@@ -67,8 +67,9 @@ class SimularPagoView(APIView):
                 pago_existente.banco_origen = banco_origen
             if comprobante_archivo:
                 pago_existente.comprobante_archivo = comprobante_archivo
+            pago_existente.monto = cita.medico.especialidad.precio_base
             pago_existente.estado_id = 'pendiente'
-            pago_existente.save(update_fields=['referencia', 'metodo_pago', 'banco_origen', 'comprobante_archivo', 'estado'])
+            pago_existente.save(update_fields=['referencia', 'metodo_pago', 'banco_origen', 'comprobante_archivo', 'estado', 'monto'])
 
             registrar_auditoria(
                 accion='comprobante_pago_actualizado',
@@ -139,9 +140,16 @@ class WebhookPagoView(APIView):
         referencia = serializer.validated_data['referencia']
         nuevo_estado = serializer.validated_data['estado']
 
-        try:
-            pago = Pago.objects.select_related('cita').get(referencia=referencia)
-        except Pago.DoesNotExist:
+        ref_clean = str(referencia).strip()
+        pago = Pago.objects.select_related('cita').filter(referencia=ref_clean).first()
+        if not pago:
+            try:
+                import uuid
+                pago_uuid = uuid.UUID(ref_clean)
+                pago = Pago.objects.select_related('cita').filter(id=pago_uuid).first()
+            except Exception:
+                pass
+        if not pago:
             return Response({"detail": "Pago no encontrado con esa referencia"}, status=status.HTTP_404_NOT_FOUND)
 
         pago.estado_id = nuevo_estado
@@ -231,8 +239,15 @@ class MisPagosView(APIView):
                     )
 
                 pagos = Pago.objects.filter(cita__paciente=paciente).select_related(
-                    'cita__medico__usuario', 'cita__medico__especialidad'
+                    'cita__medico__usuario', 'cita__medico__especialidad', 'cita__paciente__usuario'
                 ).order_by('-actualizado_en')
+
+                for p in pagos:
+                    if p.cita and p.cita.medico and p.cita.medico.especialidad:
+                        esp_precio = p.cita.medico.especialidad.precio_base
+                        if str(p.estado_id) == 'pendiente' and esp_precio and p.monto != esp_precio:
+                            p.monto = esp_precio
+                            p.save(update_fields=['monto'])
             else:
                 pagos = Pago.objects.none()
         elif u_rol in ["admin", "agente_atencion", "recepcionista"]:
@@ -253,7 +268,7 @@ class MisPagosView(APIView):
                 )
 
             pagos = Pago.objects.all().select_related(
-                'cita__medico__usuario', 'cita__medico__especialidad'
+                'cita__medico__usuario', 'cita__medico__especialidad', 'cita__paciente__usuario'
             ).order_by('-actualizado_en')
         else:
             pagos = Pago.objects.none()

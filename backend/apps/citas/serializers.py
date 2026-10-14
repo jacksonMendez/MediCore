@@ -19,6 +19,10 @@ class CitaResponseSerializer(serializers.ModelSerializer):
     estado = serializers.SlugRelatedField(read_only=True, slug_field='codigo')
     pago_estado = serializers.SerializerMethodField()
     pago_monto = serializers.SerializerMethodField()
+    precio = serializers.SerializerMethodField()
+    tiene_comprobante = serializers.SerializerMethodField()
+    pago_referencia = serializers.SerializerMethodField()
+    nota_clinica = serializers.SerializerMethodField()
 
     class Meta:
         model = Cita
@@ -38,21 +42,69 @@ class CitaResponseSerializer(serializers.ModelSerializer):
             'especialidad_nombre',
             'pago_estado',
             'pago_monto',
+            'precio',
+            'tiene_comprobante',
+            'pago_referencia',
+            'nota_clinica',
         ]
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_pago_estado(self, obj):
         try:
-            return obj.pago.estado_id if hasattr(obj, 'pago') and obj.pago else None
+            return str(obj.pago.estado_id) if hasattr(obj, 'pago') and obj.pago else None
         except Exception:
             return None
 
     @extend_schema_field(serializers.FloatField(allow_null=True))
-    def get_pago_monto(self, obj):
+    def get_precio(self, obj):
         try:
-            return float(obj.pago.monto) if hasattr(obj, 'pago') and obj.pago else None
+            if hasattr(obj, 'pago') and obj.pago and obj.pago.monto:
+                return float(obj.pago.monto)
+            if obj.medico and obj.medico.especialidad and obj.medico.especialidad.precio_base:
+                return float(obj.medico.especialidad.precio_base)
+            return 50000.0
+        except Exception:
+            return 50000.0
+
+    @extend_schema_field(serializers.FloatField(allow_null=True))
+    def get_pago_monto(self, obj):
+        return self.get_precio(obj)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_tiene_comprobante(self, obj):
+        try:
+            if hasattr(obj, 'pago') and obj.pago:
+                has_file = bool(obj.pago.comprobante_archivo)
+                is_manual_ref = bool(obj.pago.referencia and not str(obj.pago.referencia).startswith('MED-'))
+                return has_file or is_manual_ref or str(obj.pago.estado_id) == 'pendiente'
+            return False
+        except Exception:
+            return False
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_pago_referencia(self, obj):
+        try:
+            return str(obj.pago.referencia) if hasattr(obj, 'pago') and obj.pago and obj.pago.referencia else None
         except Exception:
             return None
+
+    @extend_schema_field(serializers.DictField(allow_null=True))
+    def get_nota_clinica(self, obj):
+        try:
+            if hasattr(obj, 'notas') and obj.notas:
+                return {
+                    'id': str(obj.notas.id),
+                    'diagnostico': obj.notas.diagnostico or '',
+                    'tratamiento': obj.notas.tratamiento or '',
+                    'receta_medica': obj.notas.receta_medica or '',
+                    'archivo_adjunto': obj.notas.archivo_adjunto or None,
+                    'archivo_nombre': obj.notas.archivo_nombre or None,
+                    'archivo_tipo': obj.notas.archivo_tipo or None,
+                    'creado_en': obj.notas.creado_en.isoformat() if obj.notas.creado_en else None,
+                }
+        except Exception:
+            pass
+        return None
 
 
 
@@ -79,6 +131,9 @@ class NotaCreateSerializer(serializers.Serializer):
     diagnostico = serializers.CharField(required=True)
     tratamiento = serializers.CharField(required=False, allow_blank=True, default='')
     receta_medica = serializers.CharField(required=False, allow_blank=True, default='')
+    archivo_adjunto = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    archivo_nombre = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
+    archivo_tipo = serializers.CharField(required=False, allow_blank=True, allow_null=True, default='')
 
 
 class NotaResponseSerializer(serializers.ModelSerializer):
@@ -86,7 +141,17 @@ class NotaResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConsultaNota
-        fields = ['id', 'cita_id', 'diagnostico', 'tratamiento', 'receta_medica', 'creado_en']
+        fields = [
+            'id',
+            'cita_id',
+            'diagnostico',
+            'tratamiento',
+            'receta_medica',
+            'archivo_adjunto',
+            'archivo_nombre',
+            'archivo_tipo',
+            'creado_en',
+        ]
 
 
 class PQRCreateSerializer(serializers.Serializer):

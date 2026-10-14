@@ -1,6 +1,11 @@
 import random
 import uuid
+import json
+import logging
+import urllib.parse
+import urllib.request
 from datetime import timedelta
+from django.conf import settings
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -15,9 +20,51 @@ from .serializers import (
     VerificarCodigoSerializer,
     ReenviarCodigoSerializer,
     GoogleAuthSerializer,
+    CompletarPerfilSerializer,
 )
 from .authentication import create_access_token
 from .services import enviar_codigo_verificacion, notificar_registro_admin, enviar_bienvenida_google
+
+logger = logging.getLogger(__name__)
+
+
+def verificar_recaptcha(token: str, ip: str = None) -> bool:
+    """
+    Verifica el token de Google reCAPTCHA v2 contra los servidores oficiales de Google:
+    https://www.google.com/recaptcha/api/siteverify
+    Permite bypass para pruebas automatizadas si el token es 'demo-bypass-token'.
+    """
+    if not token or not str(token).strip():
+        return False
+
+    token_clean = str(token).strip()
+    if token_clean == 'demo-bypass-token':
+        logger.warning("Intento de verificación reCAPTCHA con demo-bypass-token rechazado. Verificación humana requerida.")
+        return False
+
+    secret = getattr(settings, 'RECAPTCHA_SECRET_KEY', '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe')
+    url = "https://www.google.com/recaptcha/api/siteverify"
+    data = {
+        'secret': secret,
+        'response': token_clean,
+    }
+    if ip:
+        data['remoteip'] = ip
+
+    try:
+        encoded_data = urllib.parse.urlencode(data).encode('utf-8')
+        req = urllib.request.Request(
+            url,
+            data=encoded_data,
+            headers={'User-Agent': 'MediCore-ClinicalOS/2.0'}
+        )
+        with urllib.request.urlopen(req, timeout=5) as response:
+            res_json = json.loads(response.read().decode('utf-8'))
+            logger.info("Google reCAPTCHA verification response: %s", res_json)
+            return bool(res_json.get('success', False))
+    except Exception as e:
+        logger.error("Error al validar con Google reCAPTCHA siteverify: %s", e)
+        return False
 
 
 class LoginView(APIView):
@@ -36,6 +83,12 @@ class LoginView(APIView):
         }
     )
     def post(self, request):
+        recaptcha_token = request.data.get('recaptcha_token') or request.data.get('g-recaptcha-response')
+        if not verificar_recaptcha(recaptcha_token, request.META.get('REMOTE_ADDR')):
+            return Response({
+                "detail": "Verificación reCAPTCHA requerida o token inválido. Por favor completa la casilla 'No soy un robot'."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = UserLoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({"detail": "Datos inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -77,7 +130,6 @@ class LoginView(APIView):
                 "detail": "Debes verificar tu correo electrónico para acceder a datos sensibles de salud.",
                 "requiere_verificacion": True,
                 "correo": user.correo,
-                "codigo_demo": user.codigo_verificacion,
             }, status=status.HTTP_403_FORBIDDEN)
 
         token = create_access_token(user)
@@ -115,6 +167,12 @@ class RegisterView(APIView):
         }
     )
     def post(self, request):
+        recaptcha_token = request.data.get('recaptcha_token') or request.data.get('g-recaptcha-response')
+        if not verificar_recaptcha(recaptcha_token, request.META.get('REMOTE_ADDR')):
+            return Response({
+                "detail": "Verificación reCAPTCHA requerida o token inválido. Por favor completa la casilla 'No soy un robot'."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = UserCreateSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({"detail": "Datos de registro inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -291,7 +349,28 @@ class GoogleAuthView(APIView):
             return Response({"detail": "Datos de Google inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         email = serializer.validated_data['email'].strip().lower()
-        nombre = serializer.validated_data.get('nombre') or email.split('@')[0].capitalize()
+        nombre = serializer.validated_data.get('nombre') or ''
+
+        # Decodificar Google credential JWT si viene presente (Google Identity Services)
+        credential = serializer.validated_data.get('credential')
+        if credential:
+            try:
+                import base64
+                import json
+                parts = credential.strip().split('.')
+                if len(parts) >= 2:
+                    padded = parts[1] + '=' * (-len(parts[1]) % 4)
+                    payload = json.loads(base64.urlsafe_b64decode(padded.encode('utf-8')).decode('utf-8'))
+                    if payload.get('email'):
+                        email = payload['email'].strip().lower()
+                    if payload.get('name') and not nombre:
+                        nombre = payload['name'].strip()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Error decodificando token Google: {e}")
+
+        if not nombre:
+            nombre = email.split('@')[0].capitalize()
 
         user = Usuario.objects.filter(correo=email).first()
 
@@ -388,3 +467,66 @@ class LogoutView(APIView):
             ip=request.META.get('REMOTE_ADDR'),
         )
         return Response({"detail": "Sesión cerrada exitosamente."}, status=status.HTTP_200_OK)
+
+
+class CompletarPerfilPacienteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        tags=['Auth'],
+        summary='Completar perfil clínico de paciente',
+        description='Permite a un paciente registrado vía Google o con datos incompletos registrar su documento y teléfono para desbloquear el uso del copiloto clínico.',
+        request=CompletarPerfilSerializer,
+        responses={
+            200: UsuarioResponseSerializer,
+            400: OpenApiResponse(description='Datos inválidos o documento duplicado.'),
+            403: OpenApiResponse(description='Solo pacientes pueden completar este perfil.'),
+        }
+    )
+    def post(self, request):
+        user = request.user
+        u_rol = getattr(user, 'rol_id', None) or str(user.rol)
+        if u_rol != 'paciente':
+            return Response({"detail": "Solo los pacientes requieren completar estos datos clínicos."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = CompletarPerfilSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"detail": "Datos inválidos", "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = serializer.validated_data
+        doc_num = data['documento_numero'].strip()
+        doc_tipo = data.get('documento_tipo', 'CC').strip()
+        tel = data['telefono'].strip()
+        fecha_nac = data.get('fecha_nacimiento')
+
+        from apps.clinica.models import Paciente
+        existing = Paciente.objects.filter(documento_numero=doc_num).exclude(usuario=user).first()
+        if existing:
+            return Response({"detail": "Ya existe otro paciente registrado con este número de documento."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Actualizar teléfono en usuario
+        user.telefono = tel
+        user.save(update_fields=['telefono'])
+
+        # Actualizar o crear registro de paciente
+        paciente, _ = Paciente.objects.get_or_create(usuario=user, defaults={'documento_numero': doc_num, 'documento_tipo': doc_tipo})
+        paciente.documento_tipo = doc_tipo
+        paciente.documento_numero = doc_num
+        if fecha_nac:
+            paciente.fecha_nacimiento = fecha_nac
+        paciente.save()
+
+        from apps.auditoria.services import registrar_auditoria
+        registrar_auditoria(
+            accion='perfil_completado',
+            entidad_tipo='Paciente',
+            entidad_id=str(paciente.id),
+            usuario=user,
+            datos_cambio={'documento_tipo': doc_tipo, 'documento_numero': doc_num, 'telefono': tel},
+            ip=request.META.get('REMOTE_ADDR')
+        )
+
+        return Response({
+            "detail": "Perfil clínico completado exitosamente. Ya puedes interactuar con el copiloto clínico.",
+            "usuario": UsuarioResponseSerializer(user).data
+        }, status=status.HTTP_200_OK)

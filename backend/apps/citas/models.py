@@ -115,6 +115,9 @@ class ConsultaNota(models.Model):
     diagnostico = models.TextField(null=True, blank=True)
     tratamiento = models.TextField(null=True, blank=True)
     receta_medica = models.TextField(null=True, blank=True)
+    archivo_adjunto = models.TextField(null=True, blank=True, help_text='Documento clínico adjunto en Base64 (PDF o Word)')
+    archivo_nombre = models.CharField(max_length=255, null=True, blank=True, help_text='Nombre original del documento')
+    archivo_tipo = models.CharField(max_length=100, null=True, blank=True, help_text='Tipo MIME del archivo adjunto')
     creado_en = models.DateTimeField(default=timezone.now)
 
     class Meta:

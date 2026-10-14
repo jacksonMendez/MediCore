@@ -48,10 +48,13 @@ def run_tests():
         "nombre_completo": "Paciente Prueba Automatizada",
         "documento_numero": f"{uuid.uuid4().int % 10000000000:010d}"
     }), content_type='application/json')
-    res2 = RegisterView.as_view()(req_paciente)
+    from unittest.mock import patch
+    with patch('apps.authentication.views.verificar_recaptcha', return_value=True):
+        res2 = RegisterView.as_view()(req_paciente)
     assert res2.status_code == 201, f"Fallo en registro de paciente: {res2.data}"
     assert res2.data.get("requiere_verificacion") is True, "Fallo: No solicitó verificación OTP"
-    codigo_otp = res2.data.get("codigo_demo")
+    user_obj = Usuario.objects.get(correo=test_email)
+    codigo_otp = user_obj.codigo_verificacion
     assert codigo_otp and len(codigo_otp) == 6, f"Fallo: Código OTP no es de 6 dígitos ({codigo_otp})"
     print(f"  -> OK: Paciente pre-registrado con código OTP generado de 6 dígitos: {codigo_otp}")
 
@@ -170,6 +173,42 @@ def run_tests():
         cita_asociada = pago_test.cita
         assert str(cita_asociada.estado_id) == 'confirmada', f"Fallo: Cita asociada no quedó confirmada ({cita_asociada.estado_id})"
         print(f"  -> OK: Transferencia {ref_test} autorizada con éxito; cita {cita_asociada.id} confirmada automáticamente.")
+
+    # -------------------------------------------------------------
+    # PRUEBA 8: Restricción de Privacidad: Médicos SOLO consultan pacientes que han atendido
+    # -------------------------------------------------------------
+    print("\n[TEST 8] Verificando que médicos SOLO puedan consultar pacientes que han atendido...")
+    from apps.clinica.models import Paciente, Medico
+    medico_obj = Medico.objects.filter(usuario=medico_user).first()
+
+    paciente_atendido = Paciente.objects.filter(citas__medico=medico_obj, citas__estado='atendida').first()
+    assert paciente_atendido is not None, "Debe existir al menos un paciente atendido para la prueba"
+
+    paciente_no_atendido = Paciente.objects.exclude(citas__medico=medico_obj).first()
+    assert paciente_no_atendido is not None, "Debe existir al menos un paciente no atendido para la prueba"
+
+    # Consulta de paciente atendido -> Permitido con historial
+    res_atendido = json.loads(orchestrator._execute_tool("consultar_historial_paciente", {
+        "documento_numero": paciente_atendido.documento_numero
+    }, usuario=medico_user))
+    assert "paciente" in res_atendido, f"Fallo: El médico debió poder consultar a su paciente atendido: {res_atendido}"
+    assert "error" not in res_atendido, f"Fallo inesperado: {res_atendido}"
+    print(f"  -> OK: Médico pudo consultar historial de paciente atendido ({paciente_atendido.documento_numero}).")
+
+    # Consulta de paciente NO atendido -> Acceso restringido por Habeas Data
+    res_no_atendido = json.loads(orchestrator._execute_tool("consultar_historial_paciente", {
+        "documento_numero": paciente_no_atendido.documento_numero
+    }, usuario=medico_user))
+    assert res_no_atendido.get("error") == "acceso_restringido_no_atendido", f"Fallo: El médico NO debió poder consultar paciente ajeno: {res_no_atendido}"
+    print(f"  -> OK: Intento de consultar paciente no atendido ({paciente_no_atendido.documento_numero}) bloqueado por Habeas Data.")
+
+    # Listar pacientes atendidos del médico
+    res_lista = json.loads(orchestrator._execute_tool("listar_mis_pacientes_atendidos", {}, usuario=medico_user))
+    assert "pacientes" in res_lista, f"Fallo al listar pacientes atendidos: {res_lista}"
+    docs_atendidos = [p["documento"] for p in res_lista["pacientes"]]
+    assert paciente_atendido.documento_numero in docs_atendidos, "Fallo: Paciente atendido no figura en la lista"
+    assert paciente_no_atendido.documento_numero not in docs_atendidos, "Fallo: Paciente ajeno figura en la lista de atendidos"
+    print(f"  -> OK: Listado de pacientes atendidos filtrado estrictamente ({len(docs_atendidos)} pacientes propios).")
 
     print("\n" + "="*60)
     print(">>> TODAS LAS PRUEBAS AUTOMATIZADAS POR CODIGO PASARON CON 100% DE EXITO <<<")

@@ -28,10 +28,11 @@ import { AuthService } from '../../services/auth.service';
       <!-- Main Content -->
       <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
         <app-header
-          [title]="'Hola, ' + firstName"
-          subtitle="Panel Clínico y Copiloto IA">
+          [title]="headerTitle"
+          [subtitle]="headerSubtitle">
         </app-header>
 
+        <!-- Paciente: Vista de 2 columnas con Widgets Interactivos de Citas y Especialidades -->
         <main class="flex-1 min-h-0 grid gap-6 p-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,0.85fr)] lg:p-6 overflow-hidden">
           <!-- Left Main Area: Chat Component -->
           <div class="h-full min-h-0 flex flex-col overflow-hidden">
@@ -52,8 +53,33 @@ import { AuthService } from '../../services/auth.service';
 export class PacienteComponent {
   private auth = inject(AuthService);
 
-  get firstName(): string {
-    const full = this.auth.currentUser()?.nombre_completo || 'Paciente';
-    return full.split(' ')[0];
+  get esPaciente(): boolean {
+    return this.auth.userRole() === 'paciente';
+  }
+
+  get isMedico(): boolean {
+    return this.auth.userRole() === 'medico';
+  }
+
+  get headerTitle(): string {
+    const user = this.auth.currentUser();
+    if (this.isMedico) {
+      return 'Portal Clínico — ' + (user?.nombre_completo || 'Doctor');
+    }
+    if (this.auth.userRole() === 'admin') {
+      return 'Portal Administrativo — ' + (user?.nombre_completo || 'Admin');
+    }
+    const full = user?.nombre_completo || 'Paciente';
+    return 'Hola, ' + full.split(' ')[0];
+  }
+
+  get headerSubtitle(): string {
+    if (this.isMedico) {
+      return 'Copiloto Clínico IA y Soporte Diagnóstico Médico';
+    }
+    if (this.auth.userRole() === 'admin') {
+      return 'Copiloto de Supervisión y Operación Clínica';
+    }
+    return 'Panel Clínico y Copiloto IA';
   }
 }

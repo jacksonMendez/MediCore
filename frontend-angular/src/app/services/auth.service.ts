@@ -16,8 +16,44 @@ export class AuthService {
   readonly token = signal<string | null>(this.getStoredToken());
   readonly isAuthenticated = computed(() => !!this.token() && !!this.currentUser());
   readonly userRole = computed(() => this.currentUser()?.rol || null);
+  readonly isPaciente = computed(() => this.userRole() === 'paciente');
+  readonly isMedico = computed(() => this.userRole() === 'medico');
+  readonly isAdmin = computed(() => this.userRole() === 'admin');
 
-  constructor(private http: HttpClient, private router: Router) {}
+  private inactivityTimer: any = null;
+  private readonly INACTIVITY_LIMIT_MS = 15 * 60 * 1000; // 15 minutos de inactividad
+
+  constructor(private http: HttpClient, private router: Router) {
+    this.initInactivityTracker();
+  }
+
+  private initInactivityTracker() {
+    if (typeof window === 'undefined') return;
+
+    const resetTimer = () => {
+      if (!this.isAuthenticated()) return;
+      if (this.inactivityTimer) {
+        clearTimeout(this.inactivityTimer);
+      }
+      this.inactivityTimer = setTimeout(() => {
+        if (this.isAuthenticated()) {
+          try {
+            localStorage.setItem('medicore_logout_reason', 'inactividad');
+          } catch {}
+          this.logout();
+        }
+      }, this.INACTIVITY_LIMIT_MS);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(evt => {
+      window.addEventListener(evt, resetTimer, { passive: true });
+    });
+
+    if (this.isAuthenticated()) {
+      resetTimer();
+    }
+  }
 
   private getStoredToken(): string | null {
     try {
@@ -44,14 +80,19 @@ export class AuthService {
     });
   }
 
-  login(correo: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, { correo, password }).pipe(
+  login(correo: string, password: string, recaptcha_token?: string): Observable<AuthResponse> {
+    const payload: any = { correo, password };
+    if (recaptcha_token) {
+      payload.recaptcha_token = recaptcha_token;
+    }
+    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, payload).pipe(
       tap((res) => {
         if (res?.access_token) {
           localStorage.setItem(this.tokenKey, res.access_token);
           localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
           this.token.set(res.access_token);
           this.currentUser.set(res.usuario);
+          this.notifySessionChanged();
           this.redirectAfterLogin(res.usuario.rol);
         }
       })
@@ -70,6 +111,7 @@ export class AuthService {
           localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
           this.token.set(res.access_token);
           this.currentUser.set(res.usuario);
+          this.notifySessionChanged();
           this.redirectAfterLogin(res.usuario.rol);
         }
       })
@@ -92,7 +134,19 @@ export class AuthService {
           localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
           this.token.set(res.access_token);
           this.currentUser.set(res.usuario);
+          this.notifySessionChanged();
           this.redirectAfterLogin(res.usuario.rol);
+        }
+      })
+    );
+  }
+
+  completarPerfil(data: { documento_tipo: string; documento_numero: string; telefono: string; fecha_nacimiento?: string | null }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/completar-perfil`, data, { headers: this.getAuthHeaders() }).pipe(
+      tap((res) => {
+        if (res?.usuario) {
+          localStorage.setItem(this.userKey, JSON.stringify(res.usuario));
+          this.currentUser.set(res.usuario);
         }
       })
     );
@@ -102,7 +156,7 @@ export class AuthService {
     if (rol === 'paciente') {
       this.router.navigate(['/paciente']);
     } else if (rol === 'medico') {
-      this.router.navigate(['/medico']);
+      this.router.navigate(['/medico/copiloto']);
     } else if (rol === 'admin') {
       this.router.navigate(['/admin']);
     } else {
@@ -110,13 +164,24 @@ export class AuthService {
     }
   }
 
+  private notifySessionChanged(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('medicore:auth-changed'));
+    }
+  }
+
   logout() {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
     try {
       localStorage.removeItem(this.tokenKey);
       localStorage.removeItem(this.userKey);
     } catch {}
     this.token.set(null);
     this.currentUser.set(null);
+    this.notifySessionChanged();
     this.router.navigate(['/login']);
   }
 }

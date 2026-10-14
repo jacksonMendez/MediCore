@@ -14,7 +14,18 @@ export class CitasService {
   readonly loading = signal<boolean>(false);
   readonly lastUpdated = signal<number>(Date.now());
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(private http: HttpClient, private authService: AuthService) {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('medicore:auth-changed', () => {
+        this.clear();
+      });
+    }
+  }
+
+  clear(): void {
+    this.citas.set([]);
+    this.loading.set(false);
+  }
 
   loadMisCitas(): Observable<CitaItem[]> {
     this.loading.set(true);
@@ -59,12 +70,26 @@ export class CitasService {
     );
   }
 
-  guardarNotaClinica(citaId: string, diagnostico: string, tratamiento: string = '', receta: string = ''): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${citaId}/nota`, {
+  guardarNotaClinica(
+    citaId: string,
+    diagnostico: string,
+    tratamiento: string = '',
+    receta: string = '',
+    archivo_adjunto: string = '',
+    archivo_nombre: string = '',
+    archivo_tipo: string = ''
+  ): Observable<any> {
+    const payload: any = {
       diagnostico,
       tratamiento,
       receta_medica: receta
-    }, {
+    };
+    if (archivo_adjunto) {
+      payload.archivo_adjunto = archivo_adjunto;
+      payload.archivo_nombre = archivo_nombre;
+      payload.archivo_tipo = archivo_tipo;
+    }
+    return this.http.post(`${this.apiUrl}/${citaId}/nota`, payload, {
       headers: this.authService.getAuthHeaders()
     }).pipe(
       tap(() => {

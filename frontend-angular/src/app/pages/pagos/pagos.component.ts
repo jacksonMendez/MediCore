@@ -6,6 +6,7 @@ import { HeaderComponent } from '../../components/layout/header.component';
 import { ModalPagoComponent } from '../../components/modal-pago/modal-pago.component';
 import { PagosService } from '../../services/pagos.service';
 import { CitasService } from '../../services/citas.service';
+import { AuthService } from '../../services/auth.service';
 import { PagoItem } from '../../models/pago.model';
 
 @Component({
@@ -46,30 +47,37 @@ import { PagoItem } from '../../models/pago.model';
             <span class="font-medium">{{ pagosService.lastSuccessMessage() }}</span>
           </div>
 
-          <!-- Pending Appointments Payment Trigger -->
-          <div *ngIf="citasPendientes.length > 0" class="p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
+          <!-- Pending Appointments Payment Trigger (Solo para Pacientes) -->
+          <div *ngIf="isPaciente && citasPendientes.length > 0" class="p-5 rounded-xl border border-amber-500/30 bg-amber-500/10 space-y-3">
             <h3 class="font-display text-sm font-bold text-amber-400 flex items-center gap-2">
               <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <span>Tienes consultas pendientes por pagar</span>
+              <span>{{ hasOnlyComprobantesEnRevision ? 'Comprobantes de Pago en Proceso de Autorización' : 'Tienes consultas pendientes por pagar' }}</span>
             </h3>
-            <p class="text-xs text-muted-foreground">Puedes transferir por Nequi (300 123 4567), Bancolombia (458-928172-10) o Daviplata y subir tu comprobante para autorización inmediata del personal.</p>
+            <p class="text-xs text-muted-foreground">
+              {{ hasOnlyComprobantesEnRevision ? 'Tu comprobante de pago fue radicado con éxito y se encuentra en validación por el personal de admisiones.' : 'Puedes transferir por Nequi (300 123 4567), Bancolombia (458-928172-10) o Daviplata y subir tu comprobante para autorización inmediata del personal.' }}
+            </p>
 
             <div class="grid gap-2 pt-1">
               <div *ngFor="let c of citasPendientes" class="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-lg bg-card border border-border text-xs gap-3">
                 <div>
                   <p class="font-bold text-foreground text-sm">{{ c.especialidad_nombre || 'Consulta' }} - {{ c.medico_nombre }}</p>
                   <p class="text-muted-foreground mt-0.5">{{ c.fecha_hora | date:'fullDate' }} a las {{ c.fecha_hora | date:'shortTime' }}</p>
-                  <p class="text-primary font-semibold mt-1">Valor consulta: $ 50.000 COP</p>
+                  <p class="text-primary font-semibold mt-1">Valor consulta: $ {{ (c.precio || c.pago_monto || 50000) | number:'1.0-0' }} COP</p>
                 </div>
                 <div class="flex items-center gap-2">
+                  <span *ngIf="c.tiene_comprobante" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1.5">
+                    <span class="size-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span>Pendiente de Autorización</span>
+                  </span>
                   <button (click)="abrirModalComprobante(c)"
-                    class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold transition-all cursor-pointer flex items-center gap-2 shadow-sm">
+                    [ngClass]="c.tiene_comprobante ? 'bg-secondary hover:bg-secondary/80 text-foreground border border-border' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'"
+                    class="px-4 py-2 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-2">
                     <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
-                    <span>Pagar / Subir Comprobante</span>
+                    <span>{{ c.tiene_comprobante ? 'Actualizar Soporte' : 'Pagar / Subir Comprobante' }}</span>
                   </button>
                 </div>
               </div>
@@ -172,17 +180,29 @@ import { PagoItem } from '../../models/pago.model';
 export class PagosComponent implements OnInit {
   pagosService = inject(PagosService);
   citasService = inject(CitasService);
+  authService = inject(AuthService);
 
   citaParaComprobante: any = null;
   comprobanteVisualizar: any = null;
 
   ngOnInit() {
     this.load();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('medicore:auth-changed', () => {
+        this.load();
+      });
+    }
+  }
+
+  get isPaciente(): boolean {
+    return this.authService.userRole() === 'paciente';
   }
 
   load() {
     this.pagosService.loadMisPagos().subscribe();
-    this.citasService.loadMisCitas().subscribe();
+    if (this.isPaciente) {
+      this.citasService.loadMisCitas().subscribe();
+    }
   }
 
   get exitososCount(): number {
@@ -190,7 +210,9 @@ export class PagosComponent implements OnInit {
   }
 
   get pendientesCount(): number {
-    return this.pagosService.pagos().filter(p => (p.estado as string) === 'pendiente').length;
+    const pagosPendientes = this.pagosService.pagos().filter(p => (p.estado as string) === 'pendiente').length;
+    if (!this.isPaciente) return pagosPendientes;
+    return Math.max(pagosPendientes, this.citasPendientes.length);
   }
 
   getPaymentRef(p: any): string {
@@ -199,7 +221,13 @@ export class PagosComponent implements OnInit {
   }
 
   get citasPendientes() {
+    if (!this.isPaciente) return [];
     return this.citasService.citas().filter(c => c.estado === 'pendiente_pago');
+  }
+
+  get hasOnlyComprobantesEnRevision(): boolean {
+    const list = this.citasPendientes;
+    return list.length > 0 && list.every(c => !!c.tiene_comprobante);
   }
 
   abrirModalComprobante(cita: any) {

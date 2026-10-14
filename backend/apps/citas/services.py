@@ -143,7 +143,11 @@ def get_disponibilidad(fecha: date, especialidad_id=None, especialidad_nombre=No
 def get_dias_disponibles(fecha_inicio: date, fecha_fin: date, especialidad_id=None, especialidad_nombre=None, genero=None):
     """
     Get days with available appointment slots in a date range for a given specialty.
+    Optimized with PostgreSQL view `v_disponibilidad_medica` and bulk range query.
     """
+    from django.db import connection
+    from django.utils import timezone
+
     if especialidad_id:
         esp = Especialidad.objects.filter(id=especialidad_id).first()
     elif especialidad_nombre:
@@ -156,14 +160,37 @@ def get_dias_disponibles(fecha_inicio: date, fecha_fin: date, especialidad_id=No
     if not esp:
         return None, "Especialidad no encontrada"
 
-    # Find which days of week doctors work for this specialty
-    medicos_query = Medico.objects.filter(especialidad=esp, activo=True)
     norm_gen = normalize_gender(genero)
-    if norm_gen:
-        medicos_query = medicos_query.filter(genero__iexact=norm_gen)
 
-    medicos = list(medicos_query)
-    if not medicos:
+    # 1. Consultar la vista de base de datos v_disponibilidad_medica
+    query = """
+        SELECT medico_id, medico_nombre, duracion_cita_minutos, horario_dia, horario_hora_inicio, horario_hora_fin
+        FROM v_disponibilidad_medica
+        WHERE especialidad_id = %s
+    """
+    params = [str(esp.id)]
+    if norm_gen:
+        query += " AND medico_genero = %s"
+        params.append(norm_gen)
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(query, params)
+            schedule_rows = cursor.fetchall()
+    except Exception:
+        # Fallback ORM robusto si la vista SQL v_disponibilidad_medica no está en el entorno
+        horarios_orm = HorarioMedico.objects.filter(
+            medico__especialidad=esp,
+            medico__activo=True,
+        ).select_related('medico__usuario')
+        if norm_gen:
+            horarios_orm = horarios_orm.filter(medico__genero__iexact=norm_gen)
+        schedule_rows = [
+            (str(h.medico_id), h.medico.usuario.nombre_completo, h.medico.duracion_cita_minutos, h.dia, h.hora_inicio, h.hora_fin)
+            for h in horarios_orm
+        ]
+
+    if not schedule_rows:
         return {
             "especialidad": esp.nombre,
             "fecha_inicio": fecha_inicio.isoformat(),
@@ -173,9 +200,39 @@ def get_dias_disponibles(fecha_inicio: date, fecha_fin: date, especialidad_id=No
             "fechas_activas": [],
         }, None
 
-    active_weekdays = set(
-        HorarioMedico.objects.filter(medico__in=medicos).values_list('dia', flat=True).distinct()
-    )
+    tz = timezone.get_current_timezone()
+    ahora_local = timezone.localtime(timezone.now(), tz)
+    hoy_local = ahora_local.date()
+    hora_actual = ahora_local.time()
+    cur = max(fecha_inicio, hoy_local)
+
+    # 2. Consultar citas ocupadas en el rango en un solo viaje con índice compuesto
+    medico_ids = list({row[0] for row in schedule_rows})
+    start_dt = timezone.make_aware(datetime.combine(cur, time(0, 0)), tz)
+    end_dt = timezone.make_aware(datetime.combine(fecha_fin, time(23, 59, 59)), tz)
+
+    citas_ocupadas = Cita.objects.filter(
+        medico_id__in=medico_ids,
+        fecha_hora__range=(start_dt, end_dt),
+        estado__in=["pendiente_pago", "confirmada"],
+    ).values_list('medico_id', 'fecha_hora')
+
+    from datetime import timezone as py_tz
+    booked_set = set()
+    for m_id, dt_val in citas_ocupadas:
+        aware_dt = dt_val.replace(tzinfo=py_tz.utc) if timezone.is_naive(dt_val) else dt_val
+        loc_dt = timezone.localtime(aware_dt, tz)
+        booked_set.add((m_id, loc_dt.date(), loc_dt.time()))
+
+    schedules_by_day = {}
+    for m_id, m_nom, dur, d_sem, h_ini, h_fin in schedule_rows:
+        schedules_by_day.setdefault(d_sem, []).append({
+            "medico_id": m_id,
+            "medico_nombre": m_nom,
+            "duracion": dur or 30,
+            "hora_inicio": h_ini,
+            "hora_fin": h_fin,
+        })
 
     dias_nombres_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     meses_es = ["", "enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
@@ -183,28 +240,33 @@ def get_dias_disponibles(fecha_inicio: date, fecha_fin: date, especialidad_id=No
     dias_disponibles = []
     fechas_activas = []
 
-    from django.utils import timezone
-    hoy_local = timezone.localtime(timezone.now()).date()
-    cur = max(fecha_inicio, hoy_local)
     while cur <= fecha_fin:
-        dia_semana_str = DIAS_SEMANA[cur.weekday()]
-        if dia_semana_str in active_weekdays:
-            data_disp, _ = get_disponibilidad(
-                fecha=cur,
-                especialidad_id=esp.id,
-                genero=genero,
-            )
-            if data_disp and data_disp.get("total_slots", 0) > 0:
-                medicos_set = sorted(list({s["medico_nombre"] for s in data_disp["slots"]}))
+        dia_sem_str = DIAS_SEMANA[cur.weekday()]
+        day_schedules = schedules_by_day.get(dia_sem_str, [])
+        if day_schedules:
+            free_slots_day = 0
+            medicos_set = set()
+            for sched in day_schedules:
+                m_id = sched["medico_id"]
+                raw_slots = generate_slots(sched["hora_inicio"], sched["hora_fin"], sched["duracion"], cur)
+                for slot in raw_slots:
+                    if cur == hoy_local and slot["hora_inicio"] <= hora_actual:
+                        continue
+                    if (m_id, cur, slot["hora_inicio"]) not in booked_set:
+                        free_slots_day += 1
+                        medicos_set.add(sched["medico_nombre"])
+
+            if free_slots_day > 0:
                 dia_nombre = f"{dias_nombres_es[cur.weekday()]} {cur.day} de {meses_es[cur.month]}"
                 dias_disponibles.append({
                     "fecha": cur.isoformat(),
-                    "dia_semana": dia_semana_str,
+                    "dia_semana": dia_sem_str,
                     "dia_nombre": dia_nombre,
-                    "slots_libres": data_disp["total_slots"],
-                    "medicos": medicos_set,
+                    "slots_libres": free_slots_day,
+                    "medicos": sorted(list(medicos_set)),
                 })
                 fechas_activas.append(cur.isoformat())
+
         cur += timedelta(days=1)
 
     return {

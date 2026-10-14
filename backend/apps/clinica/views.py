@@ -201,6 +201,18 @@ class MedicoListCreateView(APIView):
             genero=data.get('genero', 'M'),
         )
 
+        # Auto-crear turnos de lunes a viernes de 8:00 a 17:00 para disponibilidad inmediata
+        from datetime import time
+        for dia in ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']:
+            HorarioMedico.objects.get_or_create(
+                medico=medico,
+                dia=dia,
+                defaults={
+                    'hora_inicio': time(8, 0),
+                    'hora_fin': time(17, 0)
+                }
+            )
+
         registrar_auditoria(
             accion='medico_creado',
             entidad_tipo='Medico',
@@ -235,7 +247,7 @@ class HorariosMedicoView(APIView):
 
 
 class CrearHorarioView(APIView):
-    permission_classes = [require_role(['admin'])]
+    permission_classes = [require_role(['admin', 'medico'])]
 
     @extend_schema(
         tags=['Médicos'],
@@ -282,3 +294,184 @@ class CrearHorarioView(APIView):
         )
 
         return Response(HorarioResponseSerializer(horario).data, status=status.HTTP_201_CREATED)
+
+
+class SedeDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [require_role(['admin'])()]
+        return [permissions.AllowAny()]
+
+    def get(self, request, sede_id):
+        try:
+            sede = Sede.objects.get(id=sede_id)
+            return Response(SedeResponseSerializer(sede).data)
+        except Sede.DoesNotExist:
+            return Response({"detail": "Sede no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, sede_id):
+        try:
+            sede = Sede.objects.get(id=sede_id)
+        except Sede.DoesNotExist:
+            return Response({"detail": "Sede no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        for field in ['nombre', 'direccion', 'telefono', 'activa']:
+            if field in request.data:
+                setattr(sede, field, request.data[field])
+        sede.save()
+
+        registrar_auditoria(
+            accion='sede_editada',
+            entidad_tipo='Sede',
+            entidad_id=str(sede.id),
+            usuario=request.user,
+            datos_cambio={'nombre': sede.nombre, 'activa': sede.activa},
+            ip=request.META.get('REMOTE_ADDR')
+        )
+        return Response(SedeResponseSerializer(sede).data)
+
+    def delete(self, request, sede_id):
+        try:
+            sede = Sede.objects.get(id=sede_id)
+        except Sede.DoesNotExist:
+            return Response({"detail": "Sede no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        sede.activa = False
+        sede.save()
+        registrar_auditoria(
+            accion='sede_desactivada',
+            entidad_tipo='Sede',
+            entidad_id=str(sede.id),
+            usuario=request.user,
+            ip=request.META.get('REMOTE_ADDR')
+        )
+        return Response({"detail": "Sede desactivada correctamente"})
+
+
+class EspecialidadDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [require_role(['admin'])()]
+        return [permissions.AllowAny()]
+
+    def get(self, request, especialidad_id):
+        try:
+            esp = Especialidad.objects.get(id=especialidad_id)
+            return Response(EspecialidadResponseSerializer(esp).data)
+        except Especialidad.DoesNotExist:
+            return Response({"detail": "Especialidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, especialidad_id):
+        try:
+            esp = Especialidad.objects.get(id=especialidad_id)
+        except Especialidad.DoesNotExist:
+            return Response({"detail": "Especialidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        for field in ['nombre', 'descripcion', 'precio_base']:
+            if field in request.data:
+                setattr(esp, field, request.data[field])
+        esp.save()
+
+        registrar_auditoria(
+            accion='especialidad_editada',
+            entidad_tipo='Especialidad',
+            entidad_id=str(esp.id),
+            usuario=request.user,
+            datos_cambio={'nombre': esp.nombre, 'precio_base': float(esp.precio_base)},
+            ip=request.META.get('REMOTE_ADDR')
+        )
+        return Response(EspecialidadResponseSerializer(esp).data)
+
+    def delete(self, request, especialidad_id):
+        try:
+            esp = Especialidad.objects.get(id=especialidad_id)
+        except Especialidad.DoesNotExist:
+            return Response({"detail": "Especialidad no encontrada"}, status=status.HTTP_404_NOT_FOUND)
+
+        if Medico.objects.filter(especialidad=esp, activo=True).exists():
+            return Response({"detail": "No se puede eliminar una especialidad que tiene médicos activos asignados."}, status=status.HTTP_400_BAD_REQUEST)
+
+        esp.delete()
+        registrar_auditoria(
+            accion='especialidad_eliminada',
+            entidad_tipo='Especialidad',
+            entidad_id=str(especialidad_id),
+            usuario=request.user,
+            ip=request.META.get('REMOTE_ADDR')
+        )
+        return Response({"detail": "Especialidad eliminada correctamente"})
+
+
+class MedicoDetailView(APIView):
+    def get_permissions(self):
+        if self.request.method in ['PUT', 'PATCH', 'DELETE']:
+            return [require_role(['admin'])()]
+        return [permissions.AllowAny()]
+
+    def get(self, request, medico_id):
+        try:
+            medico = Medico.objects.select_related('usuario', 'especialidad', 'sede').get(id=medico_id)
+            return Response(MedicoResponseSerializer(medico).data)
+        except Medico.DoesNotExist:
+            return Response({"detail": "Médico no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, medico_id):
+        try:
+            medico = Medico.objects.select_related('usuario').get(id=medico_id)
+        except Medico.DoesNotExist:
+            return Response({"detail": "Médico no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+        if 'especialidad_id' in data:
+            medico.especialidad_id = data['especialidad_id']
+        if 'sede_id' in data:
+            medico.sede_id = data['sede_id']
+        if 'tarjeta_profesional' in data:
+            medico.tarjeta_profesional = data['tarjeta_profesional']
+        if 'duracion_cita_minutos' in data:
+            medico.duracion_cita_minutos = data['duracion_cita_minutos']
+        if 'genero' in data:
+            medico.genero = data['genero']
+        if 'activo' in data:
+            medico.activo = bool(data['activo'])
+            medico.usuario.activo = bool(data['activo'])
+            medico.usuario.save(update_fields=['activo'])
+        if 'nombre_completo' in data:
+            medico.usuario.nombre_completo = data['nombre_completo']
+            medico.usuario.save(update_fields=['nombre_completo'])
+        if 'telefono' in data:
+            medico.usuario.telefono = data['telefono']
+            medico.usuario.save(update_fields=['telefono'])
+
+        medico.save()
+
+        registrar_auditoria(
+            accion='medico_editado',
+            entidad_tipo='Medico',
+            entidad_id=str(medico.id),
+            usuario=request.user,
+            datos_cambio={'activo': medico.activo, 'tarjeta': medico.tarjeta_profesional},
+            ip=request.META.get('REMOTE_ADDR')
+        )
+        return Response(MedicoResponseSerializer(medico).data)
+
+    def delete(self, request, medico_id):
+        try:
+            medico = Medico.objects.select_related('usuario').get(id=medico_id)
+        except Medico.DoesNotExist:
+            return Response({"detail": "Médico no encontrado"}, status=status.HTTP_404_NOT_FOUND)
+
+        medico.activo = False
+        medico.save(update_fields=['activo'])
+        medico.usuario.activo = False
+        medico.usuario.save(update_fields=['activo'])
+
+        registrar_auditoria(
+            accion='medico_desactivado',
+            entidad_tipo='Medico',
+            entidad_id=str(medico.id),
+            usuario=request.user,
+            ip=request.META.get('REMOTE_ADDR')
+        )
+        return Response({"detail": "Médico desactivado correctamente"})
+

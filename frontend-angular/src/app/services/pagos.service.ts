@@ -15,7 +15,20 @@ export class PagosService {
   readonly payingCitaId = signal<string | null>(null);
   readonly lastSuccessMessage = signal<string | null>(null);
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(private http: HttpClient, private authService: AuthService) {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('medicore:auth-changed', () => {
+        this.clear();
+      });
+    }
+  }
+
+  clear(): void {
+    this.pagos.set([]);
+    this.payingCitaId.set(null);
+    this.lastSuccessMessage.set(null);
+    this.loading.set(false);
+  }
 
   loadMisPagos(): Observable<PagoItem[]> {
     this.loading.set(true);
@@ -108,6 +121,26 @@ export class PagosService {
         next: () => {
           this.loading.set(false);
           this.lastSuccessMessage.set('✅ Transferencia verificada y autorizada exitosamente. La cita está ahora confirmada.');
+          setTimeout(() => this.lastSuccessMessage.set(null), 5000);
+          this.loadMisPagos().subscribe();
+        },
+        error: () => {
+          this.loading.set(false);
+        }
+      })
+    );
+  }
+
+  rechazarPago(referencia: string): Observable<any> {
+    this.loading.set(true);
+    return this.http.post<any>(`${this.apiUrl}/webhook`, {
+      referencia: referencia,
+      estado: 'rechazado'
+    }).pipe(
+      tap({
+        next: () => {
+          this.loading.set(false);
+          this.lastSuccessMessage.set('❌ Transferencia rechazada. La cita asociada ha sido cancelada.');
           setTimeout(() => this.lastSuccessMessage.set(null), 5000);
           this.loadMisPagos().subscribe();
         },

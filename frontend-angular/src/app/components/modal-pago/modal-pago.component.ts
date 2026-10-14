@@ -39,7 +39,7 @@ import { CitaItem } from '../../models/cita.model';
           </div>
           <div class="text-right">
             <p class="text-[10px] uppercase font-bold text-muted-foreground">Valor a Pagar</p>
-            <p class="text-base font-extrabold text-emerald-400">$ 50.000 COP</p>
+            <p class="text-base font-extrabold text-emerald-400">$ {{ (cita.precio || cita.pago_monto || 50000) | number:'1.0-0' }} COP</p>
           </div>
         </div>
 

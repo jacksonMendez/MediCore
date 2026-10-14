@@ -192,18 +192,15 @@ class UnifiedLLMClient:
         Returns: (response, provider_name, model_name, is_fallback)
         Raises: RuntimeError if all providers fail.
         """
-        # Strict hierarchy:
+        # Strict hierarchy of verified working models:
         chain = [
             ("groq", "qwen/qwen3.8-27b", self._call_groq),
             ("groq", "openai/gpt-oss-120b", self._call_groq),
             ("groq", "openai/gpt-oss-20b", self._call_groq),
-            ("gemini", "gemini-flash-latest", self._call_gemini),
-            ("openrouter", "nex-agi/nex-n2.5-pro:free", self._call_openrouter_free),
-            ("openrouter", "deepseek/deepseek-v4-flash-0731:free", self._call_openrouter_free),
+            ("openrouter", "nvidia/nemotron-3.5-lightning:free", self._call_openrouter_free),
+            ("openrouter", "liquid/lfm-2.5-2.6b:free", self._call_openrouter_free),
+            ("openrouter", "thinkingmachines/inkling:free", self._call_openrouter_free),
         ]
-
-        # Note on Cerebras: The Cerebras account returned 402 Payment Required during audit.
-        # It is omitted from active invocation to prevent any attempted billing calls.
 
         errors = []
         for idx, (provider, model_name, call_fn) in enumerate(chain):
